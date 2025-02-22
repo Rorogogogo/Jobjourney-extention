@@ -260,3 +260,48 @@ observer.observe(document.documentElement, {
   childList: true,
   subtree: true
 })
+
+// Listen for messages from the website
+window.addEventListener('message', function (event) {
+  // Make sure the message is from our website
+  if (event.source !== window) return
+
+  console.log('Content script received message from website:', event.data)
+
+  // Handle START_SCRAPING message
+  if (event.data.type === 'START_SCRAPING') {
+    console.log('Forwarding START_SCRAPING message to extension:', event.data)
+
+    // Forward the message to the extension's background script
+    chrome.runtime.sendMessage({
+      action: 'START_SCRAPING',
+      data: event.data.data
+    }, response => {
+      console.log('Received response from extension:', response)
+      // Send response back to website
+      window.postMessage({
+        type: 'SCRAPING_RESPONSE',
+        data: response
+      }, '*')
+    })
+  }
+
+  // Handle sendJobs response
+  if (event.data.type === 'SEND_JOBS_RESPONSE') {
+    console.log('Received jobs response:', event.data)
+    // Forward the response back to the extension
+    chrome.runtime.sendMessage({
+      action: 'JOBS_RECEIVED_RESPONSE',
+      data: {
+        success: event.data.data.isSuccess || event.data.data.success,
+        message: event.data.data.message,
+        totalJobs: event.data.data.totalCount,
+        jobs: event.data.data.items
+      }
+    })
+  }
+})
+
+// Notify website that extension is available
+window.postMessage({ type: 'EXTENSION_AVAILABLE' }, '*');
+

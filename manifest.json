@@ -1,20 +1,23 @@
 {
   "manifest_version": 3,
   "name": "JobJourney Assistant",
-  "version": "1.0",
+  "version": "1.0.0",
   "description": "Help you search and track job applications across multiple platforms",
   "permissions": [
     "tabs",
     "storage",
     "scripting",
     "system.display",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
   "host_permissions": [
     "*://*.linkedin.com/*",
     "*://*.indeed.com/*",
     "*://*.seek.com.au/*",
-    "http://localhost:3000/*",
+    "*://*.reed.co.uk/*",
+    "*://*.workopolis.com/*",
+    "http://localhost:5001/*",
     "https://*.jobjourney.me/*"
   ],
   "action": {
@@ -33,20 +36,15 @@
       "matches": [
         "https://*.linkedin.com/*",
         "https://*.seek.com.au/*",
-        "https://*.indeed.com/*"
+        "https://*.indeed.com/*",
+        "https://*.reed.co.uk/*",
+        "https://*.workopolis.com/*",
+        "http://localhost:5001/*",
+        "https://*.jobjourney.me/*"
       ],
       "js": [
         "helpers/jobScrapers.js",
         "content.js"
-      ]
-    },
-    {
-      "matches": [
-        "http://localhost:3000/*",
-        "https://*.jobjourney.me/*"
-      ],
-      "js": [
-        "jobjourney_content.js"
       ]
     }
   ],

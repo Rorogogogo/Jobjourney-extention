@@ -31,6 +31,7 @@
       background: white;
       padding: 10px 0;
       z-index: 100;
+      align-items: center;
     }
 
     input {
@@ -301,7 +302,6 @@
     }
 
     .location-select {
-      flex: 1;
       padding: 8px;
       border: 1px solid #ccc;
       border-radius: 4px;
@@ -310,34 +310,28 @@
       cursor: pointer;
     }
 
+    #country {
+      min-width: 140px;
+    }
+
+    #location {
+      min-width: 180px;
+    }
+
+    #searchBtn {
+      min-width: 80px;
+    }
+
+    .search-input:focus,
     .location-select:focus {
       outline: none;
       border-color: #0073b1;
       box-shadow: 0 0 0 2px rgba(0, 115, 177, 0.2);
     }
 
-    .location-select:hover {
-      border-color: #666;
-    }
-
-    .location-select option {
-      padding: 8px;
-    }
-
-    .search-input {
-      flex: 1;
-      padding: 8px;
-      border: 1px solid #ccc;
-      border-radius: 4px;
-      background-color: white;
-      font-size: 14px;
-      margin-right: 10px;
-    }
-
-    .search-input:focus {
-      outline: none;
-      border-color: #0073b1;
-      box-shadow: 0 0 0 2px rgba(0, 115, 177, 0.2);
+    .location-select:disabled {
+      background-color: #f5f5f5;
+      cursor: not-allowed;
     }
   </style>
 </head>
@@ -349,31 +343,72 @@
     <div id="websiteOptions" style="margin: 5px 0 15px 0;"></div>
 
     <div class="search-section">
-      <input type="text" id="searchInput" class="search-input" placeholder="Enter job title or keywords">
-      <select id="location" class="location-select">
+      <input type="text" id="searchInput" class="search-input" placeholder="Enter job title or keywords" required>
+      <select id="country" class="location-select" style="min-width: 120px;" required>
+        <option value="">Select Country</option>
+        <option value="United States">United States</option>
+        <option value="Australia">Australia</option>
+        <option value="United Kingdom">United Kingdom</option>
+        <option value="Canada">Canada</option>
+      </select>
+      <select id="location" class="location-select" required disabled>
         <option value="">Select a location</option>
-        <option value="Sydney, NSW">Sydney, NSW</option>
-        <option value="Melbourne, VIC">Melbourne, VIC</option>
-        <option value="Brisbane, QLD">Brisbane, QLD</option>
-        <option value="Perth, WA">Perth, WA</option>
-        <option value="Adelaide, SA">Adelaide, SA</option>
-        <option value="Gold Coast, QLD">Gold Coast, QLD</option>
-        <option value="Newcastle, NSW">Newcastle, NSW</option>
-        <option value="Canberra, ACT">Canberra, ACT</option>
-        <option value="Wollongong, NSW">Wollongong, NSW</option>
-        <option value="Hobart, TAS">Hobart, TAS</option>
-        <option value="Geelong, VIC">Geelong, VIC</option>
-        <option value="Townsville, QLD">Townsville, QLD</option>
-        <option value="Cairns, QLD">Cairns, QLD</option>
-        <option value="Darwin, NT">Darwin, NT</option>
-        <option value="Toowoomba, QLD">Toowoomba, QLD</option>
-        <option value="Ballarat, VIC">Ballarat, VIC</option>
-        <option value="Bendigo, VIC">Bendigo, VIC</option>
-        <option value="Albury, NSW">Albury, NSW</option>
-        <option value="Launceston, TAS">Launceston, TAS</option>
       </select>
       <button id="searchBtn">Search</button>
     </div>
+
+    <!-- Location options templates (hidden) -->
+    <template id="usLocations">
+      <option value="New York, NY, United States">New York, NY</option>
+      <option value="Los Angeles, CA, United States">Los Angeles, CA</option>
+      <option value="Chicago, IL, United States">Chicago, IL</option>
+      <option value="Houston, TX, United States">Houston, TX</option>
+      <option value="Phoenix, AZ, United States">Phoenix, AZ</option>
+      <option value="Philadelphia, PA, United States">Philadelphia, PA</option>
+      <option value="San Antonio, TX, United States">San Antonio, TX</option>
+      <option value="San Diego, CA, United States">San Diego, CA</option>
+      <option value="Dallas, TX, United States">Dallas, TX</option>
+      <option value="San Jose, CA, United States">San Jose, CA</option>
+    </template>
+
+    <template id="australiaLocations">
+      <option value="Sydney, NSW, Australia">Sydney, NSW</option>
+      <option value="Melbourne, VIC, Australia">Melbourne, VIC</option>
+      <option value="Brisbane, QLD, Australia">Brisbane, QLD</option>
+      <option value="Perth, WA, Australia">Perth, WA</option>
+      <option value="Adelaide, SA, Australia">Adelaide, SA</option>
+      <option value="Gold Coast, QLD, Australia">Gold Coast, QLD</option>
+      <option value="Newcastle, NSW, Australia">Newcastle, NSW</option>
+      <option value="Canberra, ACT, Australia">Canberra, ACT</option>
+      <option value="Wollongong, NSW, Australia">Wollongong, NSW</option>
+      <option value="Hobart, TAS, Australia">Hobart, TAS</option>
+    </template>
+
+    <template id="ukLocations">
+      <option value="London, United Kingdom">London</option>
+      <option value="Manchester, United Kingdom">Manchester</option>
+      <option value="Birmingham, United Kingdom">Birmingham</option>
+      <option value="Leeds, United Kingdom">Leeds</option>
+      <option value="Glasgow, United Kingdom">Glasgow</option>
+      <option value="Liverpool, United Kingdom">Liverpool</option>
+      <option value="Edinburgh, United Kingdom">Edinburgh</option>
+      <option value="Bristol, United Kingdom">Bristol</option>
+      <option value="Cardiff, United Kingdom">Cardiff</option>
+      <option value="Belfast, United Kingdom">Belfast</option>
+    </template>
+
+    <template id="canadaLocations">
+      <option value="Toronto, ON, Canada">Toronto, ON</option>
+      <option value="Vancouver, BC, Canada">Vancouver, BC</option>
+      <option value="Montreal, QC, Canada">Montreal, QC</option>
+      <option value="Calgary, AB, Canada">Calgary, AB</option>
+      <option value="Ottawa, ON, Canada">Ottawa, ON</option>
+      <option value="Edmonton, AB, Canada">Edmonton, AB</option>
+      <option value="Winnipeg, MB, Canada">Winnipeg, MB</option>
+      <option value="Quebec City, QC, Canada">Quebec City, QC</option>
+      <option value="Halifax, NS, Canada">Halifax, NS</option>
+      <option value="Victoria, BC, Canada">Victoria, BC</option>
+    </template>
 
     <div class="progress-section" id="progressSection">
       <div class="progress-bar">

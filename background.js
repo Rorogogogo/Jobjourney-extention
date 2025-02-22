@@ -1,7 +1,7 @@
 import config from './src/config/config.js'
 
 // Handle installation
-chrome.runtime.onInstalled.addListener(() => {
+chrome.runtime.onInstalled.addListener(async () => {
   console.log('JobJourney Assistant installed')
 })
 
@@ -67,100 +67,28 @@ chrome.windows.onRemoved.addListener((windowId) => {
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Received message in background:', request.action, request)
 
-  if (request.action === 'openJobJourney') {
-    console.log('Opening JobJourney with jobs:', request.jobs)
-
-    // Handle async config
+  if (request.action === 'getBaseUrl') {
+    console.log('Getting base URL')
     config.getBaseUrl().then(baseUrl => {
-      const jobJourneyUrl = `${baseUrl}/job-market?source=extension`
-      console.log('Using JobJourney URL:', jobJourneyUrl)
-
-      // Store jobs data in localStorage
-      const jobsData = request.jobs
-      chrome.storage.local.set({ 'jobJourneyJobs': jobsData }, () => {
-        console.log('Jobs data stored in chrome.storage.local')
-        // Open JobJourney frontend in a new tab
-        chrome.tabs.create({
-          url: jobJourneyUrl,
-          active: true
-        }, (tab) => {
-          console.log('JobJourney tab created, injecting content script')
-          // Wait for the page to load before injecting the content script
-          chrome.tabs.onUpdated.addListener(function listener (tabId, info) {
-            if (tabId === tab.id && info.status === 'complete') {
-              chrome.tabs.onUpdated.removeListener(listener)
-
-              // Inject the content script
-              chrome.scripting.executeScript({
-                target: { tabId: tab.id },
-                func: (jobs) => {
-                  console.log('Content script injected with jobs:', jobs)
-                  // Listen for PAGE_READY message from the React app
-                  window.addEventListener('message', function (event) {
-                    // Only accept messages from our window
-                    if (event.source !== window) return
-
-                    if (event.data.type === 'PAGE_READY') {
-                      console.log('Content script: Received PAGE_READY, sending jobs')
-                      // Send the jobs to the page
-                      window.postMessage({
-                        type: 'FROM_EXTENSION',
-                        source: 'extension',
-                        jobs: jobs
-                      }, '*')
-                    }
-                  })
-
-                  // Also send jobs immediately in case we missed the PAGE_READY message
-                  setTimeout(() => {
-                    console.log('Content script: Sending jobs immediately')
-                    window.postMessage({
-                      type: 'FROM_EXTENSION',
-                      source: 'extension',
-                      jobs: jobs
-                    }, '*')
-                  }, 1000)
-                },
-                args: [jobsData]
-              })
-            }
-          })
-        })
-      })
-
-      sendResponse({ success: true })
-    }).catch(error => {
-      console.error('Error getting JobJourney URL:', error)
-      sendResponse({ success: false, error: 'Failed to determine JobJourney URL' })
-    })
-
-    return true // Required for async response
-  }
-
-  if (request.action === 'pageReady') {
-    console.log('Received pageReady signal from tab:', sender.tab.id)
-    // When the page signals it's ready, send the stored jobs
-    chrome.storage.local.get(['jobJourneyJobs'], (result) => {
-      console.log('Retrieved stored jobs:', result.jobJourneyJobs)
-      if (result.jobJourneyJobs) {
-        console.log('Sending jobs to tab:', sender.tab.id)
-        chrome.tabs.sendMessage(sender.tab.id, {
-          action: 'importJobs',
-          jobs: result.jobJourneyJobs
-        }, (response) => {
-          console.log('Response from importJobs message:', response)
-        })
-        // Clear the stored jobs after sending
-        chrome.storage.local.remove(['jobJourneyJobs'])
-        console.log('Cleared stored jobs')
-      } else {
-        console.log('No stored jobs found')
+      console.log('Got base URL:', baseUrl)
+      if (!baseUrl) {
+        console.error('Base URL is undefined')
+        sendResponse(null)
+        return
       }
+      // Remove any trailing slashes
+      baseUrl = baseUrl.replace(/\/+$/, '')
+      console.log('Sending base URL:', baseUrl)
+      sendResponse(baseUrl)
+    }).catch(error => {
+      console.error('Error getting base URL:', error)
+      // Default to production URL if there's an error
+      const prodUrl = 'https://jobjourney.me'
+      console.log('Defaulting to production URL:', prodUrl)
+      sendResponse(prodUrl)
     })
-    sendResponse({ success: true })
     return true // Required for async response
   }
-
 
   if (request.action === 'openJobSites') {
     const sites = [
@@ -170,7 +98,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     ]
 
     sites.forEach(url => {
-      chrome.tabs.create({ url, active: true }) // Ensures the tab is focused
+      chrome.tabs.create({ url, active: true })
     })
 
     sendResponse({ success: true })
