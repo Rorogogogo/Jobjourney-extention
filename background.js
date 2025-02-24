@@ -33,24 +33,37 @@ chrome.action.onClicked.addListener(async () => {
       const screenWidth = primaryDisplay.bounds.width
       const screenHeight = primaryDisplay.bounds.height
 
-      // Calculate position to ensure window is always visible
-      const windowWidth = 800
-      const windowHeight = 800
-      const left = Math.min(Math.max(0, screenWidth - windowWidth), screenWidth - (windowWidth / 2))
-      const top = Math.min(Math.max(0, 0), screenHeight - (windowHeight / 2))
+      // Fixed minimum dimensions to ensure UI is usable
+      const minWidth = Math.max(600, screenWidth * 0.5)  // At least 600px or 50% of screen width
+      const minHeight = Math.max(700, screenHeight * 0.5) // At least 700px or 50% of screen height
+
+      // Calculate window dimensions
+      const windowWidth = Math.max(minWidth, Math.min(1024, screenWidth * 0.7))  // Between min and 1024px
+      const windowHeight = Math.max(minHeight, Math.min(900, screenHeight * 0.8)) // Between min and 900px
+
+      // Calculate position to center the window
+      const left = Math.max(0, Math.floor((screenWidth - windowWidth) / 2))
+      const top = Math.max(0, Math.floor((screenHeight - windowHeight) / 2))
 
       // Create a new popup window
       chrome.windows.create({
         url: 'popup.html',
         type: 'popup',
-        width: windowWidth,
-        height: windowHeight,
-        focused: true,
+        width: Math.floor(windowWidth),
+        height: Math.floor(windowHeight),
+        left: left,
         top: top,
-        left: left
+        focused: true
       }, (window) => {
         popupWindowId = window.id
-        chrome.windows.update(popupWindowId, { focused: true }) // Ensure the window is focused
+        // Ensure the window is focused and properly sized
+        chrome.windows.update(popupWindowId, {
+          focused: true,
+          width: Math.floor(windowWidth),
+          height: Math.floor(windowHeight),
+          left: left,
+          top: top
+        })
       })
     })
   })
