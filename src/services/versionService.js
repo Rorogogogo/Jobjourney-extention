@@ -197,13 +197,25 @@ function showUpdateUI ({ currentVersion, minimumVersion, message }) {
 
         if (!response.success) {
           console.error('Failed to trigger download:', response)
-          // Fallback to GitHub if download trigger fails
-          chrome.tabs.create({ url: 'https://github.com/Rorogogogo/Jobjourney-extention' })
+          // Show a notification instead of redirecting to GitHub
+          chrome.notifications.create({
+            type: 'basic',
+            iconUrl: '/icons/icon128.png',
+            title: 'Extension Update Required',
+            message: 'Please visit JobJourney website to download the latest extension.',
+            priority: 2
+          })
         }
       } catch (error) {
         console.error('Error triggering download:', error)
-        // Fallback to GitHub on error
-        chrome.tabs.create({ url: 'https://github.com/Rorogogogo/Jobjourney-extention' })
+        // Show a notification instead of redirecting to GitHub
+        chrome.notifications.create({
+          type: 'basic',
+          iconUrl: '/icons/icon128.png',
+          title: 'Extension Update Required',
+          message: 'Please visit JobJourney website to download the latest extension.',
+          priority: 2
+        })
       }
     })
   }
