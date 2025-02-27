@@ -150,7 +150,16 @@ function showUpdateUI ({ currentVersion, minimumVersion, message }) {
   if (updateBtn) {
     updateBtn.addEventListener('click', async () => {
       try {
-        const tab = await tabService.ensureJobJourneyWebsite()
+        const tab = await tabService.ensureJobJourneyWebsite(false)
+
+        // Explicitly focus on the JobJourney tab
+        await chrome.tabs.update(tab.id, { active: true })
+        // Also bring the tab's window to the front
+        const tabInfo = await chrome.tabs.get(tab.id)
+        if (tabInfo.windowId) {
+          await chrome.windows.update(tabInfo.windowId, { focused: true })
+        }
+
         console.log('Sending download trigger message to JobJourney...')
 
         // Send download trigger message
