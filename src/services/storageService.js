@@ -25,6 +25,13 @@ async function loadLastCountry () {
   })
 }
 
+// Function to save the country directly
+async function saveLastCountry (country) {
+  return chrome.storage.local.set({
+    lastCountry: country
+  })
+}
+
 // Function to load website settings
 async function loadWebsiteSettings () {
   const settings = await chrome.storage.sync.get('websiteSettings')
@@ -45,6 +52,7 @@ export default {
   loadLastLocation,
   saveLastLocation,
   loadLastCountry,
+  saveLastCountry,
   loadWebsiteSettings,
   saveWebsiteSettings,
   updateScrapingState

@@ -15,6 +15,7 @@
     "*://*.linkedin.com/*",
     "*://*.indeed.com/*",
     "*://*.seek.com.au/*",
+    "*://*.seek.co.nz/*",
     "*://*.reed.co.uk/*",
     "*://*.workopolis.com/*",
     "http://localhost:5001/*",
@@ -36,6 +37,7 @@
       "matches": [
         "https://*.linkedin.com/*",
         "https://*.seek.com.au/*",
+        "https://*.seek.co.nz/*",
         "https://*.indeed.com/*",
         "https://*.reed.co.uk/*",
         "https://*.workopolis.com/*",

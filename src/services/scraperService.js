@@ -186,6 +186,15 @@ function createJobSearchUrls (searchTerm, location) {
       action: 'scrapeSEEK'
     })
   }
+  // Add SEEK for New Zealand
+  else if (location.includes('New Zealand')) {
+    sites.push({
+      id: 'seek',
+      url: `https://www.seek.co.nz/${seekSearchTerm}-jobs/in-${location.split(',')[0].toLowerCase().replace(/\s+/g, '-')}`,
+      platform: 'SEEK NZ',
+      action: 'scrapeSEEK'
+    })
+  }
 
   return sites
 }

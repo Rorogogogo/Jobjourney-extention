@@ -31,7 +31,8 @@ function updateLocationOptions (country) {
     'United States': 'usLocations',
     'Australia': 'australiaLocations',
     'United Kingdom': 'ukLocations',
-    'Canada': 'canadaLocations'
+    'Canada': 'canadaLocations',
+    'New Zealand': 'newZealandLocations'
   }[country]
 
   // Clear current options except the first one
@@ -78,8 +79,8 @@ function updateLocationOptions (country) {
   `
   websiteOptions.appendChild(indeedDiv)
 
-  // SEEK is only available for Australia
-  if (country === 'Australia') {
+  // SEEK is available for Australia and New Zealand
+  if (country === 'Australia' || country === 'New Zealand') {
     const seekDiv = document.createElement('div')
     seekDiv.className = 'website-option'
     seekDiv.innerHTML = `
@@ -87,7 +88,7 @@ function updateLocationOptions (country) {
         <input type="checkbox" 
                id="seek" 
                checked>
-        SEEK
+        SEEK ${country === 'New Zealand' ? 'NZ' : ''}
       </label>
     `
     websiteOptions.appendChild(seekDiv)
@@ -132,7 +133,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Add country change handler
   countrySelect.addEventListener('change', (e) => {
-    updateLocationOptions(e.target.value)
+    const country = e.target.value
+    updateLocationOptions(country)
+    // Save the country selection
+    if (country) {
+      storageService.saveLastCountry(country)
+    }
   })
 
   // Load last used country and location
@@ -197,8 +203,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   searchBtn.addEventListener('click', async () => {
     const locationSelect = document.getElementById('location')
     const searchInput = document.getElementById('searchInput')
+    const countrySelect = document.getElementById('country')
     const location = locationSelect.value.trim()
     const searchTerm = searchInput.value.trim()
+    const country = countrySelect.value.trim()
 
     // Get the current extension window
     const currentWindow = await chrome.windows.getCurrent()
@@ -216,6 +224,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.log('=== Starting Job Search ===')
     console.log('Search Term:', searchTerm)
     console.log('Location:', location)
+    console.log('Country:', country)
 
     // Send scraping started message to frontend
     await tabService.ensureJobJourneyWebsite().then(tab => {
@@ -237,8 +246,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Show overlay and disable interaction
     uiService.showOverlay(overlay, true)
 
-    // Save location to storage
-    await storageService.saveLastLocation(location)
+    // Save location and country to storage
+    await Promise.all([
+      storageService.saveLastLocation(location),
+      storageService.saveLastCountry(country)
+    ])
 
     // Reset state
     scrapedJobs = []

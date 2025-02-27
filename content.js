@@ -180,6 +180,36 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('=== Starting Job Scraping ===')
     console.log('Page URL:', currentUrl)
 
+    // Define website structures for different platforms
+    const websiteStructures = {
+      linkedin: {
+        jobCards: 'div.base-card.base-card--link.job-search-card',
+        jobTitle: 'h3.base-search-card__title',
+        company: 'h4.base-search-card__subtitle a'
+      },
+      seekAustralia: {
+        jobCards: 'article[data-card-type="JobCard"]',
+        jobTitle: '[data-automation="job-title"]',
+        company: '[data-automation="job-company-name"]'
+      },
+      seekNewZealand: {
+        jobCards: 'article[data-card-type="JobCard"]',
+        jobTitle: '[data-automation="job-title"]',
+        company: '[data-automation="job-company-name"]'
+      }
+    }
+
+    let websiteStructure = null
+    if (currentUrl.includes('linkedin.com/jobs')) {
+      websiteStructure = websiteStructures.linkedin
+    }
+    else if (currentUrl.includes('seek.com.au')) {
+      websiteStructure = websiteStructures.seekAustralia
+    }
+    else if (currentUrl.includes('seek.co.nz')) {
+      websiteStructure = websiteStructures.seekNewZealand || websiteStructures.seekAustralia // Fall back to Australia if NZ not defined
+    }
+
     const platform = Object.values(scrapers).find(s => s.isMatch(currentUrl))
     if (platform) {
       try {
@@ -196,7 +226,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         return true // Keep message channel open
       } catch (error) {
         console.error('Error during scraping:', error)
-        sendResponse({ success: false, error: error.message })
       }
     } else {
       sendResponse({ success: false, error: 'Unsupported platform' })

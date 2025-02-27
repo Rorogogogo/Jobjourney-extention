@@ -104,11 +104,28 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 
   if (request.action === 'openJobSites') {
-    const sites = [
-      'https://www.linkedin.com/jobs/search?keywords=Full+Stack&location=' + encodeURIComponent(request.location),
-      'https://www.seek.com.au/full-stack-jobs/in-' + request.location.replace(/\s+/g, '-'),
-      'https://au.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location)
-    ]
+    const sites = []
+
+    // LinkedIn works for all countries
+    sites.push('https://www.linkedin.com/jobs/search?keywords=Full+Stack&location=' + encodeURIComponent(request.location))
+
+    // Add country-specific job sites
+    if (request.location.includes('Australia')) {
+      sites.push('https://www.seek.com.au/full-stack-jobs/in-' + request.location.replace(/\s+/g, '-'))
+      sites.push('https://au.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location))
+    } else if (request.location.includes('New Zealand')) {
+      sites.push('https://www.seek.co.nz/full-stack-jobs/in-' + request.location.replace(/\s+/g, '-'))
+      sites.push('https://nz.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location))
+    } else if (request.location.includes('United Kingdom')) {
+      sites.push('https://uk.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location))
+    } else if (request.location.includes('Canada')) {
+      sites.push('https://ca.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location))
+    } else if (request.location.includes('United States')) {
+      sites.push('https://www.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location))
+    } else {
+      // Default to generic Indeed
+      sites.push('https://www.indeed.com/jobs?q=Full+Stack&l=' + encodeURIComponent(request.location))
+    }
 
     sites.forEach(url => {
       chrome.tabs.create({ url, active: true })
