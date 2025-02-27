@@ -1,16 +1,80 @@
 import tabService from './tabService.js'
 
-// Version check function using message passing
-async function checkVersion (shouldFocusPopup = true) {
-  console.group('checkVersion')
+// Helper function to wait for a specific amount of time
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms))
+
+// Check if the page is ready by sending a simple readiness check
+async function checkPageReady (tabId) {
+  console.log('Checking if JobJourney page is ready...')
   try {
-    console.log('Starting version check')
+    const result = await chrome.scripting.executeScript({
+      target: { tabId },
+      func: () => {
+        return {
+          ready: !!window.extensionUpdateData || document.readyState === 'complete',
+          state: document.readyState
+        }
+      }
+    })
+
+    console.log('Page readiness check result:', result[0]?.result)
+    return result[0]?.result?.ready || false
+  } catch (error) {
+    console.error('Error checking page readiness:', error)
+    return false
+  }
+}
+
+// Version check function using message passing
+async function checkVersion (shouldFocusPopup = true, retryCount = 0, existingTabId = null) {
+  console.group('checkVersion - attempt ' + (retryCount + 1))
+  try {
+    console.log('Starting version check (attempt ' + (retryCount + 1) + ')')
     const manifest = chrome.runtime.getManifest()
     console.log('Extension manifest:', manifest)
 
-    console.log('Ensuring JobJourney website is open...')
-    const tab = await tabService.ensureJobJourneyWebsite(shouldFocusPopup)
+    // Use existing tab if provided (for retries), otherwise get/create a new one
+    let tab
+    if (existingTabId) {
+      try {
+        console.log('Using existing tab ID:', existingTabId)
+        tab = await chrome.tabs.get(existingTabId)
+        // Focus on the tab but don't navigate to a new URL
+        await chrome.tabs.update(tab.id, { active: true })
+      } catch (e) {
+        console.warn('Existing tab no longer available, creating new one')
+        tab = await tabService.ensureJobJourneyWebsite(shouldFocusPopup)
+      }
+    } else {
+      console.log('Ensuring JobJourney website is open...')
+      tab = await tabService.ensureJobJourneyWebsite(shouldFocusPopup)
+    }
     console.log('JobJourney tab ready:', tab)
+
+    // Wait to ensure the page is fully loaded
+    console.log('Waiting for page to be fully initialized...')
+    await delay(1000)
+
+    // Check if page is ready for communication
+    const isReady = await checkPageReady(tab.id)
+    if (!isReady && retryCount < 2) {
+      console.log('Page not ready yet, waiting and retrying...')
+      console.groupEnd()
+      await delay(2000) // Wait longer before retry
+      return checkVersion(shouldFocusPopup, retryCount + 1, tab.id)
+    }
+
+    // Send a PAGE_READY message first to ensure the page's event listeners are set up
+    console.log('Sending PAGE_READY message to ensure event listeners are initialized...')
+    await chrome.scripting.executeScript({
+      target: { tabId: tab.id },
+      func: () => {
+        window.postMessage({ type: 'PAGE_READY' }, '*')
+      }
+    })
+
+    // Wait a moment for event listeners to initialize
+    await delay(500)
 
     // Send version check message to the page using executeScript
     console.log('Injecting version check message...')
@@ -33,15 +97,22 @@ async function checkVersion (shouldFocusPopup = true) {
     console.log('Waiting for version check response...')
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
-        console.warn('Version check timed out after 5 seconds')
-        resolve({
-          isCompatible: false,
-          requireUpdate: true,
-          currentVersion: manifest.version,
-          minimumVersion: 'Unknown',
-          message: 'Version check timed out. Please try again.'
-        })
-      }, 5000)
+        console.warn('Version check timed out after 8 seconds')
+        // If we've already retried twice, return an error, otherwise retry
+        if (retryCount >= 2) {
+          resolve({
+            isCompatible: true, // Default to compatible if we can't verify
+            requireUpdate: false,
+            currentVersion: manifest.version,
+            minimumVersion: 'Unknown',
+            message: 'Version check timed out. Continuing with current version.'
+          })
+        } else {
+          console.groupEnd()
+          console.log('Retrying version check due to timeout...')
+          resolve(checkVersion(shouldFocusPopup, retryCount + 1, tab.id))
+        }
+      }, 8000) // Longer timeout
 
       // Set up message listener in the JobJourney tab
       chrome.scripting.executeScript({
@@ -72,40 +143,85 @@ async function checkVersion (shouldFocusPopup = true) {
         clearTimeout(timeout)
         if (result && result.result) {
           console.log('Processing version check response data:', result.result)
-          const response = result.result.data
+          const response = result.result.data || {}
+
+          // If there's an error and we haven't retried too many times, retry
+          if (response.errorCode === 'VERSION_CHECK_ERROR' && retryCount < 2) {
+            console.warn('Version check failed, retrying...')
+            console.groupEnd()
+            setTimeout(() => {
+              resolve(checkVersion(shouldFocusPopup, retryCount + 1, tab.id))
+            }, 2000)
+            return
+          }
+
           resolve({
-            isCompatible: response.isCompatible,
-            requireUpdate: !response.isCompatible,
+            isCompatible: response.isCompatible !== false,
+            requireUpdate: response.isCompatible === false,
             currentVersion: manifest.version,
             minimumVersion: response.minimumVersion,
             message: response.message || 'Please update to the latest version'
           })
         } else {
           console.warn('No valid result from JobJourney tab:', result)
-          resolve({
-            isCompatible: false,
-            requireUpdate: true,
-            currentVersion: manifest.version,
-            minimumVersion: 'Unknown',
-            message: 'Failed to verify version compatibility'
-          })
+
+          // Retry if we haven't retried too many times
+          if (retryCount < 2) {
+            console.warn('Version check failed, retrying...')
+            console.groupEnd()
+            setTimeout(() => {
+              resolve(checkVersion(shouldFocusPopup, retryCount + 1, tab.id))
+            }, 2000)
+          } else {
+            resolve({
+              isCompatible: true, // Default to compatible if we can't verify
+              requireUpdate: false,
+              currentVersion: manifest.version,
+              minimumVersion: 'Unknown',
+              message: 'Failed to verify version compatibility, continuing with current version.'
+            })
+          }
         }
       }).catch(error => {
         console.error('Error in version check script:', error)
-        resolve({
-          isCompatible: false,
-          requireUpdate: true,
-          currentVersion: manifest.version,
-          minimumVersion: 'Unknown',
-          message: 'Error checking version compatibility'
-        })
+
+        // Retry if we haven't retried too many times
+        if (retryCount < 2) {
+          console.warn('Version check error, retrying...')
+          console.groupEnd()
+          setTimeout(() => {
+            resolve(checkVersion(shouldFocusPopup, retryCount + 1, tab.id))
+          }, 2000)
+        } else {
+          resolve({
+            isCompatible: true, // Default to compatible if we can't verify
+            requireUpdate: false,
+            currentVersion: manifest.version,
+            minimumVersion: 'Unknown',
+            message: 'Error checking version compatibility'
+          })
+        }
       })
     })
   } catch (error) {
     console.error('Version check failed:', error)
+
+    // Retry if we haven't retried too many times
+    if (retryCount < 2) {
+      console.warn('Version check error, retrying...')
+      console.groupEnd()
+      await delay(2000)
+      // If we have an existing tab, pass it to the retry
+      if (existingTabId) {
+        return checkVersion(shouldFocusPopup, retryCount + 1, existingTabId)
+      } else {
+        return checkVersion(shouldFocusPopup, retryCount + 1)
+      }
+    }
+
     return {
-      isCompatible: false,
-      requireUpdate: true,
+      isCompatible: true, // Default to compatible if we can't verify
+      requireUpdate: false,
       currentVersion: manifest.version,
       minimumVersion: 'Unknown',
       message: error.message || 'Failed to check version compatibility'
