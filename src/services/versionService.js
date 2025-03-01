@@ -11,14 +11,25 @@ async function checkPageReady (tabId) {
       target: { tabId },
       func: () => {
         return {
-          ready: !!window.extensionUpdateData || document.readyState === 'complete',
-          state: document.readyState
+          // Check for the global readiness flag first
+          ready: !!window.extensionPageReady || !!window.extensionUpdateData || document.readyState === 'complete',
+          state: document.readyState,
+          hasExtensionFlag: !!window.extensionPageReady,
+          hasUpdateData: !!window.extensionUpdateData
         }
       }
     })
 
-    console.log('Page readiness check result:', result[0]?.result)
-    return result[0]?.result?.ready || false
+    const readinessInfo = result[0]?.result || { ready: false, state: 'unknown' }
+    console.log('Page readiness check result:', readinessInfo)
+
+    // If the page has our special flag, it's definitely ready
+    if (readinessInfo.hasExtensionFlag) {
+      console.log('Page has extensionPageReady flag - communication should work')
+      return true
+    }
+
+    return readinessInfo.ready || false
   } catch (error) {
     console.error('Error checking page readiness:', error)
     return false

@@ -6,7 +6,12 @@ import scraperService from './src/services/scraperService.js'
 import uiService from './src/services/uiService.js'
 import storageService from './src/services/storageService.js'
 
-// Move checkbox change handler outside DOMContentLoaded
+// Notify background script that side panel is loaded
+if (window.location.pathname.includes('sidepanel.html')) {
+  chrome.runtime.sendMessage({ action: 'sidePanelLoaded' })
+}
+
+// Event handler for platform checkboxes
 const handleCheckboxChange = async (e) => {
   if (e.target.type === 'checkbox' && e.target.closest('.website-option')) {
     const newSettings = {}
@@ -95,10 +100,58 @@ function updateLocationOptions (country) {
   }
 }
 
+// Function to display empty state
+function showEmptyState (jobList, message = 'No jobs found', subMessage = 'Try adjusting your search criteria or select different job platforms') {
+  // Clear any existing content
+  jobList.innerHTML = ''
+
+  // Create empty state container
+  const emptyState = document.createElement('div')
+  emptyState.className = 'empty-state'
+
+  // Add icon
+  const icon = document.createElement('div')
+  icon.className = 'empty-state-icon'
+  icon.textContent = '🔍'
+
+  // Add main text
+  const text = document.createElement('div')
+  text.className = 'empty-state-text'
+  text.textContent = message
+
+  // Add subtext
+  const subtext = document.createElement('div')
+  subtext.className = 'empty-state-subtext'
+  subtext.textContent = subMessage
+
+  // Assemble the empty state
+  emptyState.appendChild(icon)
+  emptyState.appendChild(text)
+  emptyState.appendChild(subtext)
+
+  // Add to job list
+  jobList.appendChild(emptyState)
+}
+
+// Display jobs in the UI
+function displayJobs (jobs) {
+  const jobList = document.getElementById('jobList')
+  jobList.innerHTML = ''
+
+  if (!jobs || jobs.length === 0) {
+    showEmptyState(jobList)
+    return
+  }
+
+  jobs.forEach(job => {
+    jobList.appendChild(uiService.createJobCard(job))
+  })
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   console.log('DOM Content Loaded')
 
-  // Check version immediately when popup opens
+  // Check version immediately when panel opens
   const versionCheck = await versionService.checkVersion(false)
   if (!versionCheck.isCompatible || versionCheck.requireUpdate) {
     versionService.showUpdateUI({
@@ -454,7 +507,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 })
 
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Popup received message:', request)
+  console.log('Panel received message:', request)
 
   if (request.action === 'START_SCRAPING') {
     const data = request.data
