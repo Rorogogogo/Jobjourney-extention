@@ -34,7 +34,7 @@
     "default_path": "sidepanel.html"
   },
   "background": {
-    "service_worker": "background.js",
+    "service_worker": "background/index.js",
     "type": "module"
   },
   "content_scripts": [
@@ -65,7 +65,8 @@
       "resources": [
         "src/*.js",
         "src/config/*.js",
-        "src/services/*.js"
+        "src/services/*.js",
+        "background/*.js"
       ],
       "matches": [
         "<all_urls>"
