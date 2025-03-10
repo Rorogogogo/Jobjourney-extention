@@ -1,99 +1,67 @@
 import tabService from './tabService.js'
+import messagingService, { MessageType } from './messagingService.js'
+
+let storedJobs = [] // Store jobs in memory for showInJobJourney function
 
 // Function to send jobs to JobJourney
 async function sendJobsToJobJourney (jobs) {
   try {
     const tab = await tabService.ensureJobJourneyWebsite()
 
-    // Send jobs to the page using executeScript
-    console.log('Sending jobs to JobJourney tab...')
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: (message) => {
-        console.log('Executing in JobJourney tab, sending jobs:', message)
-        window.postMessage(message, '*')
-      },
-      args: [{
-        type: 'sendJobs',
-        data: {
-          jobs: jobs
-        }
-      }]
-    })
+    // Send jobs to the page using messaging service
+    console.log('Sending jobs to JobJourney tab using messaging service...')
+    return messagingService.sendToTab(tab.id, MessageType.JOBS_SCRAPED, { jobs })
+  } catch (error) {
+    console.error('Error sending jobs to JobJourney:', error)
+    throw error
+  }
+}
 
-    // Wait for response
-    const response = await new Promise((resolve) => {
-      let timeoutId = setTimeout(() => {
-        console.log('Send jobs timed out')
-        resolve({ success: false, message: 'Send jobs timed out' })
-      }, 5000)
-
-      // Listen for response from both content script and background
-      const messageListener = (message) => {
-        if (message.action === 'JOBS_RECEIVED_RESPONSE') {
-          console.log('Received jobs response in service:', message)
-          clearTimeout(timeoutId)
-          chrome.runtime.onMessage.removeListener(messageListener)
-          resolve(message.data)
-        }
-      }
-      chrome.runtime.onMessage.addListener(messageListener)
-
-      // Also set up message listener in the JobJourney tab as backup
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: () => {
-          return new Promise((resolve) => {
-            const handler = (event) => {
-              if (event.source !== window) return
-              if (event.data.type === 'JOBS_RECEIVED_RESPONSE') {
-                window.removeEventListener('message', handler)
-                resolve(event.data)
-              }
-            }
-            window.addEventListener('message', handler)
-          })
-        }
-      }).then(([result]) => {
-        if (result?.result?.data) {
-          console.log('Jobs received response from content script:', result.result.data)
-          clearTimeout(timeoutId)
-          chrome.runtime.onMessage.removeListener(messageListener)
-          resolve(result.result.data)
-        }
-      }).catch(error => {
-        console.error('Error in send jobs script:', error)
-        // Don't resolve here, let the message listener or timeout handle it
-      })
-    })
-
-    if (response.success) {
-      // Send message to trigger job import
-      await chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: (message) => {
-          console.log('Sending import trigger message:', message)
-          window.postMessage(message, '*')
-        },
-        args: [{
-          type: 'TRIGGER_JOB_IMPORT',
-          data: {
-            source: 'extension',
-            version: chrome.runtime.getManifest().version
-          }
-        }]
-      })
-
-      // Focus the tab and window
-      await chrome.tabs.update(tab.id, { active: true })
-      await chrome.windows.update(tab.windowId, { focused: true })
+// Function to show jobs in JobJourney website
+async function showInJobJourney () {
+  try {
+    if (storedJobs.length === 0) {
+      console.warn('No jobs to show in JobJourney')
+      throw new Error('No jobs available to show in JobJourney')
     }
 
-    return response
+    console.log(`Showing ${storedJobs.length} jobs in JobJourney...`)
+
+    // Get the base URL for JobJourney
+    const baseUrl = await messagingService.sendMessage('getBaseUrl')
+    if (!baseUrl) {
+      throw new Error('Failed to get JobJourney URL')
+    }
+
+    // Send jobs to JobJourney and show them
+    await sendJobsToJobJourney(storedJobs)
+    await messagingService.sendMessage(MessageType.SHOW_IN_JOBJOURNEY, { jobs: storedJobs })
+
+    return { success: true, message: 'Jobs sent to JobJourney' }
   } catch (error) {
-    console.error('Error sending jobs:', error)
-    return { success: false, message: error.message }
+    console.error('Error showing jobs in JobJourney:', error)
+    throw error
   }
+}
+
+// Function to store jobs for later use
+function setJobs (jobs) {
+  storedJobs = [...jobs]
+  console.log(`Stored ${storedJobs.length} jobs for later use`)
+  return storedJobs.length
+}
+
+// Function to get stored jobs
+function getJobs () {
+  return storedJobs
+}
+
+// Function to clear stored jobs
+function clearJobs () {
+  const count = storedJobs.length
+  storedJobs = []
+  console.log(`Cleared ${count} stored jobs`)
+  return count
 }
 
 // Function to find JobJourney job-market tab
@@ -139,24 +107,12 @@ async function sendJobsAndShow (scrapedJobs, baseUrl, jobsAlreadySent = false) {
   await chrome.windows.update(tab.windowId, { focused: true })
 
   // Only send jobs if they haven't been sent already
-  if (!jobsAlreadySent) {
-    // Send jobs to the JobJourney page
-    await chrome.scripting.executeScript({
-      target: { tabId: tab.id },
-      func: (message) => {
-        console.log('Sending jobs to JobJourney page:', message)
-        window.postMessage(message, '*')
-      },
-      args: [{
-        type: 'sendJobs',
-        data: {
-          jobs: scrapedJobs
-        }
-      }]
-    })
-
-    // Wait for jobs to be processed while keeping focus
-    await new Promise(resolve => setTimeout(resolve, 1000))
+  if (!jobsAlreadySent && scrapedJobs.length > 0) {
+    try {
+      await sendJobsToJobJourney(scrapedJobs)
+    } catch (error) {
+      console.error('Error sending jobs to JobJourney:', error)
+    }
   }
 
   await chrome.tabs.update(tab.id, { active: true })
@@ -201,5 +157,9 @@ async function sendJobsAndShow (scrapedJobs, baseUrl, jobsAlreadySent = false) {
 export default {
   sendJobsToJobJourney,
   sendJobsAndShow,
-  findJobMarketTab
+  findJobMarketTab,
+  showInJobJourney,
+  setJobs,
+  getJobs,
+  clearJobs
 } 

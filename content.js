@@ -1,3 +1,10 @@
+// Add this early in the content script to announce it's loaded
+console.log('🔵 JobJourney content script loaded on:', window.location.href)
+
+// No longer checking panel state on content script load
+// The EXTENSION_PING mechanism will be used instead to determine panel state
+// when the website needs to check if the panel is active
+
 // Add test function
 function testScraping () {
   const currentUrl = window.location.href
@@ -255,6 +262,103 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
   }
 
+  if (request.action === 'START_SCRAPING') {
+    console.log('Content script received START_SCRAPING message:', request)
+
+    // First check if panel is active
+    chrome.runtime.sendMessage({
+      action: 'CHECK_PANEL_ACTIVE',
+      data: {}
+    }, backgroundResponse => {
+      console.log('🟢 Background responded to panel check:', backgroundResponse)
+
+      // Add debug logging to see the exact structure of the response
+      console.log('Response structure check:', {
+        directAccess: backgroundResponse?.data?.connected,
+        successCheck: backgroundResponse?.success,
+        responseType: typeof backgroundResponse,
+        hasDataProperty: 'data' in backgroundResponse,
+        fullResponse: JSON.stringify(backgroundResponse)
+      })
+
+      // Get panel active status from background response - try multiple ways to accommodate
+      // both old and new response structures
+      const isPanelActive =
+        backgroundResponse?.data?.connected === true || // New structure
+        backgroundResponse?.isPanelActive === true ||   // Legacy structure
+        (backgroundResponse?.success === true && backgroundResponse?.data !== undefined) // Fallback for success without explicit inactive status
+
+      if (!isPanelActive) {
+        console.error('🔴 Panel is not active, cannot start scraping')
+
+        sendResponse({
+          success: false,
+          status: 'error',
+          message: 'Extension panel is not open. Please click on the extension icon and keep the panel open to start scraping.',
+          code: 'PANEL_NOT_ACTIVE',
+          data: null
+        })
+
+        return
+      }
+
+      // Send an immediate acknowledgment response to the website
+      const ackResponse = {
+        type: 'START_SCRAPING_RESPONSE',
+        data: {
+          success: true,
+          message: 'Scraping request received'
+        },
+        messageId: request.data.messageId,
+        originalMessageId: request.data.messageId,
+        source: 'JOBJOURNEY_EXTENSION',
+        isResponse: true,
+        timestamp: Date.now(),
+        target: 'JOBJOURNEY_APP',
+        protocolVersion: '1.0'
+      }
+
+      console.log('Sending immediate acknowledgment:', ackResponse)
+      window.postMessage(ackResponse, '*')
+
+      // Forward the message to the extension's background script
+      chrome.runtime.sendMessage({
+        action: 'START_SCRAPING',
+        data: request.data.data,
+        messageId: request.data.messageId
+      }, response => {
+        console.log('Received response from background script:', response)
+
+        // Forward the full response back to the website if needed
+        if (response && response.sendToWebsite) {
+          window.postMessage({
+            type: 'SCRAPING_STATUS',
+            data: response.data,
+            source: 'JOBJOURNEY_EXTENSION',
+            timestamp: Date.now(),
+            target: 'JOBJOURNEY_APP',
+            protocolVersion: '1.0'
+          }, '*')
+        }
+      })
+    })
+  }
+
+  // Send back a response
+  if (request.action === 'OPEN_SCRAPE_OVERLAY') {
+    createScrapeOverlay()
+    sendResponse({ success: true })
+  } else if (request.action === 'CLOSE_SCRAPE_OVERLAY') {
+    removeScrapeOverlay()
+    sendResponse({ success: true })
+  } else if (request.action === 'SCRAPE_TEST') {
+    const result = testScraping()
+    sendResponse({ success: true, data: result })
+  } else if (request.action === 'UPDATE_SCRAPE_STATUS') {
+    updateScrapeStatus(request.data)
+    sendResponse({ success: true })
+  }
+
   // Required for async response
   return true
 })
@@ -295,24 +399,58 @@ window.addEventListener('message', function (event) {
   // Make sure the message is from our website
   if (event.source !== window) return
 
-  console.log('Content script received message from website:', event.data)
+  // More detailed logging - add emoji to make it stand out in console
+  // Skip logging EXTENSION_PING messages to reduce noise
+  if (event.data && event.data.type && event.data.type !== 'EXTENSION_PING') {
+    console.log(`🔵 Content script received message (${event.data.type}) from website:`, event.data)
+  } else if (!event.data.type) {
+    console.log('🔵 Content script received non-typed message from website:', event.data)
+  }
 
-  // Handle START_SCRAPING message
-  if (event.data.type === 'START_SCRAPING') {
-    console.log('Forwarding START_SCRAPING message to extension:', event.data)
+  // Handle EXTENSION_PING message
+  if (event.data.type === 'EXTENSION_PING') {
+    // Just return a simple success response without checking panel status
+    window.postMessage({
+      type: 'EXTENSION_PING_RESPONSE',
+      source: 'JOBJOURNEY_EXTENSION',
+      data: {
+        success: true,
+        version: chrome.runtime.getManifest().version
+      },
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP'
+    }, '*')
 
-    // Forward the message to the extension's background script
+    return
+  }
+
+  // Handle VERSION_CHECK_RESPONSE message
+  if (event.data.type === 'VERSION_CHECK_RESPONSE') {
+    console.log('Received VERSION_CHECK_RESPONSE:', event.data)
+
+    // Forward the response to any listeners in the extension
+    // This ensures the extension's versionService receives the compatibility information
     chrome.runtime.sendMessage({
-      action: 'START_SCRAPING',
+      action: 'VERSION_CHECK_RESPONSE',
       data: event.data.data
-    }, response => {
-      console.log('Received response from extension:', response)
-      // Send response back to website
-      window.postMessage({
-        type: 'SCRAPING_RESPONSE',
-        data: response
-      }, '*')
+    }, (response) => {
+      // Make sure we handle response or lack thereof properly to avoid "message channel closed" error
+      if (chrome.runtime.lastError) {
+        console.warn('Error sending VERSION_CHECK_RESPONSE to background:', chrome.runtime.lastError.message)
+      } else if (response) {
+        console.log('Background acknowledged VERSION_CHECK_RESPONSE:', response)
+      }
     })
+
+    // Also post it to the window in case local listeners are waiting
+    window.postMessage({
+      type: 'VERSION_CHECK_RESPONSE_INTERNAL',
+      source: 'JOBJOURNEY_EXTENSION',
+      data: event.data.data,
+      timestamp: Date.now()
+    }, '*')
+
+    return
   }
 
   // Handle sendJobs response
@@ -329,8 +467,264 @@ window.addEventListener('message', function (event) {
       }
     })
   }
+
+  // Handle START_SCRAPING message
+  if (event.data.type === 'START_SCRAPING') {
+    console.log('Received START_SCRAPING from website:', event.data)
+
+    // Send an immediate acknowledgment response to the website
+    const ackResponse = {
+      type: 'START_SCRAPING_RESPONSE',
+      data: {
+        success: true,
+        message: 'Scraping request received'
+      },
+      messageId: event.data.messageId,
+      originalMessageId: event.data.messageId,
+      source: 'JOBJOURNEY_EXTENSION',
+      isResponse: true,
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP',
+      protocolVersion: '1.0'
+    }
+
+    console.log('Sending immediate acknowledgment:', ackResponse)
+    window.postMessage(ackResponse, '*')
+
+    // Forward the message to the extension's background script
+    chrome.runtime.sendMessage({
+      action: 'START_SCRAPING',
+      data: event.data.data,
+      messageId: event.data.messageId
+    }, response => {
+      console.log('Received response from background script:', response)
+
+      // Forward the full response back to the website if needed
+      if (response && response.sendToWebsite) {
+        window.postMessage({
+          type: 'SCRAPING_STATUS',
+          data: response.data,
+          source: 'JOBJOURNEY_EXTENSION',
+          timestamp: Date.now(),
+          target: 'JOBJOURNEY_APP',
+          protocolVersion: '1.0'
+        }, '*')
+      }
+    })
+  }
 })
 
 // Notify website that extension is available
-window.postMessage({ type: 'EXTENSION_AVAILABLE' }, '*');
+// This is replaced by the EXTENSION_PING mechanism which checks panel state
+// window.postMessage({ type: 'EXTENSION_AVAILABLE' }, '*')
+
+// Add listener for messages from the background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Message received from background script:', message)
+
+  // Handle scraping status updates
+  if (message.action === 'SCRAPING_STATUS_UPDATE') {
+    console.log('Forwarding scraping status update to website:', message.data)
+
+    // Forward the status update to the website
+    window.postMessage({
+      type: 'SCRAPING_STATUS',
+      data: message.data,
+      source: 'JOBJOURNEY_EXTENSION',
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP',
+      protocolVersion: '1.0'
+    }, '*')
+  }
+
+  // Handle scraped jobs
+  if (message.action === 'JOBS_SCRAPED') {
+    console.log('Forwarding scraped jobs to website:', message.data)
+
+    // Forward the jobs to the website
+    window.postMessage({
+      type: 'JOBS_SCRAPED',
+      data: message.data,
+      source: 'JOBJOURNEY_EXTENSION',
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP',
+      protocolVersion: '1.0'
+    }, '*')
+  }
+
+  return true // Keep the message channel open for async response
+})
+
+// ============================
+// PANEL STATE MANAGEMENT
+// ============================
+
+// Flag to track panel state
+let lastPanelStateCheck = 0
+let cachedPanelState = false
+
+// Function to expose extension panel state to the website
+function exposeExtensionPanelState (debug = false, forceCheck = false) {
+  const now = Date.now()
+
+  // If we've checked recently (within 30 seconds) and not forcing a check, use cached result
+  if (!forceCheck && (now - lastPanelStateCheck < 30000) && lastPanelStateCheck > 0) {
+    if (debug) console.log('Using cached panel state from within last 30 seconds')
+    return Promise.resolve(cachedPanelState)
+  }
+
+  // Otherwise, do a fresh check
+  return new Promise((resolve) => {
+    // Try direct panel communication first (more accurate)
+    chrome.runtime.sendMessage({
+      action: 'CHECK_PANEL_STATE',
+      debug: debug,
+      directPanelCheck: true
+    }, (response) => {
+      if (chrome.runtime.lastError) {
+        if (debug) console.log('No direct panel response, falling back to background check:', chrome.runtime.lastError.message)
+        // Fall back to messaging the background script
+        fallbackToBgStateCheck(debug, resolve)
+        return
+      }
+
+      // If we got a response directly from the panel
+      if (response && response.directFromPanel) {
+        // Panel is definitely active if it responded directly
+        processStateResponse(response, debug, 'Direct from panel')
+        lastPanelStateCheck = now
+        cachedPanelState = true
+        resolve(true)
+      } else {
+        // Otherwise use the standard background response
+        processStateResponse(response, debug, 'From background')
+        lastPanelStateCheck = now
+        cachedPanelState = (response && response.isPanelActive === true)
+        resolve(cachedPanelState)
+      }
+    })
+  })
+}
+
+// Helper to fall back to background check when direct panel check fails
+function fallbackToBgStateCheck (debug, resolve = null) {
+  chrome.runtime.sendMessage({
+    action: 'CHECK_PANEL_STATE',
+    debug: debug,
+    directPanelCheck: false
+  }, (response) => {
+    if (chrome.runtime.lastError) {
+      if (debug) console.error('Error checking panel state from background:', chrome.runtime.lastError)
+      // Default to inactive if there's an error
+      window.extensionPanelActive = false
+      lastPanelStateCheck = Date.now()
+      cachedPanelState = false
+      if (resolve) resolve(false)
+      return
+    }
+
+    processStateResponse(response, debug, 'Fallback')
+    lastPanelStateCheck = Date.now()
+    cachedPanelState = (response && response.isPanelActive === true)
+    if (resolve) resolve(cachedPanelState)
+  })
+}
+
+// Process and update the panel state based on response
+function processStateResponse (response, debug, source) {
+  // Only log if debug is enabled or the panel state has changed
+  const newState = response && response.isPanelActive === true
+  const stateChanged = window.extensionPanelActive !== newState
+
+  if (debug || stateChanged) {
+    console.log(`Extension panel state (${source}):`, newState ? 'active' : 'inactive')
+  }
+
+  // Update window property with the panel state
+  window.extensionPanelActive = newState
+
+  // Only send message if the state has changed to reduce spam
+  if (stateChanged) {
+    // Notify the website about the panel state
+    window.postMessage({
+      type: 'EXTENSION_PANEL_STATE',
+      source: 'JOBJOURNEY_EXTENSION',
+      data: {
+        isPanelActive: window.extensionPanelActive,
+        stateSource: source
+      },
+      timestamp: Date.now()
+    }, '*')
+  }
+}
+
+// Set up panel state monitoring only once at startup
+function setupPanelStateMonitoring () {
+  // Initial check with debug enabled to establish the first state
+  exposeExtensionPanelState(true, true).then(isActive => {
+    console.log(`Initial panel state check: ${isActive ? 'Active' : 'Inactive'}`)
+  })
+}
+
+// ============================
+// SCRAPING FUNCTIONALITY
+// ============================
+
+// Function to expose scraping functionality to the website
+function exposeScrapingFunction () {
+  // Define the scraping function that will be exposed to the website
+  window.startScrapingWithPort = function (config) {
+    console.log('Website called startScrapingWithPort:', config)
+
+    return new Promise((resolve, reject) => {
+      // First check if panel is active (force a fresh check)
+      exposeExtensionPanelState(true, true).then(isPanelActive => {
+        // Only proceed if panel is active
+        if (!isPanelActive) {
+          console.error('Cannot start scraping - panel is not active')
+          reject(new Error('Extension panel is not active. Please open the JobJourney panel first.'))
+          return
+        }
+
+        // Send the request to the extension
+        chrome.runtime.sendMessage({
+          action: 'START_SCRAPING',
+          data: config
+        }, (response) => {
+          if (chrome.runtime.lastError) {
+            console.error('Error sending scraping request:', chrome.runtime.lastError)
+            reject(new Error('Failed to send scraping request: ' + chrome.runtime.lastError.message))
+            return
+          }
+
+          console.log('Scraping request sent successfully, response:', response)
+          resolve(response)
+        })
+      }).catch(error => {
+        console.error('Error checking panel state:', error)
+        reject(new Error('Failed to check panel state: ' + error.message))
+      })
+    })
+  }
+
+  console.log('Exposed startScrapingWithPort function to website')
+}
+
+// ============================
+// INITIALIZATION
+// ============================
+
+// Initialize content script
+function initialize () {
+  console.log('JobJourney extension content script initialized')
+
+  // Set up initial panel state
+  setupPanelStateMonitoring()
+
+  // Expose scraping functionality
+  exposeScrapingFunction()
+}
+
+// Start initialization
+initialize();
 

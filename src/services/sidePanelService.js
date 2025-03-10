@@ -2,41 +2,74 @@
  * Side Panel Service
  * Handles functionality specific to the Chrome Side Panel implementation
  */
+import messagingService, { MessageType } from './messagingService.js'
 
 class SidePanelService {
+  constructor() {
+    console.log('SidePanelService constructed - minimal implementation')
+
+    // Just maintain a basic lastActivity for logging/debugging
+    this.lastActivity = Date.now()
+  }
+
   /**
    * Initialize the side panel service
    */
   initialize () {
-    console.log('Initializing Side Panel Service')
-    this.setupMessageListeners()
+    console.log('Initializing SidePanelService - minimal implementation')
+    return Promise.resolve()
   }
 
   /**
-   * Set up message listeners for side panel communication
+   * Notify that the side panel has loaded
+   * This is a stub for your implementation
    */
-  setupMessageListeners () {
-    chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-      if (request.action === 'sidePanelLoaded') {
-        console.log('Side panel loaded')
-        sendResponse({ success: true })
+
+
+  /**
+   * Mark the panel as closed
+   * This is a stub for your implementation
+   */
+  notifyPanelClosed () {
+    console.log('Panel closed stub called')
+  }
+
+  /**
+   * Update the last activity timestamp
+   */
+  updateActivity () {
+    this.lastActivity = Date.now()
+  }
+
+
+  /**
+   * Track user activity inside the panel
+   */
+  trackActivity () {
+    // Update the activity timestamp
+    this.updateActivity()
+  }
+
+  /**
+   * Set up activity tracking for the panel
+   */
+  setupActivityTracking () {
+    console.log('Setting up activity tracking')
+
+    // Track various user interactions
+    document.addEventListener('click', this.trackActivity.bind(this))
+    document.addEventListener('keypress', this.trackActivity.bind(this))
+    document.addEventListener('mousemove', this.trackActivity.bind(this))
+    document.addEventListener('scroll', this.trackActivity.bind(this))
+
+    // Track when panel loses focus or is hidden
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        this.trackActivity()
       }
     })
-  }
 
-  /**
-   * Open the side panel for a specific tab
-   * @param {number} tabId - The ID of the tab to open the side panel for
-   */
-  openSidePanel (tabId) {
-    if (!tabId) {
-      console.error('Cannot open side panel: No tab ID provided')
-      return
-    }
-
-    chrome.sidePanel.open({ tabId }).catch(error => {
-      console.error('Error opening side panel:', error)
-    })
+    console.log('Activity tracking setup complete')
   }
 }
 

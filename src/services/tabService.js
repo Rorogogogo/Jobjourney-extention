@@ -1,3 +1,6 @@
+// Import messaging service
+import messagingService from './messagingService.js'
+
 // Function to check if JobJourney tab exists and is ready
 async function findJobJourneyTab () {
   const tabs = await chrome.tabs.query({})
@@ -19,8 +22,8 @@ async function ensureJobJourneyWebsite (shouldFocusPopup = true) {
     if (!existingTab) {
       console.log('No existing tab found, creating new tab')
       try {
-        // Get base URL and open new tab
-        const baseUrl = await chrome.runtime.sendMessage({ action: 'getBaseUrl' })
+        // Get base URL using messaging service
+        const baseUrl = await messagingService.sendMessage('getBaseUrl')
         console.log('Got base URL:', baseUrl)
 
         if (!baseUrl) {

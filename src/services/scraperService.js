@@ -143,9 +143,9 @@ async function scrapeWithPagination (tab, platform, progressCallback) {
 }
 
 // Function to create job search URLs
-function createJobSearchUrls (searchTerm, location) {
+function createJobSearchUrls (searchTerm, location, platformFilter = null) {
   const seekSearchTerm = searchTerm.toLowerCase().replace(/\s+/g, '-')
-  const sites = []
+  let sites = []
 
   // LinkedIn is available in all regions
   sites.push({
@@ -196,7 +196,145 @@ function createJobSearchUrls (searchTerm, location) {
     })
   }
 
+  // Filter sites by platform if specified
+  if (platformFilter) {
+    console.log(`Filtering URLs for platform:`, platformFilter)
+
+    // Handle both string and array platformFilter
+    if (Array.isArray(platformFilter)) {
+      // If it's an array, keep sites that match any of the platforms in the array
+      sites = sites.filter(site => {
+        return platformFilter.some(platform => {
+          // Skip if platform is not a string
+          if (typeof platform !== 'string') {
+            console.warn('Invalid platform filter item:', platform)
+            return false
+          }
+
+          const platformLower = platform.toLowerCase()
+
+          // Check for exact match on id first
+          if (site.id.toLowerCase() === platformLower) {
+            return true
+          }
+
+          // Check if platform name contains the filter
+          if (site.platform.toLowerCase().includes(platformLower)) {
+            return true
+          }
+
+          return false
+        })
+      })
+    } else if (typeof platformFilter === 'string') {
+      // Handle string platformFilter (original implementation)
+      const platformLower = platformFilter.toLowerCase()
+
+      sites = sites.filter(site => {
+        // Check for exact match on id first
+        if (site.id.toLowerCase() === platformLower) {
+          return true
+        }
+
+        // Check if platform name contains the filter
+        if (site.platform.toLowerCase().includes(platformLower)) {
+          return true
+        }
+
+        return false
+      })
+    } else {
+      console.warn('Invalid platformFilter type:', typeof platformFilter)
+    }
+
+    console.log(`After filtering, found ${sites.length} URLs for`, platformFilter)
+  }
+
   return sites
+}
+
+// Function to scrape from a specific platform
+async function scrapeFromPlatform (platform, jobTitle, city, country, progressCallback = () => { }) {
+  console.log(`Starting scrape from platform: ${platform} for ${jobTitle} in ${city}, ${country}`)
+
+  try {
+    // Create search URLs based on platform
+    const urlObjects = createJobSearchUrls(jobTitle, city, platform)
+
+    if (!urlObjects || urlObjects.length === 0) {
+      console.warn(`No URLs generated for platform: ${platform}`)
+      return []
+    }
+
+    console.log(`Generated ${urlObjects.length} URLs for ${platform}:`, urlObjects)
+
+    // Create tabs for each URL
+    const allJobs = []
+    let tabsProcessed = 0
+
+    for (const urlObj of urlObjects) {
+      progressCallback(Math.round((tabsProcessed / urlObjects.length) * 80), 'opening_tab')
+
+      // Extract the URL string from the object
+      const urlString = urlObj.url
+      if (!urlString || typeof urlString !== 'string') {
+        console.warn(`Invalid URL for ${platform}:`, urlObj)
+        continue
+      }
+
+      console.log(`Opening URL: ${urlString}`)
+
+      // Create a tab for this URL
+      const tab = await chrome.tabs.create({ url: urlString, active: false })
+
+      // Wait for page to load
+      await waitForPageLoad(tab.id)
+
+      // If platform supports pagination, use it
+      if (['indeed', 'seek'].includes(platform)) {
+        const paginatedJobs = await scrapeWithPagination(tab, platform, (progress) => {
+          // Scale progress to fit within our 80% allocation for URL processing
+          // This leaves 20% for post-processing
+          const scaledProgress = Math.round(80 + (progress * 0.2))
+          progressCallback(scaledProgress, 'scraping_pages')
+        })
+
+        allJobs.push(...paginatedJobs)
+      } else {
+        // Otherwise just scrape the single page
+        const jobs = await scrapeFromTab(tab)
+        allJobs.push(...jobs)
+      }
+
+      // Close the tab
+      try {
+        await chrome.tabs.remove(tab.id)
+      } catch (err) {
+        console.warn(`Error closing tab ${tab.id}:`, err)
+      }
+
+      tabsProcessed++
+      progressCallback(Math.round((tabsProcessed / urlObjects.length) * 80), 'processing')
+    }
+
+    // Process all jobs (remove duplicates, etc.)
+    progressCallback(90, 'processing_results')
+    const uniqueJobs = removeDuplicateJobs(allJobs)
+
+    // Add source information
+    const processedJobs = uniqueJobs.map(job => ({
+      ...job,
+      source: platform,
+      country: country
+    }))
+
+    progressCallback(100, 'completed')
+    return processedJobs
+  } catch (error) {
+    console.error(`Error scraping from ${platform}:`, error)
+    progressCallback(100, 'error')
+    throw error
+  }
 }
 
 export default {
@@ -204,5 +342,6 @@ export default {
   scrapeFromTab,
   scrapeWithPagination,
   removeDuplicateJobs,
-  createJobSearchUrls
+  createJobSearchUrls,
+  scrapeFromPlatform
 } 
