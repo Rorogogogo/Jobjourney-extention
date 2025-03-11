@@ -1,7 +1,6 @@
 // ============================
 // IMPORTS AND INITIALIZATION
 // ============================
-import sidePanelService from './src/services/sidePanelService.js'
 import uiService from './src/services/uiService.js'
 import eventHandlerService from './src/services/eventHandlerService.js'
 import versionService from './src/services/versionService.js'
@@ -11,6 +10,7 @@ import tabService from './src/services/tabService.js'
 // STATE MANAGEMENT
 // ============================
 // Create a connection to the background script
+
 const port = chrome.runtime.connect({ name: "panel" })
 
 // Flag to track if we've already displayed a version message
@@ -274,9 +274,6 @@ function handleScrapingError (data) {
 document.addEventListener('DOMContentLoaded', () => {
   console.log('🟢 Panel DOM loaded at:', new Date().toISOString())
 
-  // Set up activity tracking
-  sidePanelService.setupActivityTracking()
-
   // Notify background that panel is active
   notifyBackgroundOfPanelState(true)
 
@@ -303,6 +300,7 @@ function initializeUI () {
 function checkVersion () {
   // Check version using port-based messaging
   versionService.checkVersionWithPort(port).then(versionResult => {
+    console.log("111")
     // Check if we've already processed a version message
     if (versionCheckCompleted) {
       console.log('Version check already completed, ignoring duplicate result')

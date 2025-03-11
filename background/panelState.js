@@ -1,4 +1,4 @@
-import sidePanelService from '../src/services/sidePanelService.js'
+// import sidePanelService from '../src/services/sidePanelService.js'
 
 // ============================
 // STATE VARIABLES
@@ -43,65 +43,7 @@ export function safelySendThroughPort (port, message) {
   }
 }
 
-// Initialize side panel
-export async function initializeSidePanel () {
-  console.log('Initializing side panel')
 
-  // Check if Side Panel API is available
-  if (!chrome.sidePanel) {
-    console.warn('Side Panel API is not available in this browser or extension context')
-    console.log('Using fallback mechanisms for panel state tracking')
-
-    // Still initialize the panel service for basic functionality
-    await sidePanelService.initialize()
-    return
-  }
-
-  // Side Panel API is available, proceed with setup
-  try {
-    // Register panel behavior if the method exists
-    if (typeof chrome.sidePanel.setPanelBehavior === 'function') {
-      await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
-      console.log('Side panel behavior registered successfully')
-    } else {
-      console.warn('Side panel setPanelBehavior is not available')
-    }
-
-    // Initialize the panel service
-    await sidePanelService.initialize()
-
-    // Set up event listeners if they exist
-    if (chrome.sidePanel.onShown && typeof chrome.sidePanel.onShown.addListener === 'function') {
-      chrome.sidePanel.onShown.addListener(() => {
-        console.log('Side panel shown')
-        state.panelOpen = true
-      })
-      console.log('Side panel shown listener registered')
-    } else {
-      console.warn('Side panel onShown event is not available')
-    }
-
-    if (chrome.sidePanel.onHidden && typeof chrome.sidePanel.onHidden.addListener === 'function') {
-      chrome.sidePanel.onHidden.addListener(() => {
-        console.log('Side panel hidden')
-        state.panelOpen = false
-      })
-      console.log('Side panel hidden listener registered')
-    } else {
-      console.warn('Side panel onHidden event is not available')
-    }
-
-    console.log('Side panel initialization completed')
-  } catch (error) {
-    console.error('Error in side panel initialization:', error)
-    // Still initialize the panel service for basic functionality
-    try {
-      await sidePanelService.initialize()
-    } catch (innerError) {
-      console.error('Error initializing sidePanelService:', innerError)
-    }
-  }
-}
 
 // Update panel state
 export function setPanelOpen (isOpen) {

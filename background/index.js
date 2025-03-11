@@ -1,17 +1,15 @@
 import messagingService, { MessageType } from '../src/services/messagingService.js'
-import sidePanelService from '../src/services/sidePanelService.js'
 import {
   handleVersionCheck,
   handleSidePanelLoaded,
-  handleGetBaseUrl,
   handleShowInJobJourney,
   handleStartScraping,
   registerMessageHandlers,
   setupRuntimeMessageListeners
 } from './messageHandlers.js'
-import { initializeSidePanel } from './panelState.js'
 import { setupPortConnectionListeners } from './portConnection.js'
 import { setupActionClickHandler } from './actionHandlers.js'
+// import { initialize } from './initialization.js'
 
 console.log('Background script starting...')
 
@@ -47,14 +45,13 @@ async function initialize () {
     setupRuntimeMessageListeners()
 
     // Initialize side panel
-    await initializeSidePanel()
+    // await initializeSidePanel()
 
     // Setup port connection listeners
     setupPortConnectionListeners()
 
     // Setup extension icon click handler
     setupActionClickHandler()
-
     console.log('Background script initialization complete')
   } catch (error) {
     console.error('Error initializing background script:', error)

@@ -1,6 +1,5 @@
 import messagingService, { MessageType } from '../src/services/messagingService.js'
 import scraperService from '../src/services/scraperService.js'
-import sidePanelService from '../src/services/sidePanelService.js'
 import { startScraping } from './scraping.js'
 import { findOrCreateJobJourneyTab, executeVersionCheck } from './versionCheck.js'
 import { isPanelOpen, safelySendThroughPort, activePanelPort } from './panelState.js'
@@ -67,12 +66,6 @@ export function handleSidePanelLoaded () {
   return { success: true, message: 'Side panel load acknowledged' }
 }
 
-// Handle base URL request
-export function handleGetBaseUrl () {
-  const baseUrl = 'http://localhost:5001'
-  console.log('Returning base URL for JobJourney:', baseUrl)
-  return baseUrl
-}
 
 // Handle show in JobJourney request
 export function handleShowInJobJourney (data) {
@@ -226,34 +219,34 @@ export function handleLogPanelState (message, sendResponse) {
 }
 
 // Handle RESET_PANEL_STATE message
-export function handleResetPanelState (message, sendResponse) {
-  console.log('Received request to reset panel state')
+// export function handleResetPanelState (message, sendResponse) {
+//   console.log('Received request to reset panel state')
 
-  try {
-    // Reset the panel state
-    sidePanelService.resetPanelState()
-      .then(() => {
-        console.log('Panel state reset completed')
-        sendResponse({
-          success: true,
-          message: 'Panel state has been reset'
-        })
-      })
-      .catch(err => {
-        console.error('Error resetting panel state:', err)
-        sendResponse({
-          success: false,
-          error: err.message || 'Unknown error resetting panel state'
-        })
-      })
-  } catch (err) {
-    console.error('Exception in RESET_PANEL_STATE handler:', err)
-    sendResponse({
-      success: false,
-      error: err.message || 'Unknown error in reset handler'
-    })
-  }
-}
+//   try {
+//     // Reset the panel state
+//     sidePanelService.resetPanelState()
+//       .then(() => {
+//         console.log('Panel state reset completed')
+//         sendResponse({
+//           success: true,
+//           message: 'Panel state has been reset'
+//         })
+//       })
+//       .catch(err => {
+//         console.error('Error resetting panel state:', err)
+//         sendResponse({
+//           success: false,
+//           error: err.message || 'Unknown error resetting panel state'
+//         })
+//       })
+//   } catch (err) {
+//     console.error('Exception in RESET_PANEL_STATE handler:', err)
+//     sendResponse({
+//       success: false,
+//       error: err.message || 'Unknown error in reset handler'
+//     })
+//   }
+// }
 
 // Handle CHECK_PANEL_STATE message
 export function handleCheckPanelState (message, sendResponse) {
@@ -271,7 +264,6 @@ export function handleCheckPanelState (message, sendResponse) {
 export function registerMessageHandlers () {
   messagingService.registerHandler(MessageType.VERSION_CHECK, handleVersionCheck)
   messagingService.registerHandler(MessageType.SIDE_PANEL_LOADED, handleSidePanelLoaded)
-  messagingService.registerHandler('getBaseUrl', handleGetBaseUrl)
   messagingService.registerHandler(MessageType.SHOW_IN_JOBJOURNEY, handleShowInJobJourney)
   messagingService.registerHandler(MessageType.START_SCRAPING, handleStartScraping)
   messagingService.registerHandler('CHECK_PANEL_STATE', data => {
