@@ -62,7 +62,7 @@ function handleVersionStatusUpdate (message) {
 
   // Handle incompatible version if needed
   if (message.data && message.data.isCompatible === false) {
-    versionService.showUpdateUI({
+    uiService.showUpdateUI({
       currentVersion: message.data.currentVersion,
       minimumVersion: message.data.minimumVersion,
       message: message.data.message
@@ -110,33 +110,7 @@ function notifyBackgroundOfPanelState (isActive) {
   })
 }
 
-// ============================
-// SCRAPING FUNCTIONALITY
-// ============================
 
-// Function to start scraping through port
-function startScrapingWithPort (config) {
-  console.log('Starting scraping with port:', config)
-
-  return new Promise((resolve, reject) => {
-    try {
-      // Send the scraping request through the port
-      port.postMessage({
-        action: 'START_SCRAPING',
-        data: config
-      })
-
-      // Resolve immediately since we'll get updates through the port listener
-      resolve({
-        success: true,
-        message: 'Scraping request sent'
-      })
-    } catch (error) {
-      console.error('Error sending scraping request:', error)
-      reject(error)
-    }
-  })
-}
 
 // ============================
 // WEB APP MANAGEMENT
@@ -292,15 +266,13 @@ function initializeUI () {
     eventHandlerService.loadSavedPreferences
   )
 
-  // Expose startScrapingWithPort to the window for messaging from website
-  window.startScrapingWithPort = startScrapingWithPort
+
 }
 
 // Check the extension version
 function checkVersion () {
   // Check version using port-based messaging
   versionService.checkVersionWithPort(port).then(versionResult => {
-    console.log("111")
     // Check if we've already processed a version message
     if (versionCheckCompleted) {
       console.log('Version check already completed, ignoring duplicate result')
@@ -314,7 +286,7 @@ function checkVersion () {
 
     // Handle incompatible version
     if (!versionResult.isCompatible) {
-      versionService.showUpdateUI({
+      uiService.showUpdateUI({
         currentVersion: versionResult.currentVersion,
         minimumVersion: versionResult.minimumVersion,
         message: versionResult.message

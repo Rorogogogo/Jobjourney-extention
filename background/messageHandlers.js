@@ -1,55 +1,9 @@
 import messagingService, { MessageType } from '../src/services/messagingService.js'
-import scraperService from '../src/services/scraperService.js'
-import { startScraping } from './scraping.js'
-import { findOrCreateJobJourneyTab, executeVersionCheck } from './versionCheck.js'
+// import { startScraping } from './scraping.js'
+import { findOrCreateJobJourneyTab, sendVersionCheckMessage } from './versionCheck.js'
 import { isPanelOpen, safelySendThroughPort, activePanelPort } from './panelState.js'
 
-// ============================
-// MESSAGE HANDLERS
-// ============================
 
-// Handle start scraping request
-export function handleStartScraping (data) {
-  console.log('Start scraping request received:', data)
-
-  return new Promise(resolve => {
-    console.log('Forwarding scraping request to panel...')
-
-    // Directly use scraperService instead of forwarding to panel
-    // This allows us to handle scraping in the background script
-    try {
-      // Start scraping using the scraperService
-      const { jobTitle, city, country, platforms } = data
-
-      // Return initial status immediately
-      const initialResponse = {
-        success: true,
-        status: 'processing',
-        message: 'Scraping request started',
-        detail: `Starting search for ${jobTitle} in ${city}, ${country}`,
-        progress: 0,
-        platforms: platforms
-      }
-
-      // Resolve with initial status
-      resolve(initialResponse)
-
-      // Then start the actual scraping process asynchronously
-      startScraping(data)
-    } catch (err) {
-      console.error('Error starting scraping process:', err)
-      // Still return a success status as we've received the request
-      resolve({
-        success: true,
-        status: 'error',
-        message: 'Error starting scraping',
-        detail: err.message || 'Unknown error',
-        progress: 0,
-        platforms: data.platforms
-      })
-    }
-  })
-}
 
 // Handle version check request
 export function handleVersionCheck (data) {
@@ -107,6 +61,34 @@ export function handleScrapingFromPanel (message, port) {
 // Handle version check from panel
 export function handleVersionCheckFromPanel (message, port) {
   const currentVersion = message.data.version
+  console.log("Handling version check from panel, version:", currentVersion)
+
+  // Store the request information to match with response later
+  const requestId = Date.now().toString()
+  const versionCheckRequest = {
+    requestId: requestId,
+    port: port,
+    tabId: null,
+    timeoutId: null
+  }
+
+  // Set a timeout for the version check
+  versionCheckRequest.timeoutId = setTimeout(() => {
+    console.log("Version check timed out after 10 seconds")
+
+    // Send timeout response through the port
+    safelySendThroughPort(port, {
+      action: "VERSION_STATUS_UPDATE",
+      data: {
+        isCompatible: true, // Default to compatible on timeout
+        message: "Version check timed out, assuming compatible",
+        requestId: requestId
+      }
+    })
+
+    // Remove the request from tracking
+    delete activeVersionChecks[requestId]
+  }, 10000)
 
   // Find or create a JobJourney tab
   findOrCreateJobJourneyTab(currentVersion)
@@ -115,51 +97,86 @@ export function handleVersionCheckFromPanel (message, port) {
         throw new Error("Could not create JobJourney tab")
       }
 
-      // Execute script to check version
-      return executeVersionCheck(tab, currentVersion)
+      console.log("Found/created JobJourney tab:", tab.id)
+
+      // Store the tab ID with the request
+      versionCheckRequest.tabId = tab.id
+      activeVersionChecks[requestId] = versionCheckRequest
+
+      // Send message to content script with request ID
+      return sendVersionCheckMessage(tab, currentVersion, requestId)
+    })
+    .then(result => {
+      console.log("Version check message sent, result:", result)
+      // We'll wait for the response via the port message handler
     })
     .catch(err => {
       console.error("Error in version check process:", err)
+
+      // Clear the timeout
+      if (versionCheckRequest.timeoutId) {
+        clearTimeout(versionCheckRequest.timeoutId)
+      }
+
+      // Send error response through the port
       safelySendThroughPort(port, {
         action: "VERSION_STATUS_UPDATE",
         data: {
           isCompatible: true, // Default to compatible on error
-          message: "Error checking version, assuming compatible"
+          message: "Error checking version, assuming compatible",
+          requestId: requestId
         }
       })
+
+      // Remove the request from tracking
+      delete activeVersionChecks[requestId]
     })
 }
 
-// Handle version check response
-export function handleVersionCheckResponse (message, sendResponse) {
-  console.log('Background received VERSION_CHECK_RESPONSE:', message.data)
 
-  // Store compatibility information
-  if (message.data && message.data.isCompatible === false) {
-    storeIncompatibilityInfo(message.data)
-  } else if (message.data && message.data.isCompatible === true) {
-    clearIncompatibilityInfo()
-  }
 
-  // Broadcast to all extension pages
-  chrome.runtime.sendMessage({
-    action: 'VERSION_STATUS_UPDATE',
-    data: message.data
-  })
+// Track active version check requests
+const activeVersionChecks = {}
 
-  // Send to active panel port if available
-  const currentPort = activePanelPort()
-  if (currentPort) {
-    console.log('Sending VERSION_STATUS_UPDATE through active panel port')
-    safelySendThroughPort(currentPort, {
-      action: 'VERSION_STATUS_UPDATE',
+// Handle version check response received from content script
+export function handleVersionCheckResponseFromContentScript (message, sender) {
+  console.log('Background received VERSION_CHECK_RESPONSE from content script:', message.data)
+
+  // Find the matching request by tab ID
+  const requestId = message.data.requestId
+  const matchingRequest = requestId ?
+    activeVersionChecks[requestId] :
+    Object.values(activeVersionChecks).find(req => req.tabId === sender.tab.id)
+
+  if (matchingRequest) {
+    console.log("Found matching version check request:", matchingRequest.requestId)
+
+    // Clear the timeout
+    if (matchingRequest.timeoutId) {
+      clearTimeout(matchingRequest.timeoutId)
+    }
+
+    // Store compatibility information
+    if (message.data && message.data.isCompatible === false) {
+      storeIncompatibilityInfo(message.data)
+    } else if (message.data && message.data.isCompatible === true) {
+      clearIncompatibilityInfo()
+    }
+
+    // Forward response through the port
+    safelySendThroughPort(matchingRequest.port, {
+      action: "VERSION_STATUS_UPDATE",
       data: message.data
     })
-  } else {
-    console.log('No active panel port available for VERSION_STATUS_UPDATE')
-  }
 
-  sendResponse({ received: true, status: 'processed' })
+    // Remove the request from tracking
+    delete activeVersionChecks[matchingRequest.requestId]
+
+    return true
+  } else {
+    console.warn("Received version check response but couldn't find matching request")
+    return false
+  }
 }
 
 // Store incompatibility information
@@ -186,28 +203,6 @@ export function clearIncompatibilityInfo () {
   })
 }
 
-// Handle START_SCRAPING message
-export function handleStartScrapingMessage (message, sendResponse) {
-  console.log('START_SCRAPING runtime message received:', message.data)
-
-  handleStartScraping(message.data)
-    .then(result => {
-      console.log('Scraping handler result:', result)
-      sendResponse({
-        success: result.success,
-        data: result,
-        sendToWebsite: true
-      })
-    })
-    .catch(err => {
-      console.error('Error in scraping handler:', err)
-      sendResponse({
-        success: false,
-        error: err.message || 'Unknown error in scraping handler',
-        sendToWebsite: true
-      })
-    })
-}
 
 // Handle LOG_PANEL_STATE message
 export function handleLogPanelState (message, sendResponse) {
@@ -217,36 +212,6 @@ export function handleLogPanelState (message, sendResponse) {
   logMethod(`Panel state updated: ${isPanelActive ? 'Active ✅' : 'Inactive ❌'}`)
   sendResponse({ received: true })
 }
-
-// Handle RESET_PANEL_STATE message
-// export function handleResetPanelState (message, sendResponse) {
-//   console.log('Received request to reset panel state')
-
-//   try {
-//     // Reset the panel state
-//     sidePanelService.resetPanelState()
-//       .then(() => {
-//         console.log('Panel state reset completed')
-//         sendResponse({
-//           success: true,
-//           message: 'Panel state has been reset'
-//         })
-//       })
-//       .catch(err => {
-//         console.error('Error resetting panel state:', err)
-//         sendResponse({
-//           success: false,
-//           error: err.message || 'Unknown error resetting panel state'
-//         })
-//       })
-//   } catch (err) {
-//     console.error('Exception in RESET_PANEL_STATE handler:', err)
-//     sendResponse({
-//       success: false,
-//       error: err.message || 'Unknown error in reset handler'
-//     })
-//   }
-// }
 
 // Handle CHECK_PANEL_STATE message
 export function handleCheckPanelState (message, sendResponse) {
@@ -260,57 +225,66 @@ export function handleCheckPanelState (message, sendResponse) {
   })
 }
 
+// Handle trigger download extension
+export function handleTriggerDownloadExtension () {
+  console.log('Handling trigger download extension')
+
+  // Get active port if available
+
+
+  // If no port, try to send via content script
+  findOrCreateJobJourneyTab()
+    .then(tab => {
+      if (tab) {
+        chrome.tabs.sendMessage(tab.id, {
+          action: 'DOWNLOAD_EXTENSION',
+          data: {
+            success: true,
+            message: 'Please download the extension'
+          }
+        })
+      }
+    })
+    .catch(err => {
+      console.error('Error sending download extension message:', err)
+    })
+
+  return { success: true, message: 'Download extension triggered' }
+}
+
 // Register message handlers
 export function registerMessageHandlers () {
   messagingService.registerHandler(MessageType.VERSION_CHECK, handleVersionCheck)
   messagingService.registerHandler(MessageType.SIDE_PANEL_LOADED, handleSidePanelLoaded)
-  messagingService.registerHandler(MessageType.SHOW_IN_JOBJOURNEY, handleShowInJobJourney)
-  messagingService.registerHandler(MessageType.START_SCRAPING, handleStartScraping)
+  // messagingService.registerHandler(MessageType.SHOW_IN_JOBJOURNEY, handleShowInJobJourney)
   messagingService.registerHandler('CHECK_PANEL_STATE', data => {
     return {
       isPanelActive: isPanelOpen(),
       timestamp: Date.now()
     }
   })
+  messagingService.registerHandler(MessageType.DOWNLOAD_EXTENSION, handleTriggerDownloadExtension)
 }
 
 // Setup runtime message listeners
 export function setupRuntimeMessageListeners () {
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    console.log('Runtime message received in background:', message, 'from', sender.tab?.url || 'unknown')
+    console.log('Background received message:', message.action)
 
-    // Handle VERSION_CHECK_RESPONSE from content script
-    if (message.action === 'VERSION_CHECK_RESPONSE') {
-      handleVersionCheckResponse(message, sendResponse)
-      return false // Synchronous response
-    }
-    // Handle START_SCRAPING message
-    else if (message.action === 'START_SCRAPING') {
-      handleStartScrapingMessage(message, sendResponse)
-      return true // Async response
-    }
-    // Handle WEBSITE_CONNECTED message
-    else if (message.action === 'WEBSITE_CONNECTED') {
-      console.log('Website connected at URL:', message.url)
-      sendResponse({ success: true })
-      return false
-    }
-    // Handle LOG_PANEL_STATE message
-    else if (message.action === 'LOG_PANEL_STATE') {
-      handleLogPanelState(message, sendResponse)
-      return false
-    }
-    // Handle RESET_PANEL_STATE message
-    else if (message.action === 'RESET_PANEL_STATE') {
-      handleResetPanelState(message, sendResponse)
-      return true // Async response
-    }
-    // Handle CHECK_PANEL_STATE message
-    else if (message.action === 'CHECK_PANEL_STATE') {
-      handleCheckPanelState(message, sendResponse)
-      return false
+    try {
+      // Handle version check response from content script
+      if (message.action === 'VERSION_CHECK_RESPONSE') {
+        const handled = handleVersionCheckResponseFromContentScript(message, sender)
+        sendResponse({ received: true, handled: handled })
+        return true
+      }
+
+
+    } catch (error) {
+      console.error('Error handling runtime message:', error)
+      sendResponse({ error: error.message })
     }
 
-    return false
+    return true // Keep the message channel open for async response
   })
 } 

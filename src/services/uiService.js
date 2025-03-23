@@ -455,8 +455,8 @@ function createJobCard (job) {
 
   const viewBtn = document.createElement('button')
   viewBtn.className = 'view-btn'
-  viewBtn.textContent = 'View Job'
   viewBtn.style.width = '100%' // Make button take full width
+  viewBtn.textContent = 'View Job'
   viewBtn.onclick = () => {
     chrome.tabs.create({ url: job.jobUrl })
   }
@@ -543,6 +543,178 @@ function validateSearchForm (elements, showErrors = true) {
   }
 }
 
+// Show UI to inform user that extension needs update
+function showUpdateUI ({ currentVersion, minimumVersion, message }) {
+  console.log('Showing update UI')
+
+  // Create UI elements
+  const overlay = document.createElement('div')
+  overlay.style.position = 'fixed'
+  overlay.style.top = '0'
+  overlay.style.left = '0'
+  overlay.style.width = '100%'
+  overlay.style.height = '100%'
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.85)'
+  overlay.style.display = 'flex'
+  overlay.style.flexDirection = 'column'
+  overlay.style.alignItems = 'center'
+  overlay.style.justifyContent = 'center'
+  overlay.style.zIndex = '9999'
+  overlay.style.color = 'white'
+  overlay.style.fontFamily = 'system-ui, sans-serif'
+  overlay.style.textAlign = 'center'
+  overlay.style.padding = '20px'
+  overlay.style.boxSizing = 'border-box'
+
+  const container = document.createElement('div')
+  container.style.backgroundColor = 'rgba(40, 44, 52, 0.95)'
+  container.style.borderRadius = '8px'
+  container.style.padding = '20px 30px'
+  container.style.maxWidth = '480px'
+  container.style.width = '100%'
+  container.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)'
+  container.style.backdropFilter = 'blur(10px)'
+  container.style.border = '1px solid rgba(255, 255, 255, 0.2)'
+
+  const icon = document.createElement('div')
+  icon.innerHTML = '⚠️' // Warning icon
+  icon.style.fontSize = '48px'
+  icon.style.marginBottom = '15px'
+
+  const title = document.createElement('h2')
+  title.textContent = 'Extension Update Required'
+  title.style.fontSize = '24px'
+  title.style.fontWeight = 'bold'
+  title.style.marginBottom = '15px'
+  title.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+  title.style.color = '#FFD700' // Gold/yellow color for better visibility
+  title.style.textShadow = '0px 1px 2px rgba(0, 0, 0, 0.5)' // Add shadow for better contrast
+
+  const description = document.createElement('p')
+  description.innerHTML = message || `Your extension version (${currentVersion}) is no longer compatible with JobJourney. Please update to version ${minimumVersion} or higher.`
+  description.style.fontSize = '16px'
+  description.style.lineHeight = '1.5'
+  description.style.marginBottom = '20px'
+  description.style.color = 'rgba(255, 255, 255, 1)' // Brighter white for better readability
+
+  const updateBtn = document.createElement('button')
+  updateBtn.textContent = 'Update Extension'
+  updateBtn.style.backgroundColor = '#4361ee'
+  updateBtn.style.color = 'white'
+  updateBtn.style.border = 'none'
+  updateBtn.style.borderRadius = '4px'
+  updateBtn.style.padding = '12px 20px'
+  updateBtn.style.fontSize = '16px'
+  updateBtn.style.fontWeight = 'bold'
+  updateBtn.style.cursor = 'pointer'
+  updateBtn.style.marginTop = '10px'
+  updateBtn.style.transition = 'background-color 0.2s'
+  updateBtn.style.width = '100%'
+  updateBtn.style.maxWidth = '250px'
+  updateBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)'
+
+  updateBtn.addEventListener('mouseover', () => {
+    updateBtn.style.backgroundColor = '#2845e0'
+  })
+
+  updateBtn.addEventListener('mouseout', () => {
+    updateBtn.style.backgroundColor = '#4361ee'
+  })
+
+  updateBtn.addEventListener('click', () => {
+    triggerExtensionDownload()
+  })
+
+
+  // Assemble the UI
+  container.appendChild(icon)
+  container.appendChild(title)
+  container.appendChild(description)
+  container.appendChild(updateBtn)
+  overlay.appendChild(container)
+
+  // Add to the page
+  document.body.appendChild(overlay)
+
+  return {
+    overlay,
+    container,
+    updateBtn,
+    closeBtn
+  }
+}
+
+// Update the showVersionOverlay function to make incompatibility more noticeable
+function showVersionOverlay (versionInfo) {
+  console.log('Showing version overlay with info:', versionInfo)
+
+  // Create UI elements
+  const overlay = document.createElement('div')
+  overlay.style.position = 'fixed'
+  overlay.style.top = '0'
+  overlay.style.left = '0'
+  overlay.style.width = '100%'
+  overlay.style.height = '100%'
+  overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.85)'
+  overlay.style.display = 'flex'
+  overlay.style.flexDirection = 'column'
+  overlay.style.alignItems = 'center'
+  overlay.style.justifyContent = 'center'
+  overlay.style.zIndex = '9999'
+  overlay.style.color = 'white'
+  overlay.style.fontFamily = 'system-ui, sans-serif'
+  overlay.style.textAlign = 'center'
+  overlay.style.padding = '20px'
+  overlay.style.boxSizing = 'border-box'
+
+  const container = document.createElement('div')
+  container.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+  container.style.borderRadius = '8px'
+  container.style.padding = '20px 30px'
+  container.style.maxWidth = '480px'
+  container.style.width = '100%'
+  container.style.boxShadow = '0 4px 10px rgba(0, 0, 0, 0.2)'
+  container.style.backdropFilter = 'blur(10px)'
+
+  const icon = document.createElement('div')
+  icon.innerHTML = '⚠️' // Warning icon
+  icon.style.fontSize = '48px'
+  icon.style.marginBottom = '15px'
+
+  const title = document.createElement('h2')
+  title.textContent = 'Extension Compatibility Issue'
+  title.style.fontSize = '22px'
+  title.style.marginBottom = '15px'
+  title.style.color = 'white'
+
+  const messageElement = document.createElement('p')
+  messageElement.innerHTML = versionInfo.message || 'Your extension version is not compatible with the website.'
+  messageElement.style.fontSize = '16px'
+  messageElement.style.lineHeight = '1.5'
+  messageElement.style.marginBottom = '20px'
+  messageElement.style.color = 'rgba(255, 255, 255, 0.85)'
+
+  // If incompatible, make the overlay more noticeable
+  if (versionInfo && versionInfo.isCompatible === false) {
+    overlay.style.backgroundColor = 'rgba(255, 0, 0, 0.1)'
+    messageElement.style.color = 'red'
+    messageElement.style.fontWeight = 'bold'
+  }
+
+  // Add elements to container
+  container.appendChild(icon)
+  container.appendChild(title)
+  container.appendChild(messageElement)
+
+  // Add to overlay
+  overlay.appendChild(container)
+
+  // Add to document
+  document.body.appendChild(overlay)
+
+  return overlay
+}
+
 /**
  * Show progress UI for job search
  * @param {Object} elements UI elements
@@ -560,6 +732,22 @@ function showProgress (elements, show) {
   }
 }
 
+/**
+ * Trigger sending the DOWNLOAD_EXTENSION message to the website
+ * This will cause the website to open the extension download page
+ */
+function triggerExtensionDownload () {
+  console.log('Triggering extension download via port message')
+  const port = chrome.runtime.connect({ name: "panel" })
+  port.postMessage({
+    action: "DOWNLOAD_EXTENSION",
+    data: {
+      success: true,
+      message: "Please download the extension"
+    }
+  })
+}
+
 export default {
   showMessage,
   showOverlay,
@@ -575,5 +763,8 @@ export default {
   showEmptyState,
   validateSearchForm,
   showProgress,
-  initializeUI
+  initializeUI,
+  showUpdateUI,
+  showVersionOverlay,
+  triggerExtensionDownload
 } 

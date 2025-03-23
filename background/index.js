@@ -1,9 +1,5 @@
 import messagingService, { MessageType } from '../src/services/messagingService.js'
 import {
-  handleVersionCheck,
-  handleSidePanelLoaded,
-  handleShowInJobJourney,
-  handleStartScraping,
   registerMessageHandlers,
   setupRuntimeMessageListeners
 } from './messageHandlers.js'

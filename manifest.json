@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "JobJourney Assistant",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Help you search and track job applications across multiple platforms",
   "permissions": [
     "tabs",
@@ -12,16 +12,7 @@
     "notifications",
     "sidePanel"
   ],
-  "host_permissions": [
-    "*://*.linkedin.com/*",
-    "*://*.indeed.com/*",
-    "*://*.seek.com.au/*",
-    "*://*.seek.co.nz/*",
-    "*://*.reed.co.uk/*",
-    "*://*.workopolis.com/*",
-    "http://localhost:5001/*",
-    "https://*.jobjourney.me/*"
-  ],
+  "host_permissions": [],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",

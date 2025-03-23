@@ -6,7 +6,7 @@ let storedJobs = [] // Store jobs in memory for showInJobJourney function
 // Function to send jobs to JobJourney
 async function sendJobsToJobJourney (jobs) {
   try {
-    const tab = await tabService.ensureJobJourneyWebsite()
+    const tab = await tabService.ensureJobJourneyWebsite(true)
 
     // Send jobs to the page using messaging service
     console.log('Sending jobs to JobJourney tab using messaging service...')

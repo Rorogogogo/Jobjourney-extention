@@ -5,7 +5,7 @@ export async function findOrCreateJobJourneyTab (version) {
   try {
     // Use tabService to find or create a JobJourney tab
     // Pass false to not focus the tab and pass the version
-    const tab = await tabService.ensureJobJourneyWebsite(false, version)
+    const tab = await tabService.ensureJobJourneyWebsite(true, version)
     return tab
   } catch (error) {
     console.error("Error finding/creating JobJourney tab:", error)
@@ -13,34 +13,31 @@ export async function findOrCreateJobJourneyTab (version) {
   }
 }
 
-// Execute version check script in tab
-export function executeVersionCheck (tab, version) {
-  return chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    func: (version) => {
-      console.log('Sending version check from page context, version:', version)
+// Send version check message to tab instead of executing script
+export function sendVersionCheckMessage (tab, version, requestId) {
+  console.log('Sending version check message to tab:', tab.id, 'version:', version, 'requestId:', requestId)
 
-
-
-      // Send message directly to window
-      window.postMessage({
-        type: 'VERSION_CHECK',
-        source: 'JOBJOURNEY_EXTENSION',
-        data: { version },
-        timestamp: Date.now()
-      }, '*')
-
-      // Also try sendExtensionMessage if available
-      if (typeof window.sendExtensionMessage === 'function') {
-        try {
-          window.sendExtensionMessage('VERSION_CHECK', { version })
-        } catch (err) {
-          console.error('Error using sendExtensionMessage:', err)
+  return new Promise((resolve, reject) => {
+    try {
+      chrome.tabs.sendMessage(tab.id, {
+        action: 'VERSION_CHECK_REQUEST',
+        data: {
+          version,
+          requestId
         }
-      }
-
-      return true
-    },
-    args: [version]
+      }, response => {
+        if (chrome.runtime.lastError) {
+          console.error("Error sending message to content script:", chrome.runtime.lastError)
+          // We'll resolve with a partial success since the listener might still get a response
+          resolve({ success: false, error: chrome.runtime.lastError.message })
+        } else {
+          console.log("Message sent to content script, response:", response)
+          resolve({ success: true, response })
+        }
+      })
+    } catch (error) {
+      console.error("Error in sendVersionCheckMessage:", error)
+      reject(error)
+    }
   })
 } 

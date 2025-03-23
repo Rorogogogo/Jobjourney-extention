@@ -1,7 +1,8 @@
 import { handleVersionCheckFromPanel, handleScrapingFromPanel } from './messageHandlers.js'
-
+import { handleTriggerDownloadExtension } from './messageHandlers.js'
 // Import panel state functions
-import { setPanelOpen, setActivePanelPort, setPortConnected } from './panelState.js'
+import { setPanelOpen, setActivePanelPort, setPortConnected, safelySendThroughPort } from './panelState.js'
+
 
 // ============================
 // PORT CONNECTION HANDLING
@@ -33,11 +34,11 @@ export function setupPortConnectionListeners () {
           console.log("Received version check request from panel")
           handleVersionCheckFromPanel(message, port)
         }
-        // Handle scraping request
-        else if (message.action === "START_SCRAPING") {
-          console.log("Received START_SCRAPING request from panel:", message.data)
-          handleScrapingFromPanel(message, port)
+        else if (message.action === "DOWNLOAD_EXTENSION") {
+          console.log("Received download extension request from panel")
+          handleTriggerDownloadExtension(message, port)
         }
+
       })
 
       port.onDisconnect.addListener(() => {

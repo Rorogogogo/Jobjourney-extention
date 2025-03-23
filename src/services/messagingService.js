@@ -6,18 +6,12 @@
 // Define standard message types for consistent communication
 export const MessageType = {
   // Extension → Website messages
-  EXTENSION_READY: 'EXTENSION_READY',
-  EXTENSION_PING: 'EXTENSION_PING',
   JOBS_SCRAPED: 'JOBS_SCRAPED',
   SCRAPING_STATUS: 'SCRAPING_STATUS',
-  SAVE_JOB: 'SAVE_JOB',
   VERSION_CHECK: 'VERSION_CHECK',
-  EXTENSION_AVAILABLE: 'EXTENSION_AVAILABLE',
-  EXTENSION_STATUS: 'EXTENSION_STATUS',
+  DOWNLOAD_EXTENSION: 'DOWNLOAD_EXTENSION',
 
   // Website → Extension messages
-  APP_READY: 'APP_READY',
-  START_SCRAPING: 'START_SCRAPING',
   JOBS_RECEIVED: 'JOBS_RECEIVED',
   SHOW_IN_JOBJOURNEY: 'SHOW_IN_JOBJOURNEY',
   VERSION_CHECK_RESPONSE: 'VERSION_CHECK_RESPONSE',
@@ -405,34 +399,6 @@ class MessagingService {
   registerBackgroundActionHandlers () {
     // Register handlers for common action types used in background.js
     // This bridges the two messaging systems
-
-    if (!this.messageHandlers.has('CHECK_PANEL_ACTIVE')) {
-      this.log('Registering handler for CHECK_PANEL_ACTIVE action')
-      this.registerHandler('CHECK_PANEL_ACTIVE', async (data) => {
-        this.log('Handling CHECK_PANEL_ACTIVE via messaging service:', data)
-        // Forward to any EXTENSION_PING handlers
-        const pingHandlers = this.messageHandlers.get('EXTENSION_PING') || []
-        if (pingHandlers.length > 0) {
-          return await Promise.all(pingHandlers.map(handler => handler(data?.data || {})))
-            .then(results => results.find(r => r !== null && r !== undefined) || {})
-        }
-        return { success: true, isPanelActive: true }
-      })
-    }
-
-    if (!this.messageHandlers.has('START_SCRAPING')) {
-      this.log('Registering handler for START_SCRAPING action')
-      this.registerHandler('START_SCRAPING', async (data) => {
-        this.log('Handling START_SCRAPING via messaging service:', data)
-        // Forward to any START_SCRAPING handlers with type format
-        const scrapingHandlers = this.messageHandlers.get('START_SCRAPING_TYPE') || []
-        if (scrapingHandlers.length > 0) {
-          return await Promise.all(scrapingHandlers.map(handler => handler(data || {})))
-            .then(results => results.find(r => r !== null && r !== undefined) || {})
-        }
-        return { success: true, message: 'Scraping request received' }
-      })
-    }
   }
 
   /**
@@ -441,17 +407,6 @@ class MessagingService {
   registerDefaultHandlers () {
     this.log('Registering default message handlers')
 
-    // Handler for extension ping
-    this.registerHandler(MessageType.EXTENSION_PING, async () => {
-      this.log('Default handler for EXTENSION_PING')
-      return {
-        success: true,
-        connected: true,
-        pong: true,
-        timestamp: Date.now(),
-        message: 'Extension panel is active and ready'
-      }
-    })
 
     // Handler for version check
     this.registerHandler(MessageType.VERSION_CHECK, async () => {
