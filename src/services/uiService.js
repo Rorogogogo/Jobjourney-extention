@@ -75,7 +75,7 @@ function populateCountrySelector (countrySelect) {
     'Canada',
     'New Zealand',
     'United Kingdom',
-    'United States'
+    'United States',
   ]
 
   countries.forEach(country => {

@@ -28,8 +28,20 @@ export function sendVersionCheckMessage (tab, version, requestId) {
       }, response => {
         if (chrome.runtime.lastError) {
           console.error("Error sending message to content script:", chrome.runtime.lastError)
-          // We'll resolve with a partial success since the listener might still get a response
-          resolve({ success: false, error: chrome.runtime.lastError.message })
+
+          // Check if it's the "Receiving end does not exist" error
+          if (chrome.runtime.lastError.message.includes("Receiving end does not exist")) {
+            console.log("Content script not ready. Refreshing the tab...")
+
+            // Simply reload the tab to reinject content scripts
+            chrome.tabs.reload(tab.id, {}, () => {
+              console.log("Tab refreshed, content scripts should be reinjected")
+              resolve({ success: true, refreshed: true })
+            })
+          } else {
+            // Some other error
+            resolve({ success: false, error: chrome.runtime.lastError.message })
+          }
         } else {
           console.log("Message sent to content script, response:", response)
           resolve({ success: true, response })

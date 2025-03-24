@@ -108,6 +108,27 @@ export function handleVersionCheckFromPanel (message, port) {
     })
     .then(result => {
       console.log("Version check message sent, result:", result)
+
+      // If tab was refreshed, give it time to load and try again
+      if (result.refreshed) {
+        console.log("Tab was refreshed, waiting for content scripts to initialize...")
+
+        // Wait for tab to fully load
+        setTimeout(() => {
+          chrome.tabs.get(versionCheckRequest.tabId, (tab) => {
+            if (chrome.runtime.lastError) {
+              console.error("Error getting tab after refresh:", chrome.runtime.lastError)
+              return
+            }
+
+            console.log("Attempting version check again after refresh")
+            sendVersionCheckMessage(tab, currentVersion, requestId)
+              .catch(error => {
+                console.error("Error in second version check attempt:", error)
+              })
+          })
+        }, 2000) // Wait 2 seconds for content scripts to initialize
+      }
       // We'll wait for the response via the port message handler
     })
     .catch(err => {
