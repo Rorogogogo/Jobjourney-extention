@@ -82,7 +82,6 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
 
     // Remove duplicates
     allJobs = scraperService.removeDuplicateJobs(allJobs)
-
     // Store jobs in the job service
     jobService.setJobs(allJobs)
 

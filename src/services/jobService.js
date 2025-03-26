@@ -17,7 +17,7 @@ async function sendJobsToJobJourney (jobs) {
   }
 }
 
-// Function to show jobs in JobJourney website
+// Function to show jobs in JobJourney website using port connection
 async function showInJobJourney () {
   try {
     if (storedJobs.length === 0) {
@@ -27,16 +27,22 @@ async function showInJobJourney () {
 
     console.log(`Showing ${storedJobs.length} jobs in JobJourney...`)
 
-    // Get the base URL for JobJourney
-    const baseUrl = await messagingService.sendMessage('getBaseUrl')
-    if (!baseUrl) {
-      throw new Error('Failed to get JobJourney URL')
-    }
+    // Connect to background script with port
+    const port = chrome.runtime.connect({ name: "panel" })
 
-    // Send jobs to JobJourney and show them
-    await sendJobsToJobJourney(storedJobs)
-    await messagingService.sendMessage(MessageType.SHOW_IN_JOBJOURNEY, { jobs: storedJobs })
+    // Send the SHOW_IN_JOBJOURNEY message through the port
+    port.postMessage({
+      action: "SHOW_IN_JOBJOURNEY",
+      data: {
+        jobs: storedJobs,
+        timestamp: Date.now()
+      }
+    })
 
+    console.log('Jobs sent to JobJourney through port')
+
+    // The background script will handle opening/finding the tab
+    // and sending the jobs to the website
     return { success: true, message: 'Jobs sent to JobJourney' }
   } catch (error) {
     console.error('Error showing jobs in JobJourney:', error)
@@ -46,6 +52,7 @@ async function showInJobJourney () {
 
 // Function to store jobs for later use
 function setJobs (jobs) {
+  console.log('22222:')
   storedJobs = [...jobs]
   console.log(`Stored ${storedJobs.length} jobs for later use`)
   return storedJobs.length

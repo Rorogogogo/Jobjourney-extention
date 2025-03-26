@@ -1,4 +1,4 @@
-import { handleVersionCheckFromPanel, handleScrapingFromPanel } from './messageHandlers.js'
+import { handleVersionCheckFromPanel, handleScrapingFromPanel, handleShowInJobJourney } from './messageHandlers.js'
 import { handleTriggerDownloadExtension } from './messageHandlers.js'
 // Import panel state functions
 import { setPanelOpen, setActivePanelPort, setPortConnected, safelySendThroughPort } from './panelState.js'
@@ -38,7 +38,21 @@ export function setupPortConnectionListeners () {
           console.log("Received download extension request from panel")
           handleTriggerDownloadExtension(message, port)
         }
+        // Handle show in JobJourney request
+        else if (message.action === "SHOW_IN_JOBJOURNEY") {
+          console.log("Received show in JobJourney request from panel")
+          const result = handleShowInJobJourney(message.data)
 
+          // Send response back through the port
+          safelySendThroughPort(port, {
+            action: "SHOW_IN_JOBJOURNEY_RESPONSE",
+            data: {
+              success: result.success,
+              message: result.message || "Jobs shown in JobJourney",
+              timestamp: Date.now()
+            }
+          })
+        }
       })
 
       port.onDisconnect.addListener(() => {

@@ -302,8 +302,7 @@ function displayJobs (elements, jobs) {
   // Update button state
   updateButtonStates(showInJobJourneyBtn, jobs.length > 0)
 
-  // Store jobs in jobService for later use with showInJobJourney
-  jobService.setJobs(jobs)
+
 
   // Display jobs
   if (jobs.length === 0) {

@@ -2,6 +2,7 @@ import messagingService, { MessageType } from '../src/services/messagingService.
 // import { startScraping } from './scraping.js'
 import { findOrCreateJobJourneyTab, sendVersionCheckMessage } from './versionCheck.js'
 import { isPanelOpen, safelySendThroughPort, activePanelPort } from './panelState.js'
+import tabService from '../src/services/tabService.js'
 
 
 
@@ -26,14 +27,47 @@ export function handleShowInJobJourney (data) {
   console.log('Show in JobJourney request received:', data)
 
   if (data && data.jobs) {
-    const jobsParam = encodeURIComponent(JSON.stringify(data.jobs))
-    const url = `http://localhost:5001/market?jobs=${jobsParam}`
+    try {
+      // Use tabService to find or create a JobJourney tab
+      tabService.ensureJobJourneyWebsite(true)
+        .then(tab => {
+          console.log(`Using JobJourney tab with ID: ${tab.id}`)
 
-    chrome.tabs.create({ url })
-      .catch(err => console.error('Error opening JobJourney:', err))
+          // Give the page a moment to initialize if it's a new tab
+          setTimeout(() => {
+            // Send the jobs directly to the tab
+            chrome.tabs.sendMessage(tab.id, {
+              action: 'JOBS_SCRAPED',
+              data: {
+                jobs: data.jobs,
+                source: 'extension',
+                timestamp: Date.now()
+              }
+            }).then(() => {
+              console.log(`Jobs data sent to tab ${tab.id}`)
+            }).catch(err => {
+              console.error('Error sending jobs to tab:', err)
+            })
+          }, 500)
+
+          return tab
+        })
+        .catch(err => {
+          console.error('Error with JobJourney tab:', err)
+        })
+
+      return {
+        success: true,
+        message: `Showing ${data.jobs.length} jobs in JobJourney`
+      }
+    } catch (error) {
+      console.error('Error processing show in JobJourney request:', error)
+      return { success: false, message: error.message }
+    }
+  } else {
+    console.warn('Show in JobJourney request received with no jobs')
+    return { success: false, message: 'No jobs provided' }
   }
-
-  return { success: true }
 }
 
 // Handle scraping from panel
@@ -277,7 +311,7 @@ export function handleTriggerDownloadExtension () {
 export function registerMessageHandlers () {
   messagingService.registerHandler(MessageType.VERSION_CHECK, handleVersionCheck)
   messagingService.registerHandler(MessageType.SIDE_PANEL_LOADED, handleSidePanelLoaded)
-  // messagingService.registerHandler(MessageType.SHOW_IN_JOBJOURNEY, handleShowInJobJourney)
+  messagingService.registerHandler(MessageType.SHOW_IN_JOBJOURNEY, handleShowInJobJourney)
   messagingService.registerHandler('CHECK_PANEL_STATE', data => {
     return {
       isPanelActive: isPanelOpen(),

@@ -307,7 +307,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Handle scraped jobs
   if (message.action === 'JOBS_SCRAPED') {
-    console.log('Forwarding scraped jobs to website:', message.data)
+    console.log('Content script: Received scraped jobs message', message.data)
 
     // Forward the jobs to the website
     window.postMessage({
@@ -318,6 +318,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       target: 'JOBJOURNEY_APP',
       protocolVersion: '1.0'
     }, '*')
+
+    // Send response back to acknowledge receipt
+    if (sendResponse) {
+      sendResponse({ received: true, jobCount: message.data?.jobs?.length || 0 })
+    }
+
+    return true // Keep the message channel open for async response
   }
 
   // Handle download extension message

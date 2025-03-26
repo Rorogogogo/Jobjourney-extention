@@ -76,76 +76,92 @@ const scrapers = {
       console.log('=== LinkedIn Scraping Started ===')
       console.log('Current URL:', window.location.href)
 
-      // Updated selectors for the rendered page
-      const jobNodes = document.querySelectorAll('div.job-card-container')
+      // Only use the new job card selector for better performance
+      const jobNodes = document.querySelectorAll('div.job-card-job-posting-card-wrapper')
       console.log('Found LinkedIn job nodes:', jobNodes.length)
 
-      jobNodes.forEach(node => {
-        try {
-          console.log(`\nProcessing LinkedIn job:`)
+      // Process jobs using the new LinkedIn format
+      if (jobNodes.length > 0) {
+        console.log('Processing jobs using LinkedIn format')
 
-          // Updated selectors based on the actual page structure
-          const titleNode = node.querySelector('.job-card-list__title--link')
-          const companyNode = node.querySelector('.artdeco-entity-lockup__subtitle span')
-          const locationNode = node.querySelector('.artdeco-entity-lockup__caption span[dir="ltr"]')
-          const jobUrlNode = node.querySelector('.job-card-list__title--link')
-          const logoNode = node.querySelector('.ivm-image-view-model img')
+        jobNodes.forEach(node => {
+          try {
+            // New format selectors based on the updated HTML structure
+            const titleNode = node.querySelector('.artdeco-entity-lockup__title')
+            const companyNode = node.querySelector('.artdeco-entity-lockup__subtitle div[dir="ltr"]')
+            const locationNode = node.querySelector('.artdeco-entity-lockup__caption div[dir="ltr"]')
+            const jobUrlNode = node.querySelector('a.job-card-job-posting-card-wrapper__card-link')
+            const logoNode = node.querySelector('.ivm-view-attr__img--centered')
 
-          // Get metadata items for salary and job type
-          const metadataItems = Array.from(node.querySelectorAll('.artdeco-entity-lockup__metadata li span[dir="ltr"]'))
-            .map(el => el.textContent.trim())
-            .filter(text => text)
+            // Extract job ID for reference
+            const jobId = node.getAttribute('data-job-id')
 
-          // Find salary (item containing currency symbols or ranges)
-          const salaryText = metadataItems.find(text =>
-            /[$€£¥]|per\s+|annum|annual|year|month|hour|week/i.test(text)
-          )
+            // Try to get posted date or application status
+            const footerItems = Array.from(node.querySelectorAll('.job-card-job-posting-card-wrapper__footer-item'))
+              .map(el => el.textContent.trim())
+              .filter(text => text)
 
-          // Get job description from the job details section
-          const descriptionNode = node.querySelector('.job-card-container__description, .job-card-list__description')
-          const description = descriptionNode?.textContent?.trim()
-            .replace(/\s+/g, ' ')  // Normalize whitespace
-            .trim()
+            if (titleNode && companyNode) {
+              // Clean up the title
+              let title = titleNode.textContent.trim()
 
-          // Get posted date
-          const postedDateNode = node.querySelector('time, .job-card-container__listed-time, span.job-card-container__footer-item--time')
-
-          console.log('Found LinkedIn nodes:', {
-            title: titleNode?.textContent?.trim(),
-            company: companyNode?.textContent?.trim(),
-            location: locationNode?.textContent?.trim(),
-            salary: salaryText,
-            description: description,
-            postedDate: postedDateNode?.textContent?.trim(),
-            url: jobUrlNode?.href,
-            logo: logoNode?.src,
-            allMetadata: metadataItems
-          })
-
-          if (titleNode && companyNode) {
-            // Clean up the title by taking only the first line
-            let title = titleNode.textContent.trim()
-            title = title.split('\n')[0].trim()
-
-            const job = Job.createFromLinkedIn({
-              title: title,
-              company: companyNode.textContent.trim(),
-              location: locationNode?.textContent?.trim(),
-              salary: salaryText || '',
-              description: description || '',
-              postedDate: postedDateNode?.textContent?.trim(),
-              jobUrl: jobUrlNode?.href || window.location.href,
-              companyLogoUrl: logoNode?.src
-            })
-            console.log('Successfully scraped LinkedIn job:', job)
-            jobs.push(job)
-          } else {
-            console.log('Skipping job due to missing required fields')
+              const job = Job.createFromLinkedIn({
+                title: title,
+                company: companyNode.textContent.trim(),
+                location: locationNode?.textContent?.trim(),
+                salary: '', // Salary information might not be available in the new format
+                description: '', // Description is not directly available in the card
+                postedDate: footerItems.join(' - '), // Use footer items as date/status information
+                jobUrl: jobUrlNode?.href || window.location.href,
+                companyLogoUrl: logoNode?.src
+              })
+              jobs.push(job)
+            }
+          } catch (error) {
+            console.error('Error scraping LinkedIn job:', error)
           }
-        } catch (error) {
-          console.error('Error scraping LinkedIn job:', error)
-        }
-      })
+        })
+      }
+      // Fallback to data-job-id as a direct approach if no jobs found
+      else {
+        console.log('No job cards found, falling back to data-job-id selector')
+
+        // Look for elements with data-job-id attribute for a faster direct approach
+        const jobElements = document.querySelectorAll('[data-job-id]')
+        console.log('Found elements with data-job-id:', jobElements.length)
+
+        jobElements.forEach(node => {
+          try {
+            // Extract job ID
+            const jobId = node.getAttribute('data-job-id')
+
+            // Direct selectors for the best performance
+            const cardLink = node.querySelector('a[href*="jobs"]')
+            const titleNode = node.querySelector('[class*="title"], strong, h3')
+            const companyNode = node.querySelector('[class*="subtitle"] div, [class*="company"]')
+            const locationNode = node.querySelector('[class*="caption"] div, [class*="location"]')
+            const logoNode = node.querySelector('img')
+
+            // If we have the minimum required information, create a job
+            if ((titleNode && companyNode) || jobId) {
+              // Default title and company if we couldn't find the elements
+              const title = titleNode?.textContent?.trim() || `LinkedIn Job #${jobId}`
+              const company = companyNode?.textContent?.trim() || 'Unknown Company'
+
+              const job = Job.createFromLinkedIn({
+                title: title,
+                company: company,
+                location: locationNode?.textContent?.trim() || '',
+                jobUrl: cardLink?.href || `https://www.linkedin.com/jobs/view/${jobId}`,
+                companyLogoUrl: logoNode?.src || null
+              })
+              jobs.push(job)
+            }
+          } catch (error) {
+            console.error('Error scraping LinkedIn job (fallback):', error)
+          }
+        })
+      }
 
       // Check for next page with specific LinkedIn next button selector
       const nextButton = document.querySelector([
