@@ -21,6 +21,18 @@ async function scrapeFromTab (tab) {
       let currentUrl = currentTab.url
       console.log(`Initial scraping URL:`, currentUrl)
 
+      // Use a simple default platform - proper data will come from UI
+      const platform = "Unknown"
+
+      // Initialize scraping configuration for internal use only
+      const scrapingConfig = {
+        startTime: Date.now(),
+        pagesScraped: 0,
+        totalJobs: 0,
+        uniqueJobs: 0,
+        duration: 0
+      }
+
       let allJobs = []
       let pageNum = 1
       const MAX_PAGES = 40 // Maximum pages to scrape
@@ -32,6 +44,7 @@ async function scrapeFromTab (tab) {
       // Start pagination loop
       while (currentUrl && pageNum <= MAX_PAGES) {
         console.log(`Processing page ${pageNum}, URL:`, currentUrl)
+        scrapingConfig.pagesScraped = pageNum
 
         // Update tab URL if not first page
         if (pageNum > 1) {
@@ -66,6 +79,7 @@ async function scrapeFromTab (tab) {
         const pageJobs = response.data || []
         console.log(`Found ${pageJobs.length} jobs on page ${pageNum}`)
         allJobs.push(...pageJobs)
+        scrapingConfig.totalJobs += pageJobs.length
 
         // Check if there's another page
         if (response.nextUrl) {
@@ -92,12 +106,32 @@ async function scrapeFromTab (tab) {
       console.log('Total jobs before deduplication:', allJobs.length)
       const uniqueJobs = removeDuplicateJobs(allJobs)
       console.log('Total jobs after deduplication:', uniqueJobs.length)
-      resolve(uniqueJobs)
+
+      // Update final scraping statistics for internal tracking
+      scrapingConfig.endTime = Date.now()
+      scrapingConfig.duration = scrapingConfig.endTime - scrapingConfig.startTime
+      scrapingConfig.uniqueJobs = uniqueJobs.length
+      scrapingConfig.finalUrl = currentUrl
+
+      console.log('Scraping completed:', scrapingConfig)
+
+      // Return only the jobs and job count - configuration will be added from UI
+      resolve({
+        jobs: uniqueJobs,
+        config: {
+          uniqueJobs: uniqueJobs.length
+        }
+      })
 
     } catch (error) {
       console.error('Error in scrapeFromTab with pagination:', error)
       await chrome.storage.local.set({ isScrapingActive: false })
-      resolve([])
+      resolve({
+        jobs: [],
+        config: {
+          error: error.toString()
+        }
+      })
     }
   })
 }
@@ -114,8 +148,6 @@ function removeDuplicateJobs (jobs) {
     return true
   })
 }
-
-
 
 // Function to create job search URLs
 function createJobSearchUrls (searchTerm, location, platformFilter = null) {
@@ -228,10 +260,9 @@ function createJobSearchUrls (searchTerm, location, platformFilter = null) {
   return sites
 }
 
-
 export default {
   waitForPageLoad,
   scrapeFromTab,
   removeDuplicateJobs,
-  createJobSearchUrls,
+  createJobSearchUrls
 } 

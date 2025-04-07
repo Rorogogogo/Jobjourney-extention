@@ -2,18 +2,98 @@ import tabService from './tabService.js'
 import messagingService, { MessageType } from './messagingService.js'
 
 let storedJobs = [] // Store jobs in memory for showInJobJourney function
+let scrapingConfig = {} // Store scraping configuration for statistics
 
-// Function to send jobs to JobJourney
-async function sendJobsToJobJourney (jobs) {
+/**
+ * Send jobs to JobJourney
+ * @param {Array} jobs - The jobs to send
+ * @param {Object} config - Configuration data from the scraping process
+ * @returns {Promise} - Promise that resolves when the jobs have been sent
+ */
+async function sendJobsToJobJourney (jobs, config = {}) {
   try {
     const tab = await tabService.ensureJobJourneyWebsite(true)
 
+    console.log('Config received from UI:', config)
+
+    // Get UI configuration elements if available
+    const uiConfig = await getUIConfiguration()
+
+    // Create API compatible config by combining UI config with passed config
+    const apiConfig = {
+      platforms: Array.isArray(config.platforms) ? config.platforms :
+        (config.platform ? [config.platform] : uiConfig.platforms || []),
+      jobTitle: config.jobTitle || uiConfig.jobTitle || '',
+      country: config.country || uiConfig.country || '',
+      location: config.location || uiConfig.location || '',
+      totalJobsFound: config.totalJobsFound || config.uniqueJobs || jobs.length
+    }
+
+    console.log('Final API config for backend:', apiConfig)
+
+    // Prepare the data with jobs and scraping configuration
+    const data = {
+      jobs,
+      scrapingConfig: apiConfig
+    }
+
     // Send jobs to the page using messaging service
-    console.log('Sending jobs to JobJourney tab using messaging service...')
-    return messagingService.sendToTab(tab.id, MessageType.JOBS_SCRAPED, { jobs })
+    console.log('Sending jobs to JobJourney tab using messaging service...', data)
+    return messagingService.sendToTab(tab.id, MessageType.JOBS_SCRAPED, data)
   } catch (error) {
     console.error('Error sending jobs to JobJourney:', error)
     throw error
+  }
+}
+
+// Function to get configuration from UI elements
+async function getUIConfiguration () {
+  try {
+    // Default config with empty values
+    const config = {
+      platforms: [],
+      jobTitle: '',
+      country: '',
+      location: ''
+    }
+
+    // Get platform selection
+    const platformSelect = document.getElementById('platform-select')
+    if (platformSelect && platformSelect.value) {
+      config.platforms = [platformSelect.value]
+    }
+
+    // Get job title
+    const jobTitleInput = document.getElementById('job-title-input')
+    if (jobTitleInput && jobTitleInput.value) {
+      config.jobTitle = jobTitleInput.value.trim()
+    }
+
+    // Get location
+    const locationInput = document.getElementById('location-input')
+    if (locationInput && locationInput.value) {
+      const locationValue = locationInput.value.trim()
+
+      // Try to extract country and location
+      const locationParts = locationValue.split(',')
+      if (locationParts.length > 1) {
+        config.location = locationParts[0].trim()
+        config.country = locationParts[locationParts.length - 1].trim()
+      } else {
+        config.location = locationValue
+      }
+    }
+
+    console.log('Configuration from UI elements:', config)
+    return config
+  } catch (error) {
+    console.error('Error getting UI configuration:', error)
+    return {
+      platforms: [],
+      jobTitle: '',
+      country: '',
+      location: ''
+    }
   }
 }
 
@@ -35,11 +115,12 @@ async function showInJobJourney () {
       action: "SHOW_IN_JOBJOURNEY",
       data: {
         jobs: storedJobs,
+        scrapingConfig: scrapingConfig,
         timestamp: Date.now()
       }
     })
 
-    console.log('Jobs sent to JobJourney through port')
+    console.log('Jobs sent to JobJourney through port', storedJobs, scrapingConfig)
 
     // The background script will handle opening/finding the tab
     // and sending the jobs to the website
@@ -58,9 +139,21 @@ function setJobs (jobs) {
   return storedJobs.length
 }
 
+// Function to set scraping configuration
+function setScrapingConfig (config) {
+  scrapingConfig = { ...config }
+  console.log('Stored scraping configuration:', scrapingConfig)
+  return scrapingConfig
+}
+
 // Function to get stored jobs
 function getJobs () {
   return storedJobs
+}
+
+// Function to get scraping configuration
+function getScrapingConfig () {
+  return scrapingConfig
 }
 
 // Function to clear stored jobs
@@ -83,9 +176,14 @@ async function findJobMarketTab () {
 }
 
 // Function to send jobs and show in JobJourney
-async function sendJobsAndShow (scrapedJobs, baseUrl, jobsAlreadySent = false) {
+async function sendJobsAndShow (scrapedJobs, baseUrl, jobsAlreadySent = false, config = {}) {
   const manifest = chrome.runtime.getManifest()
   const url = `${baseUrl}/job-market?source=extension&version=${manifest.version}`
+
+  // Store scraping configuration if provided
+  if (Object.keys(config).length > 0) {
+    setScrapingConfig(config)
+  }
 
   // Find existing job-market tab
   const existingTab = await findJobMarketTab()
@@ -116,7 +214,7 @@ async function sendJobsAndShow (scrapedJobs, baseUrl, jobsAlreadySent = false) {
   // Only send jobs if they haven't been sent already
   if (!jobsAlreadySent && scrapedJobs.length > 0) {
     try {
-      await sendJobsToJobJourney(scrapedJobs)
+      await sendJobsToJobJourney(scrapedJobs, scrapingConfig)
     } catch (error) {
       console.error('Error sending jobs to JobJourney:', error)
     }
@@ -136,7 +234,8 @@ async function sendJobsAndShow (scrapedJobs, baseUrl, jobsAlreadySent = false) {
       type: 'TRIGGER_JOB_IMPORT',
       data: {
         source: 'extension',
-        version: chrome.runtime.getManifest().version
+        version: chrome.runtime.getManifest().version,
+        scrapingConfig: scrapingConfig
       }
     }]
   })
@@ -168,5 +267,8 @@ export default {
   showInJobJourney,
   setJobs,
   getJobs,
-  clearJobs
+  clearJobs,
+  setScrapingConfig,
+  getScrapingConfig,
+  getUIConfiguration
 } 

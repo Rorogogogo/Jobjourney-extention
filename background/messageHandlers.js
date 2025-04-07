@@ -40,6 +40,7 @@ export function handleShowInJobJourney (data) {
               action: 'JOBS_SCRAPED',
               data: {
                 jobs: data.jobs,
+                scrapingConfig: data.scrapingConfig,
                 source: 'extension',
                 timestamp: Date.now()
               }

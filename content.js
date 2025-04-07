@@ -180,6 +180,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const platform = Object.values(scrapers).find(s => s.isMatch(currentUrl))
     if (platform) {
       try {
+        // Gather platform-specific metadata
+        const platformInfo = {
+          platform: determinePlatform(currentUrl),
+          url: currentUrl,
+          title: document.title,
+          userAgent: navigator.userAgent,
+          timestamp: Date.now(),
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight
+          },
+          deviceType: determineDeviceType()
+        }
+
         platform.scrapeJobList().then(result => {
           console.log('Scraping result:', result)
           console.log(result.jobs)
@@ -187,7 +201,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({
             success: true,
             data: result.jobs,
-            nextUrl: result.nextUrl
+            nextUrl: result.nextUrl,
+            platformInfo: platformInfo
           })
         })
         return true // Keep message channel open
@@ -199,9 +214,38 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true
   }
-
-
 })
+
+// Function to determine current platform
+function determinePlatform (url) {
+  if (url.includes('linkedin.com')) {
+    return 'LinkedIn'
+  } else if (url.includes('seek.com.au')) {
+    return 'SEEK AU'
+  } else if (url.includes('seek.co.nz')) {
+    return 'SEEK NZ'
+  } else if (url.includes('indeed.com')) {
+    const domain = new URL(url).hostname
+    if (domain.startsWith('au.')) return 'Indeed AU'
+    if (domain.startsWith('uk.')) return 'Indeed UK'
+    if (domain.startsWith('ca.')) return 'Indeed CA'
+    return 'Indeed'
+  } else {
+    return 'Unknown'
+  }
+}
+
+// Function to determine device type
+function determineDeviceType () {
+  const ua = navigator.userAgent
+  if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+    return 'tablet'
+  }
+  if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+    return 'mobile'
+  }
+  return 'desktop'
+}
 
 // Check scraping state on page load
 document.addEventListener('DOMContentLoaded', async () => {
@@ -282,8 +326,6 @@ window.addEventListener('message', function (event) {
       }
     })
   }
-
-
 })
 
 // Add listener for messages from the background script
@@ -364,8 +406,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true // Keep the message channel open for async response
 })
-
-
 
 // Listen for messages from the web page
 window.addEventListener('message', (event) => {

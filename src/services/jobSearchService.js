@@ -35,6 +35,22 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
     let completedSites = 0
     const totalSites = searchSites.length
 
+    // Prepare the combined scraping config
+    const combinedScrapingConfig = {
+      query: searchInputValue,
+      location: locationValue,
+      platforms: [],
+      startTime: Date.now(),
+      totalPagesScraped: 0,
+      totalJobsFound: 0,
+      totalUniqueJobs: 0,
+      platformResults: [],
+      searchSites: searchSites.map(site => ({
+        platform: site.platform,
+        url: site.url
+      }))
+    }
+
     // Scrape jobs from each site
     for (const site of searchSites) {
       if (progressCallback) {
@@ -55,9 +71,27 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
         // Wait for page to load
         await scraperService.waitForPageLoad(tab.id)
 
-        // Scrape jobs from the tab
-        const jobs = await scraperService.scrapeFromTab(tab)
-        console.log(`Found ${jobs.length} jobs from ${site.platform}`)
+        // Scrape jobs from the tab - handle new return format
+        const result = await scraperService.scrapeFromTab(tab)
+        const { jobs = [], config = {} } = result
+
+        console.log(`Found ${jobs.length} jobs from ${site.platform}`, config)
+
+        // Add platform to the list of scraped platforms
+        if (!combinedScrapingConfig.platforms.includes(site.platform)) {
+          combinedScrapingConfig.platforms.push(site.platform)
+        }
+
+        // Add platform-specific results to combined config
+        combinedScrapingConfig.platformResults.push({
+          platform: site.platform,
+          jobsFound: jobs.length,
+          ...config
+        })
+
+        // Update combined totals
+        combinedScrapingConfig.totalPagesScraped += config.pagesScraped || 0
+        combinedScrapingConfig.totalJobsFound += jobs.length
 
         // Add jobs to the list
         allJobs = allJobs.concat(jobs)
@@ -66,6 +100,13 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
         chrome.tabs.remove(tab.id)
       } catch (error) {
         console.error(`Error scraping ${site.platform}:`, error)
+
+        // Record error in scraping config
+        combinedScrapingConfig.platformResults.push({
+          platform: site.platform,
+          error: error.toString(),
+          jobsFound: 0
+        })
       }
 
       completedSites++
@@ -82,8 +123,15 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
 
     // Remove duplicates
     allJobs = scraperService.removeDuplicateJobs(allJobs)
-    // Store jobs in the job service
+
+    // Update final stats
+    combinedScrapingConfig.endTime = Date.now()
+    combinedScrapingConfig.duration = combinedScrapingConfig.endTime - combinedScrapingConfig.startTime
+    combinedScrapingConfig.totalUniqueJobs = allJobs.length
+
+    // Store jobs and scraping config in the job service
     jobService.setJobs(allJobs)
+    jobService.setScrapingConfig(combinedScrapingConfig)
 
     return allJobs
   } catch (error) {
