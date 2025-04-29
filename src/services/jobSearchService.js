@@ -51,15 +51,16 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
       }))
     }
 
-    // Scrape jobs from each site
-    for (const site of searchSites) {
+    // Function to scrape a single site and update progress
+    const scrapeSite = async (site) => {
       if (progressCallback) {
-        progressCallback(
-          (completedSites / totalSites) * 100,
-          `Scraping ${site.platform}...`,
-          `Searching for ${searchInputValue} in ${locationValue}`
-        )
+        // Initial progress for starting this site (optional, could be noisy)
+        // progressCallback(/*...*/); 
       }
+
+      let platformJobs = []
+      let platformConfig = {}
+      let errorResult = null
 
       try {
         // Open the site in a new tab
@@ -73,19 +74,59 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
 
         // Scrape jobs from the tab - handle new return format
         const result = await scraperService.scrapeFromTab(tab)
-        const { jobs = [], config = {} } = result
+        platformJobs = result.jobs || []
+        platformConfig = result.config || {}
 
-        console.log(`Found ${jobs.length} jobs from ${site.platform}`, config)
+        console.log(`Found ${platformJobs.length} jobs from ${site.platform}`, platformConfig)
+
+        // Close the tab
+        try { await chrome.tabs.remove(tab.id) } catch (e) { /* ignore error if tab already closed */ }
+
+      } catch (error) {
+        console.error(`Error scraping ${site.platform}:`, error)
+        errorResult = error.toString()
+      } finally {
+        // Update progress as this site completes
+        completedSites++
+        if (progressCallback) {
+          progressCallback(
+            (completedSites / totalSites) * 100,
+            `Finished ${site.platform} (${completedSites}/${totalSites})...`,
+            `Found ${platformJobs.length} jobs so far...`
+          )
+        }
+      }
+
+      // Return results for this platform
+      return {
+        platform: site.platform,
+        jobs: platformJobs,
+        config: platformConfig,
+        error: errorResult
+      }
+    }
+
+    // Start scraping all sites concurrently
+    const scrapePromises = searchSites.map(site => scrapeSite(site))
+
+    // Wait for all scraping tasks to settle (complete or fail)
+    const results = await Promise.allSettled(scrapePromises)
+
+    // Process the results from all promises
+    results.forEach(result => {
+      if (result.status === 'fulfilled') {
+        const { platform, jobs, config, error } = result.value
 
         // Add platform to the list of scraped platforms
-        if (!combinedScrapingConfig.platforms.includes(site.platform)) {
-          combinedScrapingConfig.platforms.push(site.platform)
+        if (!combinedScrapingConfig.platforms.includes(platform)) {
+          combinedScrapingConfig.platforms.push(platform)
         }
 
         // Add platform-specific results to combined config
         combinedScrapingConfig.platformResults.push({
-          platform: site.platform,
+          platform: platform,
           jobsFound: jobs.length,
+          error: error, // Include error if one occurred during scraping
           ...config
         })
 
@@ -96,23 +137,19 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
         // Add jobs to the list
         allJobs = allJobs.concat(jobs)
 
-        // Close the tab
-        chrome.tabs.remove(tab.id)
-      } catch (error) {
-        console.error(`Error scraping ${site.platform}:`, error)
-
-        // Record error in scraping config
+      } else {
+        // Handle cases where the scrapeSite promise itself was rejected (less likely with try/catch inside)
+        console.error("Scraping promise rejected:", result.reason)
+        // Potentially record a generic error for an unknown platform if needed
         combinedScrapingConfig.platformResults.push({
-          platform: site.platform,
-          error: error.toString(),
+          platform: "Unknown (Promise Rejection)",
+          error: result.reason?.toString() || "Unknown rejection",
           jobsFound: 0
         })
       }
+    })
 
-      completedSites++
-    }
-
-    // Update progress to 100%
+    // Update final progress to 100%
     if (progressCallback) {
       progressCallback(
         100,

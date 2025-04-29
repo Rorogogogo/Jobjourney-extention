@@ -133,7 +133,6 @@ async function showInJobJourney () {
 
 // Function to store jobs for later use
 function setJobs (jobs) {
-  console.log('22222:')
   storedJobs = [...jobs]
   console.log(`Stored ${storedJobs.length} jobs for later use`)
   return storedJobs.length

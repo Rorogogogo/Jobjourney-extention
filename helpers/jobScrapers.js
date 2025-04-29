@@ -354,7 +354,7 @@ const scrapers = {
       console.log('=== SEEK Scraping Started ===')
       console.log('Current URL:', window.location.href)
 
-      // Try multiple possible selectors
+      // Try multiple possible selectors for job cards
       const selectors = [
         '[data-testid="job-card"]',
         'article[data-card-type="JobCard"]',
@@ -375,52 +375,127 @@ const scrapers = {
 
       console.log('Found SEEK job nodes:', jobNodes.length)
 
-      jobNodes.forEach(node => {
+      // Check if we're already on a job details page
+      const alreadyOnJobDetail = document.querySelector('[data-automation="jobDetailsPage"]')
+
+      // If we're on a standalone job detail page with no job cards
+      if (alreadyOnJobDetail && jobNodes.length === 0) {
+        console.log('On standalone job details page, scraping current job')
+        const jobDetail = scrapeSeekJobDetailPanel()
+        if (jobDetail) {
+          jobs.push(jobDetail)
+        }
+        return { jobs, nextUrl: null }
+      }
+
+      // Function to wait for job details panel to load
+      const waitForJobDetailsPanel = async () => {
+        let attempts = 0
+        const maxAttempts = 20
+        let waitTime = 200  // Start with 200ms
+
+        while (attempts < maxAttempts) {
+          const detailsPanel = document.querySelector('[data-automation="jobDetailsPage"]')
+          const loadingIndicator = document.querySelector('[data-automation="loading-spinner"]')
+
+          if (detailsPanel && !loadingIndicator) {
+            // Wait a bit more to ensure content is fully rendered
+            await new Promise(r => setTimeout(r, 500))
+            return true
+          }
+
+          // Exponential backoff - double the wait time after each attempt
+          waitTime = Math.min(waitTime * 1.5, 1500)
+          console.log(`Waiting ${waitTime}ms for job details panel (attempt ${attempts + 1}/${maxAttempts})`)
+          await new Promise(r => setTimeout(r, waitTime))
+          attempts++
+        }
+
+        return false
+      }
+
+      // Process each job card one by one
+      for (let i = 0; i < Math.min(jobNodes.length, 30); i++) {
         try {
-          console.log(`\nProcessing SEEK job:`)
+          const node = jobNodes[i]
 
-          const titleNode =
-            node.querySelector('[data-testid="job-card-title"]') ||
-            node.querySelector('a[data-automation="jobTitle"]') ||
-            node.querySelector('a[class*="job-title"]') ||
-            node.querySelector('a[id^="job-title"]')
+          // Extract basic info from the card before clicking
+          const titleNode = node.querySelector('[data-testid="job-card-title"], a[data-automation="jobTitle"]')
+          const companyNode = node.querySelector('[data-automation="jobCompany"], span[class*="companyName"]')
+          const locationNode = node.querySelector('[data-testid="jobCardLocation"], [data-automation="jobCardLocation"]')
+          const jobUrlNode = titleNode?.closest('a')
+          const jobUrl = jobUrlNode?.href || window.location.href
 
-          const companyNode =
-            node.querySelector('[data-automation="jobCompany"]') ||
-            node.querySelector('span[class*="l1r1184z"] a[data-automation="jobCompany"]') ||
-            node.querySelector('div.snwpn00 a[data-automation="jobCompany"]') ||
-            node.querySelector('span._1l99f880 a[data-type="company"]')
+          // Extract the work arrangement (Remote/Hybrid/etc) from the job card if available
+          const workArrangementNode = node.querySelector('[data-testid="work-arrangement"]')
+          let workplaceType = ''
+          if (workArrangementNode) {
+            const text = workArrangementNode.textContent.replace(/[()]/g, '').trim()
+            if (text.includes('Remote') || text.includes('Hybrid') || text.includes('On-site')) {
+              workplaceType = text
+            }
+          }
 
-          const locationNode =
-            node.querySelector('span[data-automation="jobCardLocation"]') ||
-            node.querySelector('a[data-automation="jobLocation"]') ||
-            node.querySelector('span[data-type="location"]')
+          // Basic info for fallback
+          const basicInfo = {
+            title: titleNode?.textContent?.trim() || '',
+            company: companyNode?.textContent?.trim() || '',
+            location: locationNode?.textContent?.trim() || '',
+            jobUrl: jobUrl,
+            workplaceType: workplaceType
+          }
 
-          const descriptionNode = node.querySelector('span[data-testid="job-card-teaser"]')
-          const salaryNode = node.querySelector('span[data-automation="jobSalary"]')
-          const postedDateNode = node.querySelector('span[data-automation="jobListingDate"] div._1kme6z20')
+          console.log(`Clicking job ${i + 1}/${Math.min(jobNodes.length, 30)}: ${basicInfo.title}`)
 
-          if (titleNode && companyNode) {
-            const job = Job.createFromSEEK({
-              title: titleNode.textContent.trim(),
-              company: companyNode.textContent.trim(),
-              location: locationNode?.textContent?.trim(),
-              jobUrl: titleNode.href || window.location.href,
-              description: descriptionNode?.textContent?.trim(),
-              salary: salaryNode?.textContent?.trim(),
-              postedDate: postedDateNode?.textContent?.trim(),
-              companyLogoUrl: null,
-              jobType: '',
-              workplaceType: '',
-              applicantCount: ''
-            })
-            console.log('Successfully scraped SEEK job:', job)
+          // Find a suitable clickable element
+          const clickableElement =
+            titleNode ||
+            node.querySelector('a[data-automation="job-list-item-link-overlay"]') ||
+            node.querySelector('a[href*="job"]') ||
+            node
+
+          console.log('Clicking element: ', clickableElement.tagName)
+
+          // Click on the job card to show details
+          clickableElement.click()
+
+          // Wait for job details panel to load
+          const detailsLoaded = await waitForJobDetailsPanel()
+
+          if (detailsLoaded) {
+            // Scrape the detailed job information from the panel
+            const jobDetail = scrapeSeekJobDetailPanel(basicInfo)
+
+            if (jobDetail && Object.keys(jobDetail).length > 0) {
+              // Create job with detailed info
+              jobs.push(jobDetail)
+              console.log(`Successfully scraped detailed job: ${jobDetail.title}`)
+            } else {
+              // Fallback to basic info if detailed scraping failed
+              console.log(`Failed to get details, using basic info for job ${i + 1}`)
+              const job = Job.createFromSEEK(basicInfo)
+              jobs.push(job)
+            }
+          } else {
+            // Fallback to basic info if panel didn't load
+            console.log(`Job details panel didn't load for job ${i + 1}, using basic info`)
+            const job = Job.createFromSEEK(basicInfo)
             jobs.push(job)
           }
+
+          // Add a delay between job clicks to avoid rate limiting
+          const baseDelay = 500
+          const additionalDelay = i * 100
+          const totalDelay = baseDelay + additionalDelay
+          console.log(`Waiting ${totalDelay}ms before next job click...`)
+          await new Promise(r => setTimeout(r, totalDelay))
+
         } catch (error) {
-          console.error('Error scraping SEEK job:', error)
+          console.error(`Error processing job ${i + 1}:`, error)
+          // Add error recovery delay
+          await new Promise(r => setTimeout(r, 1500))
         }
-      })
+      }
 
       // Check for next page - using valid CSS selectors that target the last "Next" button
       const nextButton = document.querySelector([
@@ -442,29 +517,7 @@ const scrapers = {
     },
     scrapeJobDetail: () => {
       try {
-        const title = document.querySelector('[data-automation="job-detail-title"]')?.textContent.trim()
-        const company = document.querySelector('[data-automation="advertiser-name"]')?.textContent.trim()
-        const location = document.querySelector('[data-automation="job-location"]')?.textContent.trim()
-        const description = document.querySelector('[data-automation="jobDescription"]')?.textContent.trim()
-        const logoUrl = document.querySelector('[data-automation="advertiser-logo"] img')?.src
-        const workType = document.querySelector('[data-automation="job-work-type"]')?.textContent.trim()
-        const salary = document.querySelector('[data-automation="job-salary"]')?.textContent.trim()
-
-        const job = {
-          title,
-          company,
-          location,
-          description,
-          companyLogoUrl: logoUrl,
-          jobUrl: window.location.href,
-          platform: 'SEEK',
-          workType: workType || '',
-          salary: salary || '',
-          workplaceType: '',
-          applicantCount: ''
-        }
-        console.log('Scraped SEEK job detail:', job)
-        return job
+        return scrapeSeekJobDetailPanel()
       } catch (error) {
         console.error('Error scraping SEEK job detail:', error)
         return null
@@ -474,130 +527,243 @@ const scrapers = {
   indeed: {
     isMatch: (url) => url.includes('indeed.com'),
     scrapeJobList: async () => {
-      console.group('Indeed - Job Scraping')
+      console.group('Indeed - Job Scraping - Click & Scrape')
       const jobs = []
+      let nextUrl = null
 
-      const jobNodes = document.querySelectorAll([
-        'div.job_seen_beacon',
-        'div[class*="job_seen_"]',
-        'div[class*="cardOutline"]',
-        'div.resultContent',
-        'div[data-testid="job-card"]',
-        'td.resultContent'
-      ].join(','))
+      // More specific selector targeting the main job card container
+      // Using `div.result` which often contains the job_seen_beacon andtextContent
+      const jobCardSelector = 'div.result:not(.mosaic-zone) div.job_seen_beacon' // Try targeting beacon within result
+      // Fallback if the above doesn't work well
+      // const jobCardSelector = 'li div.cardOutline'
+      // const jobCardSelector = 'div.jobsearch-SerpJobCard, div.result' // Alternative general selectors
+
+      let jobNodes = document.querySelectorAll(jobCardSelector)
+
+      // If the primary selector fails, try a broader one as fallback
+      if (jobNodes.length === 0) {
+        console.warn("Primary selector '" + jobCardSelector + "' found 0 nodes. Trying fallback...")
+        const fallbackSelector = 'div.jobsearch-SerpJobCard, div.result, div.job_seen_beacon, li > div[class*="cardOutline"]'
+        jobNodes = document.querySelectorAll(fallbackSelector)
+        console.log('Fallback selector found nodes:', jobNodes.length)
+      }
 
       console.log('Found Indeed job nodes:', jobNodes.length)
 
-      // Scrape current page
-      jobNodes.forEach((node, index) => {
+      // Check if we're already on a job details page
+      const alreadyOnJobDetail = document.querySelector('div.fastviewjob') || document.querySelector('div.jobsearch-ViewJobLayout--embedded')
+
+      // Function to wait for job details panel to load/update
+      const waitForJobDetailsPanel = async () => {
+        let attempts = 0
+        const maxAttempts = 20
+        let waitTime = 250 // Start with 250ms
+
+        while (attempts < maxAttempts) {
+          // Look for the main container and the description text
+          const detailsPanel = document.querySelector('div.fastviewjob') || document.querySelector('div.jobsearch-ViewJobLayout--embedded')
+          const descriptionLoaded = detailsPanel && detailsPanel.querySelector('#jobDescriptionText')
+
+          if (detailsPanel && descriptionLoaded && descriptionLoaded.textContent.trim().length > 10) { // Check for non-empty description
+            // Wait a bit more to ensure content is fully rendered
+            await new Promise(r => setTimeout(r, 500))
+            console.log('Indeed details panel detected.')
+            return detailsPanel // Return the panel element
+          }
+
+          // Exponential backoff
+          waitTime = Math.min(waitTime * 1.5, 1800)
+          console.log(`Waiting ${waitTime}ms for Indeed job details panel (attempt ${attempts + 1}/${maxAttempts})`)
+          await new Promise(r => setTimeout(r, waitTime))
+          attempts++
+        }
+        console.log('Indeed details panel did not load in time.')
+        return null // Return null if not found
+      }
+
+      // If we're on a standalone job detail page with no job cards
+      if (alreadyOnJobDetail && jobNodes.length === 0) {
+        console.log('On standalone Indeed job details page, scraping current job')
+        const panelElement = await waitForJobDetailsPanel() // Ensure it's loaded
+        if (panelElement) {
+          const jobDetail = scrapeIndeedJobDetailPanel(panelElement)
+          if (jobDetail) {
+            jobs.push(jobDetail)
+            console.log(`Scraped standalone job: ${jobDetail.title}`)
+          }
+        } else {
+          console.warn('Could not find/load the details panel on standalone page.')
+        }
+        // Still check for next page even on detail view
+        const nextPageLink = document.querySelector('a[data-testid="pagination-page-next"]')
+        nextUrl = nextPageLink ? nextPageLink.href : null
+        console.groupEnd()
+        return { jobs, nextUrl }
+      }
+
+      // Process job cards using the click and scrape method
+      for (let i = 0; i < Math.min(jobNodes.length, 25); i++) { // Limit to 25 to avoid issues
+        const node = jobNodes[i]
+        let basicInfo = {}
+        let job = null
+
         try {
-          console.log(`\nProcessing Indeed job ${index + 1}:`)
+          console.log(`\nProcessing Indeed job card ${i + 1}/${Math.min(jobNodes.length, 25)}`)
 
+          // --- 1. Extract Basic Info from Card (Fallback) ---
           const titleNode = node.querySelector([
-            'h2.jobTitle a',
-            'h2 a[data-jk]',
-            'h2.jobTitle span[title]',
-            'a[data-jk] span[title]',
-            '[class*="jobTitle"]',
-            'a[id^="job_"]'
+            'h2.jobTitle a', 'h2 a[data-jk]', 'h2.jobTitle span[title]', 'a[data-jk] span[title]',
+            '[class*="jobTitle"]', 'a[id^="job_"]'
           ].join(','))
-
           const companyNode = node.querySelector([
-            'span[data-testid="company-name"]',
-            'span.css-1h7lukg[data-testid="company-name"]',
-            'span.companyName',
-            '[data-testid="company-name"]',
-            'div[class*="company"] span',
-            'span[class*="companyName"]'
+            'span[data-testid="company-name"]', 'span.css-1h7lukg[data-testid="company-name"]', 'span.companyName',
+            '[data-testid="company-name"]', 'div[class*="company"] span', 'span[class*="companyName"]'
           ].join(','))
-
           const locationNode = node.querySelector([
-            'div[data-testid="text-location"]',
-            'div.css-1restlb[data-testid="text-location"]',
-            'div.companyLocation',
-            'div[class*="location"]',
-            'div[class*="workplace"]'
+            'div[data-testid="text-location"]', 'div.css-1restlb[data-testid="text-location"]', 'div.companyLocation',
+            'div[class*="location"]', 'div[class*="workplace"]'
           ].join(','))
-
-          const descriptionNode = node.querySelector([
-            'div[data-testid="jobsnippet_footer"] ul li',
-            '.job-snippet',
-            '.underShelfFooter .heading6 ul li'
+          const descriptionSnippetNode = node.querySelector([
+            'div[data-testid="jobsnippet_footer"] ul li', '.job-snippet ul li', '.underShelfFooter .heading6 ul li'
           ].join(','))
+          const postedDateNode = node.querySelector('span.date, span[class*="date"], .jobMetaDataGroup span') // Added more date selectors
 
-          const postedDateNode = node.querySelector('span.date')
-
-          // Get all metadata items and clean up text content
           const metadataItems = Array.from(node.querySelectorAll([
             '.metadataContainer li .metadata div[data-testid="attribute_snippet_testid"]',
             '.metadataContainer li div[data-testid="attribute_snippet_testid"]',
-            '.metadataContainer li div[data-testid^="attribute_snippet"]'
+            '.metadataContainer li div[data-testid^="attribute_snippet"]',
+            '.heading6.tapItem-gutter.metadataContainer .metadata' // Broader metadata selector
           ].join(',')))
-            .map(el => {
-              const textContent = Array.from(el.childNodes)
-                .filter(node => node.nodeType === Node.TEXT_NODE)
-                .map(node => node.textContent.trim())
-                .join(' ')
-                .split('+')[0]
-                .trim()
-
-              return textContent || el.textContent.trim().split('+')[0].trim()
-            })
+            .map(el => el?.textContent?.trim())
             .filter(text => text)
 
-          const salaryText = metadataItems.find(text => text.includes('$'))
+
+          const salaryText = metadataItems.find(text => text.includes('$') || text.match(/salary|pay/i)) || ''
           const jobTypeText = metadataItems.find(text =>
             /\b(Full-time|Part-time|Contract|Temporary|Internship|Casual|Contractor)\b/i.test(text)
-          )
-          const jobType = jobTypeText?.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Casual|Contractor)\b/i)?.[0] || ''
+          ) || ''
+          const jobType = jobTypeText.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Casual|Contractor)\b/i)?.[0] || ''
 
-          const description = descriptionNode?.textContent?.trim()
-            .replace(/…$/, '')
-            .replace(/\s+/g, ' ')
-            .trim()
+          // Extract workplace type (Hybrid, Remote) if available on card
+          const workplaceTypeCardText = metadataItems.find(text =>
+            /\b(Hybrid|Remote)\b/i.test(text)
+          ) || locationNode?.textContent?.match(/\b(Hybrid|Remote)\b/i)?.[0] || ''
 
-          if (titleNode && companyNode) {
-            let jobUrl = ''
-            if (titleNode.href) {
-              jobUrl = titleNode.href
-            } else if (titleNode.closest('a')?.href) {
-              jobUrl = titleNode.closest('a').href
-            } else if (node.querySelector('a[data-jk]')?.href) {
-              jobUrl = node.querySelector('a[data-jk]').href
+
+          const descriptionSnippet = descriptionSnippetNode?.textContent?.trim().replace(/…$/, '').replace(/\s+/g, ' ').trim() || ''
+          const companyLogoUrl = node.querySelector('img.companyAvatar, [data-testid="companyAvatar"] img')?.src || null // Added testid selector
+
+          // Attempt to find job URL from various places
+          let jobUrl = ''
+          const titleLink = node.querySelector('h2.jobTitle a[data-jk], a.jcs-JobTitle[data-jk]')
+          if (titleLink?.href) {
+            jobUrl = titleLink.href
+          } else {
+            const cardLink = node.closest('a') || node.querySelector('a')
+            if (cardLink?.href && cardLink.href.includes('/clk?')) {
+              // Use data-jk attribute to construct a more stable URL if possible
+              const jobKey = node.querySelector('[data-jk]')?.getAttribute('data-jk') || node.closest('[data-jk]')?.getAttribute('data-jk')
+              if (jobKey) {
+                jobUrl = `https://au.indeed.com/viewjob?jk=${jobKey}` // Adapt domain if needed
+              } else {
+                jobUrl = cardLink.href // Fallback to click URL
+              }
+            } else if (cardLink?.href) {
+              jobUrl = cardLink.href // Fallback to any link href
             }
+          }
 
-            if (!jobUrl.startsWith('http')) {
-              jobUrl = 'https://indeed.com' + jobUrl
+
+          if (jobUrl && !jobUrl.startsWith('http')) {
+            jobUrl = new URL(jobUrl, window.location.href).href // Make URL absolute
+          }
+
+
+          basicInfo = {
+            title: titleNode?.textContent?.trim() || '',
+            company: companyNode?.textContent?.trim() || '',
+            location: locationNode?.textContent?.trim() || '',
+            jobUrl: jobUrl,
+            description: descriptionSnippet,
+            salary: salaryText,
+            postedDate: postedDateNode?.textContent?.trim().replace('Posted', '').trim() || '',
+            companyLogoUrl: companyLogoUrl,
+            jobType: jobType,
+            workplaceType: workplaceTypeCardText,
+            applicantCount: '' // Not usually on Indeed card
+          }
+
+          if (!basicInfo.title) {
+            console.warn(`Skipping card ${i + 1} due to missing title.`)
+            continue // Skip if essential info missing
+          }
+
+          console.log(`Basic info for card ${i + 1}: ${basicInfo.title} at ${basicInfo.company}`)
+
+          // --- 2. Click Card to Load Details ---
+          const clickableElement =
+            node.querySelector('h2 a[data-jk], a.jcs-JobTitle[data-jk]') || // Specific title links
+            node.querySelector('a[id^="sj_"]') || // Specific ID links
+            node.closest('a') || // The whole card might be a link
+            titleNode || // Fallback to title node itself
+            node // Absolute fallback to the node
+
+          if (!clickableElement) {
+            console.warn(`Could not find clickable element for card ${i + 1}. Using basic info.`)
+            job = Job.createFromIndeed(basicInfo)
+            jobs.push(job)
+            continue
+          }
+
+          console.log(`Clicking element for job ${i + 1}:`, clickableElement.tagName, clickableElement.className)
+          clickableElement.click()
+
+          // --- 3. Wait for and Scrape Details Panel ---
+          const panelElement = await waitForJobDetailsPanel()
+
+          if (panelElement) {
+            console.log(`Panel loaded for job ${i + 1}. Scraping details...`)
+            const jobDetail = scrapeIndeedJobDetailPanel(panelElement, basicInfo) // Pass basicInfo as fallback
+
+            if (jobDetail && jobDetail.title) { // Ensure detail scraping was successful
+              job = jobDetail
+              console.log(`Successfully scraped detailed Indeed job: ${job.title}`)
+            } else {
+              console.warn(`Detailed scraping failed for job ${i + 1}. Using basic info.`)
+              job = Job.createFromIndeed(basicInfo) // Fallback to basic
             }
+          } else {
+            console.warn(`Details panel did not load for job ${i + 1}. Using basic info.`)
+            job = Job.createFromIndeed(basicInfo) // Fallback to basic
+          }
 
-            const job = Job.createFromIndeed({
-              title: titleNode.textContent.trim(),
-              company: companyNode.textContent.trim(),
-              location: locationNode?.textContent?.trim(),
-              jobUrl: jobUrl,
-              description: description,
-              salary: salaryText || '',
-              postedDate: postedDateNode?.textContent?.trim(),
-              companyLogoUrl: node.querySelector('img.companyAvatar')?.src || null,
-              jobType: jobType,
-              workplaceType: '',
-              applicantCount: ''
-            })
+          jobs.push(job)
 
-            console.log('Successfully scraped Indeed job:', job)
+          // --- 4. Delay ---
+          const baseDelay = 600
+          const additionalDelay = i * 150
+          const totalDelay = baseDelay + additionalDelay
+          console.log(`Waiting ${totalDelay}ms before next Indeed job click...`)
+          await new Promise(r => setTimeout(r, totalDelay))
+
+        } catch (error) {
+          console.error(`Error processing Indeed job ${i + 1}:`, error)
+          if (basicInfo.title) { // If we got basic info, add it as a fallback
+            console.log("Adding job with basic info due to error during processing.")
+            job = Job.createFromIndeed(basicInfo)
             jobs.push(job)
           }
-        } catch (error) {
-          console.error('Error scraping Indeed job:', error)
+          // Add error recovery delay
+          await new Promise(r => setTimeout(r, 1500))
         }
-      })
+      }
 
-      // Get next page URL
+      // Get next page URL (check after loop)
       const nextPageLink = document.querySelector('a[data-testid="pagination-page-next"]')
-      const nextUrl = nextPageLink ? nextPageLink.href : null
+      nextUrl = nextPageLink ? nextPageLink.href : null
 
-      console.log(`Scraped ${jobs.length} jobs from current page`)
-      console.log('Next page URL:', nextUrl)
+      console.log(`Scraped ${jobs.length} jobs from Indeed page`)
+      console.log('Next Indeed page URL:', nextUrl)
       console.groupEnd()
 
       return {
@@ -607,31 +773,15 @@ const scrapers = {
     },
     scrapeJobDetail: () => {
       try {
-        const title = document.querySelector('h1.jobsearch-JobInfoHeader-title')?.textContent.trim()
-        const company = document.querySelector('div.jobsearch-CompanyInfoContainer a')?.textContent.trim()
-        const location = document.querySelector('div.jobsearch-JobInfoHeader-subtitle div')?.textContent.trim()
-        const description = document.querySelector('div#jobDescriptionText')?.textContent.trim()
-        const logoUrl = document.querySelector('img.jobsearch-CompanyAvatar-image')?.src
-        const salary = document.querySelector('div[data-testid="attribute_snippet_compensation"]')?.textContent.trim()
-        const jobType = document.querySelector('div[data-testid="attribute_snippet_job_type"]')?.textContent.trim()
-
-        const job = {
-          title,
-          company,
-          location,
-          description,
-          companyLogoUrl: logoUrl,
-          jobUrl: window.location.href,
-          platform: 'Indeed',
-          salary: salary || '',
-          jobType: jobType || '',
-          workplaceType: '',
-          applicantCount: ''
+        const panel = document.querySelector('div.fastviewjob') || document.querySelector('div.jobsearch-ViewJobLayout--embedded')
+        if (panel) {
+          return scrapeIndeedJobDetailPanel(panel)
+        } else {
+          console.warn("scrapeJobDetail called but no Indeed panel found.")
+          return null
         }
-        console.log('Scraped Indeed job detail:', job)
-        return job
       } catch (error) {
-        console.error('Error scraping Indeed job detail:', error)
+        console.error('Error in Indeed scrapeJobDetail:', error)
         return null
       }
     }
@@ -642,141 +792,125 @@ const scrapers = {
 window.Job = Job
 window.scrapers = scrapers
 
-// Helper function to scrape the current job detail page
+// Helper function to scrape the current job detail page (when not on search results)
 function scrapeCurrentJobDetail () {
   try {
-    const title = document.querySelector('h1.top-card-layout__title, .job-details-jobs-unified-top-card__job-title')?.textContent.trim()
-    const company = document.querySelector('a.topcard__org-name-link, .job-details-jobs-unified-top-card__company-name')?.textContent.trim()
+    const mainContainer = document.querySelector('.job-view-layout') || document.body
 
-    // Get the combined location, posted date, and applicant count
-    const metaInfo = document.querySelector('.jobs-unified-top-card__subtitle-primary-grouping, .job-details-jobs-unified-top-card__primary-description-container')?.textContent.trim()
+    const title = mainContainer.querySelector('h1.t-24, .job-details-jobs-unified-top-card__job-title h1')?.textContent.trim()
+    const companyLink = mainContainer.querySelector('a.topcard__org-name-link, .job-details-jobs-unified-top-card__company-name a')
+    const company = companyLink?.textContent.trim()
 
-    // Parse location, posted date and applicant count from the combined text
+    // --- Location, Posted Date, Applicant Count ---
+    const metaContainer = mainContainer.querySelector('.jobs-unified-top-card__subtitle-primary-grouping, .job-details-jobs-unified-top-card__primary-description-container')
     let location = ''
     let postedDate = ''
     let applicantCount = ''
 
-    if (metaInfo) {
-      // Split by bullet character to separate the different pieces of information
-      const parts = metaInfo.split('·').map(part => part.trim())
+    if (metaContainer) {
+      // Get all distinct text nodes within the container, preserving order
+      const metaTexts = Array.from(metaContainer.querySelectorAll('span[class*="tvm__text"]'))
+        .map(span => span.textContent.trim())
+        .filter(text => text && text !== '·')
 
-      if (parts.length >= 1) {
-        // First part is typically the location
-        location = parts[0]
-      }
+      if (metaTexts.length > 0) location = metaTexts[0] // Usually the first item
+      // Find posted date (contains 'ago' or similar)
+      postedDate = metaTexts.find(text => /\d+ (day|week|month|year)s? ago/i.test(text)) || ''
+      // Find applicant count (contains 'applicant' or 'people clicked apply')
+      applicantCount = metaTexts.find(text => /applicant|people clicked apply/i.test(text)) || ''
 
-      if (parts.length >= 2) {
-        // Second part is typically the posted date
-        postedDate = parts[1]
-      }
-
-      if (parts.length >= 3) {
-        // Third part is typically the applicant count
-        applicantCount = parts[2]
+      // Fallback if specific spans weren't found - split by bullet
+      if (!location && !postedDate && !applicantCount && metaContainer.textContent) {
+        const parts = metaContainer.textContent.split('·').map(part => part.trim())
+        if (parts.length >= 1) location = parts[0]
+        if (parts.length >= 2 && parts[1].includes('ago')) postedDate = parts[1] // Basic check
+        if (parts.length >= 3 && (parts[2].includes('applicant') || parts[2].includes('people clicked apply'))) applicantCount = parts[2] // Basic check
       }
     }
 
-    // Get detailed description - extract and clean the content
+    // --- Description ---
     let description = ''
-    const descriptionContainer = document.querySelector('div.description__text, .jobs-description-content__text, div#job-details, div[class*="jobs-box__html-content"]')
-
+    const descriptionContainer = mainContainer.querySelector('div.description__text, .jobs-description-content__text, div#job-details, div[class*="jobs-box__html-content"]')
     if (descriptionContainer) {
-      // First try to get the actual job description content, excluding the "About the job" heading
-      const contentDiv = descriptionContainer.querySelector('.mt4') || descriptionContainer
-      if (contentDiv) {
-        // Create a temporary div to help with cleaning
-        const tempDiv = document.createElement('div')
-        tempDiv.innerHTML = contentDiv.innerHTML
-
-        // Remove all HTML comments
-        const commentNodes = tempDiv.querySelectorAll('*')
-        commentNodes.forEach(node => {
-          for (let i = 0; i < node.childNodes.length; i++) {
-            if (node.childNodes[i].nodeType === 8) { // Comment node
-              node.removeChild(node.childNodes[i])
-              i--
-            }
-          }
-        })
-
-        // Clean up empty spans and other tags that only contain comments
-        cleanupEmptyTags(tempDiv)
-
-        // Get the cleaned content with only the text and minimal formatting
-        description = cleanAndFormatContent(tempDiv)
-      }
+      const contentDiv = descriptionContainer.querySelector('.mt4') || descriptionContainer // Try to exclude "About the job" header
+      description = cleanAndFormatContent(contentDiv) // Use the improved cleaning function
     }
 
-    // Get company logo
-    const logoUrl = document.querySelector('img.artdeco-entity-image, .ivm-view-attr__img--centered')?.src
+    // --- Company Logo ---
+    const logoElement = mainContainer.querySelector('.jobs-unified-top-card__company-logo img, .artdeco-entity-lockup__image img, .evi-image')
+    const companyLogoUrl = logoElement?.src
 
-    // Extract job labels (workplace type, job type) from the UI pills
+    // --- Job Type, Workplace Type, Salary from Pills/Specific Elements ---
     let workplaceType = ''
     let jobType = ''
     let salary = ''
 
-    // Get all pill elements that might contain job metadata
-    const pillElements = document.querySelectorAll('.job-details-preferences-and-skills__pill, .ui-label')
+    const pillElements = mainContainer.querySelectorAll('.job-details-preferences-and-skills__pill, .job-details-jobs-unified-top-card__job-insight, .job-details-jobs-unified-top-card__workplace-type')
 
     pillElements.forEach(pill => {
       const pillText = pill.textContent.trim()
-
-      // Check for workplace type
-      if (pillText.includes('Remote') || pillText.includes('Hybrid') || pillText.includes('On-site')) {
+      // Check for workplace type (prioritize specific element if exists)
+      if (!workplaceType && pill.matches('.job-details-jobs-unified-top-card__workplace-type')) {
+        workplaceType = pillText
+      } else if (!workplaceType && (pillText.includes('Remote') || pillText.includes('Hybrid') || pillText.includes('On-site'))) {
         if (pillText.includes('Remote')) workplaceType = 'Remote'
         else if (pillText.includes('Hybrid')) workplaceType = 'Hybrid'
         else if (pillText.includes('On-site')) workplaceType = 'On-site'
       }
 
       // Check for job type
-      else if (pillText.includes('Full-time') || pillText.includes('Part-time') ||
-        pillText.includes('Contract') || pillText.includes('Temporary') ||
-        pillText.includes('Internship') || pillText.includes('Volunteer')) {
-        // Extract just the job type from the text
-        const jobTypeMatch = pillText.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Casual|Contractor)\b/)
+      if (!jobType && (pillText.includes('Full-time') || pillText.includes('Part-time') || pillText.includes('Contract') || pillText.includes('Temporary') || pillText.includes('Internship') || pillText.includes('Volunteer'))) {
+        const jobTypeMatch = pillText.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Volunteer|Casual|Contractor)\b/i)
         if (jobTypeMatch) jobType = jobTypeMatch[0]
       }
 
-      // Check for salary - usually contains currency symbols or ranges
-      else if (pillText.match(/\$|\€|\£|\¥|\₹|\/yr|\/hour|\/month|\/week/) || pillText.match(/\d+K|salary/i)) {
-        salary = pillText.replace(/[^a-zA-Z0-9$€£¥₹\-.,\/\s]/g, '').trim()
+      // Check for salary
+      if (!salary && (pillText.match(/\$|€|£|¥|₹|Salary|salary|\/yr|\/hour|\/month|\/week|Bonus|bonus/i) || pillText.match(/\d+K/i))) {
+        salary = pillText.replace(/See how you compare.*/i, '').trim() // Remove trailing text
       }
     })
 
-    // Fallback to existing methods if nothing found in pills
+    // Specific check for salary range element if not found in pills
     if (!salary) {
-      const salaryContainer = document.querySelector('.compensation__salary-range, [class*="salary"]')
+      const salaryContainer = mainContainer.querySelector('.compensation__salary-range, [class*="salary-"], .jobs-unified-top-card__salary-info') // Added one more selector
       if (salaryContainer) salary = salaryContainer.textContent.trim()
     }
 
-    // Get work type information from existing place as fallback
-    if (!jobType) {
-      const employmentLabels = Array.from(document.querySelectorAll('.ui-label.ui-label--accent-3.text-body-small'))
-        .map(el => el.textContent.trim())
-        .join(', ')
-
-      if (employmentLabels) {
-        const jobTypeMatch = employmentLabels.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Volunteer)\b/)
-        if (jobTypeMatch) jobType = jobTypeMatch[0]
+    // --- Job URL (Prioritize title link, fallback to window.location) ---
+    const titleLink = mainContainer.querySelector('h1.t-24 a, .job-details-jobs-unified-top-card__job-title h1 a')
+    let jobUrl = window.location.href // Default to current window URL
+    if (titleLink?.href) {
+      try {
+        jobUrl = new URL(titleLink.href, window.location.href).href // Make absolute
+      } catch (e) {
+        console.warn('Could not create absolute URL from title link:', titleLink.href, e)
+        // Keep window.location.href as fallback
       }
     }
+    // Clean URL? Optional: jobUrl = jobUrl.split('?')[0];
 
-    const job = {
+    // Validate essential fields before creating Job object
+    if (!title || !company) {
+      console.warn("Failed to extract essential details (title or company) from panel.", { title, company })
+      return null // Return null if we couldn't get basic info
+    }
+
+    // Use the Job class static factory method
+    const job = Job.createFromLinkedIn({
       title,
       company,
       location,
+      jobUrl,
       description,
-      companyLogoUrl: logoUrl,
-      jobUrl: window.location.href,
-      platform: 'LinkedIn',
+      salary,
+      postedDate,
+      companyLogoUrl,
       jobType,
       workplaceType,
-      postedDate,
-      salary,
       applicantCount
-    }
+    })
 
-    console.log('Scraped LinkedIn job detail:', job)
+    console.log('Scraped LinkedIn job detail (standalone page):', job)
     return job
   } catch (error) {
     console.error('Error in scrapeCurrentJobDetail:', error)
@@ -784,135 +918,164 @@ function scrapeCurrentJobDetail () {
   }
 }
 
-// Scrape detailed job information from the open panel
+// Scrape detailed job information from the open panel (after clicking a job card)
 const scrapeJobDetailFromPanel = () => {
   try {
-    // Job details panel
-    const panel = document.querySelector('.jobs-search__job-details--container')
+    const panel = document.querySelector('.jobs-search__job-details--container, .scaffold-layout__detail') // Added alternative panel selector
     if (!panel) {
-      console.warn('Job details panel not found')
+      console.warn('Job details panel not found for scraping.')
       return null
     }
 
-    // Title
-    const titleElement = panel.querySelector('h2')
-    const title = titleElement ? titleElement.textContent.trim() : ''
+    // --- Title ---
+    // Try specific title element first, fallback to any h1/h2 in the panel header
+    const titleElement = panel.querySelector('.job-details-jobs-unified-top-card__job-title h1, .t-24.job-details-jobs-unified-top-card__job-title')
+    const title = titleElement?.textContent?.trim() || panel.querySelector('.jobs-details-top-card__job-title, .job-details-jobs-unified-top-card__job-title')?.textContent.trim() || ''
 
-    // Company name
-    const companyElement = panel.querySelector('.jobs-unified-top-card__company-name')
-    const company = companyElement ? companyElement.textContent.trim() : ''
 
-    // Location and metadata text
-    const metadataElement = panel.querySelector('.jobs-unified-top-card__primary-description')
+    // --- Company ---
+    const companyLink = panel.querySelector('.job-details-jobs-unified-top-card__company-name a, .jobs-details-top-card__company-url')
+    const company = companyLink?.textContent?.trim() || panel.querySelector('.job-details-jobs-unified-top-card__company-name, .jobs-details-top-card__company-info')?.textContent.trim() || ''
+
+
+    // --- Location, Posted Date, Applicant Count ---
+    const metaContainer = panel.querySelector('.job-details-jobs-unified-top-card__primary-description-container, .jobs-details-top-card__job-info')
     let location = ''
     let postedDate = ''
     let applicantCount = ''
 
-    if (metadataElement) {
-      const metadataText = metadataElement.textContent.trim()
+    if (metaContainer) {
+      // Get all distinct text nodes within the container, preserving order
+      const metaTexts = Array.from(metaContainer.querySelectorAll('span[class*="tvm__text"], .job-details-jobs-unified-top-card__primary-description-container > div > span')) // Added alternative span selector
+        .map(span => span.textContent.trim())
+        .filter(text => text && text !== '·')
 
-      // Parse location, posted date, and applicant count from the metadata
-      const parts = metadataText.split('·').map(part => part.trim())
+      if (metaTexts.length > 0) location = metaTexts[0] // Usually the first item
+      // Find posted date (contains 'ago' or similar)
+      postedDate = metaTexts.find(text => /\d+ (day|week|month|year)s? ago/i.test(text)) || ''
+      // Find applicant count (contains 'applicant' or 'people clicked apply')
+      applicantCount = metaTexts.find(text => /applicant|people clicked apply/i.test(text)) || ''
 
-      if (parts.length > 0) {
-        location = parts[0]
-      }
-
-      if (parts.length > 1) {
-        // Check if this part contains "ago" which indicates it's the posted date
-        if (parts[1].includes('ago')) {
-          postedDate = parts[1]
-        }
-      }
-
-      // Look for the applicant count (format: "XX applicants")
-      const applicantPart = parts.find(part => part.includes('applicant'))
-      if (applicantPart) {
-        applicantCount = applicantPart
+      // Fallback if specific spans weren't found - split by bullet
+      if (!location && !postedDate && !applicantCount && metaContainer.textContent) {
+        const parts = metaContainer.textContent.split('·').map(part => part.trim())
+        if (parts.length >= 1) location = parts[0]
+        if (parts.length >= 2 && parts[1].includes('ago')) postedDate = parts[1] // Basic check
+        if (parts.length >= 3 && (parts[2].includes('applicant') || parts[2].includes('people clicked apply'))) applicantCount = parts[2] // Basic check
       }
     }
 
-    // Job type (Remote, On-site, Hybrid)
-    const workplaceTypeElement = panel.querySelector('.jobs-unified-top-card__workplace-type')
-    const workplaceType = workplaceTypeElement ? workplaceTypeElement.textContent.trim() : ''
-
-    // Job Type (Full-time, Part-time, Contract)
-    const jobTypeElement = panel.querySelector('.jobs-unified-top-card__job-insight:nth-child(1)')
-    const jobType = jobTypeElement ? jobTypeElement.textContent.trim() : ''
-
-    // Salary info (if available)
-    const salaryElement = panel.querySelector('.jobs-unified-top-card__salary-details, .jobs-unified-top-card__job-insight:nth-child(2)')
-    const salary = salaryElement && salaryElement.textContent.includes('$') ? salaryElement.textContent.trim() : ''
-
-    // Company logo URL
-    const logoElement = panel.querySelector('.jobs-unified-top-card__company-logo')
-    const companyLogoUrl = logoElement ? logoElement.src : null
-
-    // Get job URL from URL bar as it's the most reliable way
-    const jobUrl = window.location.href.split('?')[0] // Remove any query parameters
-
-    // Description - this part needs enhanced handling for <br> tags
-    const descriptionElement = panel.querySelector('.jobs-description-content__text, .jobs-box__html-content')
-
+    // --- Description ---
     let description = ''
-    if (descriptionElement) {
-      // First try to use innerText which should handle most formatting naturally
-      description = descriptionElement.innerText
+    // Prioritize the newer selector, fallback to others
+    const descriptionContainer = panel.querySelector('.jobs-description__content .jobs-box__html-content, .jobs-description-content__text, div#job-details')
+    if (descriptionContainer) {
+      const contentDiv = descriptionContainer.querySelector('.mt4') || descriptionContainer // Try to exclude "About the job" header
+      description = cleanAndFormatContent(contentDiv) // Use the improved cleaning function
+    } else {
+      console.warn("Could not find description container in panel.")
+    }
 
-      // If innerText failed or produced poor results, try a more advanced approach
-      if (!description || description.trim() === '') {
-        // Clone the element to avoid modifying the actual DOM
-        const clone = descriptionElement.cloneNode(true)
 
-        // Replace all <br> and <p> tags with newlines before getting text
-        // This handles both standalone <br> and nested <br> tags
-        const allBrTags = clone.querySelectorAll('br')
-        allBrTags.forEach(br => {
-          br.replaceWith('\n')
-        })
+    // --- Company Logo ---
+    // Look in the standard top card location
+    const logoElement = panel.querySelector('.jobs-unified-top-card__company-logo img, .artdeco-entity-lockup__image img, .evi-image')
+    const companyLogoUrl = logoElement?.src
 
-        // Also handle paragraph breaks
-        const allPTags = clone.querySelectorAll('p')
-        allPTags.forEach(p => {
-          p.appendChild(document.createTextNode('\n\n'))
-        })
 
-        // Handle list items
-        const allLiTags = clone.querySelectorAll('li')
-        allLiTags.forEach(li => {
-          li.prepend(document.createTextNode('• '))
-          li.appendChild(document.createTextNode('\n'))
-        })
+    // --- Job Type, Workplace Type, Salary from Pills/Specific Elements ---
+    let workplaceType = ''
+    let jobType = ''
+    let salary = ''
 
-        // Get the text and clean it up
-        description = clone.textContent || clone.innerText || ''
+    // Query all potential pill/insight elements within the panel
+    const pillElements = panel.querySelectorAll('.job-details-preferences-and-skills__pill, .job-details-jobs-unified-top-card__job-insight, .job-details-jobs-unified-top-card__workplace-type')
 
-        // Clean up excessive whitespace while preserving paragraph breaks
-        description = description.replace(/\n{3,}/g, '\n\n') // Replace 3+ newlines with 2
-          .trim()
+    pillElements.forEach(pill => {
+      const pillText = pill.textContent.trim()
+      // Check for workplace type (prioritize specific element if exists)
+      if (!workplaceType && pill.matches('.job-details-jobs-unified-top-card__workplace-type')) {
+        workplaceType = pillText
+      } else if (!workplaceType && (pillText.includes('Remote') || pillText.includes('Hybrid') || pillText.includes('On-site'))) {
+        if (pillText.includes('Remote')) workplaceType = 'Remote'
+        else if (pillText.includes('Hybrid')) workplaceType = 'Hybrid'
+        else if (pillText.includes('On-site')) workplaceType = 'On-site'
+      }
+
+      // Check for job type
+      if (!jobType && (pillText.includes('Full-time') || pillText.includes('Part-time') || pillText.includes('Contract') || pillText.includes('Temporary') || pillText.includes('Internship') || pillText.includes('Volunteer'))) {
+        const jobTypeMatch = pillText.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Volunteer|Casual|Contractor)\b/i)
+        if (jobTypeMatch) jobType = jobTypeMatch[0]
+      }
+
+      // Check for salary
+      if (!salary && (pillText.match(/\$|€|£|¥|₹|Salary|salary|\/yr|\/hour|\/month|\/week|Bonus|bonus/i) || pillText.match(/\d+K/i))) {
+        salary = pillText.replace(/See how you compare.*/i, '').trim() // Remove trailing text
+      }
+    })
+
+    // Specific check for salary range element if not found in pills
+    if (!salary) {
+      const salaryContainer = panel.querySelector('.compensation__salary-range, [class*="salary-"], .jobs-unified-top-card__salary-info') // Added one more selector
+      if (salaryContainer) salary = salaryContainer.textContent.trim()
+    }
+
+    // --- Job URL (Extract from title link within the panel if possible) ---
+    let detailUrl = ''
+    const titleLink = panel.querySelector('.job-details-jobs-unified-top-card__job-title h1 a, .t-24.job-details-jobs-unified-top-card__job-title a')
+    if (titleLink?.href) {
+      try {
+        detailUrl = new URL(titleLink.href, window.location.href).href // Make absolute
+      } catch (e) {
+        console.warn('Could not create absolute URL from panel title link:', titleLink.href, e)
       }
     }
 
-    return {
+    // Validate essential fields before creating Job object
+    if (!title || !company) {
+      console.warn("Failed to extract essential details (title or company) from panel.", { title, company })
+      return null // Return null if we couldn't get basic info
+    }
+
+    // Use the Job class static factory method
+    const job = Job.createFromLinkedIn({
       title,
       company,
       location,
-      salary,
+      jobUrl: detailUrl, // Return the URL found in the panel (might be empty string)
       description,
+      salary,
       postedDate,
-      jobUrl,
       companyLogoUrl,
-      workplaceType,
       jobType,
+      workplaceType,
       applicantCount
-    }
+    })
+
+    console.log('Scraped LinkedIn job detail from panel:', job)
+    return job // Return the structured job object
+
   } catch (error) {
-    console.error('Error scraping job details:', error)
+    console.error('Error scraping LinkedIn job details panel:', error)
     return null
   }
 }
 
 // Helper function to clean up empty tags and those that only contain comments
+function cleanupEmptyTags (node) {
+  if (!node) return
+
+  const children = Array.from(node.childNodes)
+  children.forEach(child => {
+    if (child.nodeType === 8) { // Comment node
+      child.remove()
+    } else if (child.nodeType === 3 && !child.textContent.trim()) {
+      child.remove()
+    } else if (child.nodeType === 1) {
+      cleanupEmptyTags(child)
+    }
+  })
+}
 
 // Helper function to clean and format content, preserving important formatting
 function cleanAndFormatContent (node) {
@@ -1015,4 +1178,228 @@ function cleanAndFormatContent (node) {
     .replace(/\n{3,}/g, '\n\n')
 
   return content
+}
+
+// Helper function to scrape the SEEK job detail panel
+function scrapeSeekJobDetailPanel (basicInfo = {}) {
+  try {
+    // Job details panel
+    const panel = document.querySelector('[data-automation="jobDetailsPage"]')
+    if (!panel) {
+      console.warn('SEEK job details panel not found')
+      return null
+    }
+
+    // Title
+    const titleElement = panel.querySelector('[data-automation="job-detail-title"], h1')
+    const title = titleElement ? titleElement.textContent.trim() : basicInfo.title || ''
+
+    // Company name
+    const companyElement = panel.querySelector('[data-automation="advertiser-name"]')
+    const company = companyElement ? companyElement.textContent.trim() : basicInfo.company || ''
+
+    // Location
+    const locationElement = panel.querySelector('[data-automation="job-detail-location"]')
+    const location = locationElement ? locationElement.textContent.trim() : basicInfo.location || ''
+
+    // Job URL - use the current URL or the one from the basic info
+    const jobUrl = window.location.href.split('?')[0] || basicInfo.jobUrl
+
+    // Work type (Full-time/Part-time)
+    const workTypeElement = panel.querySelector('[data-automation="job-detail-work-type"]')
+    const jobType = workTypeElement ? workTypeElement.textContent.trim() : ''
+
+    // Workplace type (Remote/Hybrid/On-site) - from basic info or try to extract from detail
+    let workplaceType = basicInfo.workplaceType || ''
+    if (!workplaceType) {
+      // Try to find it in the location section, which sometimes contains (Remote) or (Hybrid)
+      const locationText = locationElement?.textContent || ''
+      if (locationText.includes('Remote')) workplaceType = 'Remote'
+      else if (locationText.includes('Hybrid')) workplaceType = 'Hybrid'
+      else if (locationText.includes('On-site')) workplaceType = 'On-site'
+    }
+
+    // Salary info
+    const salaryElement = panel.querySelector('[data-automation="job-detail-salary"]')
+    const salary = salaryElement ? salaryElement.textContent.trim() : ''
+
+    // Posted date - find elements that might contain the posted date
+    let postedDate = ''
+    const dateElements = panel.querySelectorAll('span.gg45di0')
+    for (const el of dateElements) {
+      if (el.textContent.includes('Posted')) {
+        postedDate = el.textContent.replace('Posted', '').trim()
+        break
+      }
+    }
+
+    // Job description
+    const descriptionElement = panel.querySelector('[data-automation="jobAdDetails"]')
+    const description = descriptionElement ? descriptionElement.textContent.trim() : ''
+
+    // Company logo
+    const logoElement = panel.querySelector('[data-testid="bx-logo-image"] img, [data-automation="advertiser-logo"] img')
+    const companyLogoUrl = logoElement ? logoElement.src : null
+
+    // Create the job object
+    const job = Job.createFromSEEK({
+      title,
+      company,
+      location,
+      jobUrl,
+      description,
+      salary,
+      postedDate,
+      companyLogoUrl,
+      jobType,
+      workplaceType,
+      applicantCount: ''
+    })
+
+    console.log('Scraped SEEK job detail from panel:', job)
+    return job
+  } catch (error) {
+    console.error('Error scraping SEEK job details panel:', error)
+    return null
+  }
+}
+
+// **** NEW HELPER FUNCTION for Indeed Details Panel ****
+function scrapeIndeedJobDetailPanel (panelElement, basicInfo = {}) {
+  console.log("Attempting to scrape Indeed detail panel...")
+  if (!panelElement) {
+    console.error("scrapeIndeedJobDetailPanel called with null panelElement.")
+    return null
+  }
+
+  try {
+    // --- Extractors based on provided detail HTML ---
+    const titleElement = panelElement.querySelector('h2[data-testid="simpler-jobTitle"]')
+    const companyElement = panelElement.querySelector('span.jobsearch-JobInfoHeader-companyNameSimple')
+    const locationElement = panelElement.querySelector('div[data-testid="jobsearch-JobInfoHeader-companyLocation"] div:first-child') // Get the div containing location and maybe work type
+    const descriptionElement = panelElement.querySelector('#jobDescriptionText')
+    const jobDetailsContainer = panelElement.querySelector('#jobDetailsSection') // Container for salary, job type etc.
+
+    // --- Basic Info ---
+    const title = titleElement?.textContent?.trim() || basicInfo.title || ''
+    const company = companyElement?.textContent?.trim() || basicInfo.company || ''
+    const jobUrl = window.location.href.split('?')[0] || basicInfo.jobUrl || '' // Use current URL primarily
+
+    // --- Location & Workplace Type ---
+    let location = ''
+    let workplaceType = ''
+    if (locationElement) {
+      const locationText = locationElement.textContent.trim()
+      // Example: "Sydney NSW 2000 • Hybrid work" or just "Sydney NSW 2000" or "Remote"
+      if (locationText.includes('Hybrid work')) {
+        workplaceType = 'Hybrid'
+        location = locationText.replace('• Hybrid work', '').trim()
+      } else if (locationText.includes('Remote')) {
+        workplaceType = 'Remote'
+        location = locationText.replace('• Remote', '').trim() // Or just set location to 'Remote' if that's all there is
+        if (location.toLowerCase() === 'remote') location = '' // Clear location if it was just 'Remote'
+      } else {
+        location = locationText // Assume it's just the location
+        workplaceType = 'On-site' // Default assumption if not specified
+      }
+    }
+    // Fallback from basic info if needed
+    location = location || basicInfo.location || ''
+    workplaceType = workplaceType || basicInfo.workplaceType || '' // Prioritize panel, then card
+
+    // --- Salary & Job Type from Details Panel ---
+    let salary = ''
+    let jobType = ''
+    if (jobDetailsContainer) {
+      const payElement = jobDetailsContainer.querySelector('[aria-label="Pay"] [data-testid*="-tile"] span')
+      const jobTypeElement = jobDetailsContainer.querySelector('[aria-label="Job type"] [data-testid*="-tile"] span')
+
+      salary = payElement?.textContent?.trim() || ''
+      jobType = jobTypeElement?.textContent?.trim() || ''
+
+      // Refine job type extraction if it contains extra text
+      const jobTypeMatch = jobType.match(/\b(Full-time|Part-time|Contract|Temporary|Internship|Casual|Contractor)\b/i)
+      jobType = jobTypeMatch ? jobTypeMatch[0] : ''
+    }
+    // Fallback from basic info
+    salary = salary || basicInfo.salary || ''
+    jobType = jobType || basicInfo.jobType || ''
+
+
+    // --- Description ---
+    let description = ''
+    if (descriptionElement) {
+      // Use a similar cleaning approach as LinkedIn/SEEK
+      const tempDiv = document.createElement('div')
+      tempDiv.innerHTML = descriptionElement.innerHTML
+
+      // Replace <p> and <br> with newlines
+      tempDiv.querySelectorAll('p, br').forEach(el => el.replaceWith('\n'))
+      // Handle lists
+      tempDiv.querySelectorAll('li').forEach(li => {
+        li.prepend(document.createTextNode('• '))
+        li.appendChild(document.createTextNode('\n'))
+      })
+      // Handle bold
+      tempDiv.querySelectorAll('b, strong').forEach(strong => {
+        const boldText = strong.textContent.trim()
+        if (boldText) {
+          strong.replaceWith(document.createTextNode(`**${boldText}**`))
+        } else {
+          strong.remove() // Remove empty bold tags
+        }
+      })
+
+      // Remove remaining HTML tags
+      tempDiv.querySelectorAll(':not(p):not(br):not(li):not(b):not(strong)').forEach(el => {
+        if (el.innerHTML) {
+          el.replaceWith(...el.childNodes) // Replace tag with its content
+        } else {
+          el.remove() // Remove empty tags
+        }
+      })
+
+
+      description = tempDiv.textContent || ''
+      description = description.replace(/\n{3,}/g, '\n\n').trim() // Clean up excessive newlines
+    }
+    description = description || basicInfo.description || '' // Fallback to snippet
+
+
+    // --- Other fields (less likely in panel, use basicInfo) ---
+    const postedDate = basicInfo.postedDate || '' // Usually not in the detail panel view
+    const companyLogoUrl = basicInfo.companyLogoUrl || null // Use logo from card
+    const applicantCount = basicInfo.applicantCount || '' // N/A for Indeed typically
+
+    if (!title || !company) {
+      console.warn("Failed to extract essential details (title or company) from Indeed panel. Returning null.", { title, company })
+      return null // Return null if essential details are missing
+    }
+
+    const job = Job.createFromIndeed({
+      title,
+      company,
+      location,
+      jobUrl,
+      description,
+      salary,
+      postedDate,
+      companyLogoUrl,
+      jobType,
+      workplaceType,
+      applicantCount,
+    })
+
+    console.log('Successfully scraped Indeed job detail from panel:', job)
+    return job
+
+  } catch (error) {
+    console.error('Error scraping Indeed job details panel:', error)
+    // Attempt to return basic info as a last resort if available
+    if (basicInfo && basicInfo.title) {
+      console.warn("Returning basic info due to error during panel scraping.")
+      return Job.createFromIndeed(basicInfo)
+    }
+    return null
+  }
 } 
