@@ -255,9 +255,9 @@ const scrapers = {
 
             // Add a longer delay between job clicks to avoid rate limiting
             // Use an increasing delay as we process more jobs (starts at 1s, increases by 200ms each time)
-            const baseDelay = 500
-            const additionalDelay = i * 200
-            const totalDelay = baseDelay + additionalDelay
+            const baseDelay = 300 // Reduced from 500ms
+            // const additionalDelay = 100
+            const totalDelay = baseDelay // + additionalDelay
             console.log(`Waiting ${totalDelay}ms before next job click to avoid rate limiting...`)
             await new Promise(r => setTimeout(r, totalDelay))
 
@@ -484,9 +484,9 @@ const scrapers = {
           }
 
           // Add a delay between job clicks to avoid rate limiting
-          const baseDelay = 500
-          const additionalDelay = i * 100
-          const totalDelay = baseDelay + additionalDelay
+          const baseDelay = 300
+          // const additionalDelay = 100
+          const totalDelay = baseDelay
           console.log(`Waiting ${totalDelay}ms before next job click...`)
           await new Promise(r => setTimeout(r, totalDelay))
 
@@ -528,6 +528,12 @@ const scrapers = {
     isMatch: (url) => url.includes('indeed.com'),
     scrapeJobList: async () => {
       console.group('Indeed - Job Scraping - Click & Scrape')
+
+      // Add a delay before starting the scraping process
+      const initialDelay = 2500 // 2.5 seconds
+      console.log(`Indeed: Waiting ${initialDelay}ms before starting scrape...`)
+      await new Promise(resolve => setTimeout(resolve, initialDelay))
+
       const jobs = []
       let nextUrl = null
 
@@ -740,9 +746,8 @@ const scrapers = {
           jobs.push(job)
 
           // --- 4. Delay ---
-          const baseDelay = 600
-          const additionalDelay = i * 150
-          const totalDelay = baseDelay + additionalDelay
+          const baseDelay = 300
+          const totalDelay = baseDelay
           console.log(`Waiting ${totalDelay}ms before next Indeed job click...`)
           await new Promise(r => setTimeout(r, totalDelay))
 
