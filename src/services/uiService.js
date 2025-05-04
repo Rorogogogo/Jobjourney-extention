@@ -747,6 +747,151 @@ function triggerExtensionDownload () {
   })
 }
 
+/**
+ * Shows a custom confirmation dialog styled like the extension UI.
+ * @param {string} message The message to display in the dialog.
+ * @returns {Promise<boolean>} A promise that resolves to true if confirmed, false if cancelled.
+ */
+function showConfirmationDialog (message) {
+  return new Promise((resolve) => {
+    // Check if a dialog already exists to prevent duplicates
+    if (document.getElementById('custom-confirm-overlay')) {
+      console.warn('Confirmation dialog already open.')
+      resolve(false) // Prevent opening multiple dialogs
+      return
+    }
+
+    // Create overlay with blur effect
+    const overlay = document.createElement('div')
+    overlay.id = 'custom-confirm-overlay'
+    overlay.style.position = 'fixed'
+    overlay.style.top = '0'
+    overlay.style.left = '0'
+    overlay.style.width = '100%'
+    overlay.style.height = '100%'
+    overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.85)'
+    overlay.style.display = 'flex'
+    overlay.style.justifyContent = 'center'
+    overlay.style.alignItems = 'center'
+    overlay.style.zIndex = '9999'
+    overlay.style.backdropFilter = 'blur(5px)'
+
+    // Create dialog container
+    const dialog = document.createElement('div')
+    dialog.style.backgroundColor = 'rgba(40, 44, 52, 0.95)'
+    dialog.style.color = 'white'
+    dialog.style.padding = '25px 30px'
+    dialog.style.borderRadius = '8px'
+    dialog.style.boxShadow = '0 4px 15px rgba(0, 0, 0, 0.5)'
+    dialog.style.maxWidth = '400px'
+    dialog.style.width = '90%'
+    dialog.style.textAlign = 'center'
+    dialog.style.backdropFilter = 'blur(10px)'
+    dialog.style.border = '1px solid rgba(255, 255, 255, 0.2)'
+    dialog.style.fontFamily = 'system-ui, sans-serif'
+
+    // Create icon
+    const icon = document.createElement('div')
+    icon.innerHTML = '⚠️'
+    icon.style.fontSize = '36px'
+    icon.style.marginBottom = '15px'
+
+    // Create title
+    const title = document.createElement('h3')
+    title.textContent = 'Confirmation'
+    title.style.fontSize = '20px'
+    title.style.fontWeight = 'bold'
+    title.style.marginBottom = '10px'
+    title.style.color = '#FFD700'
+    title.style.textShadow = '0px 1px 2px rgba(0, 0, 0, 0.5)'
+
+    // Create message element
+    const messageP = document.createElement('p')
+    messageP.textContent = message
+    messageP.style.marginBottom = '25px'
+    messageP.style.fontSize = '16px'
+    messageP.style.lineHeight = '1.5'
+    messageP.style.color = 'rgba(255, 255, 255, 0.9)'
+
+    // Create button container
+    const buttonDiv = document.createElement('div')
+    buttonDiv.style.display = 'flex'
+    buttonDiv.style.justifyContent = 'center'
+    buttonDiv.style.gap = '15px'
+    buttonDiv.style.marginTop = '5px'
+
+    // Create Confirm button
+    const confirmBtn = document.createElement('button')
+    confirmBtn.textContent = 'Confirm'
+    confirmBtn.style.padding = '10px 20px'
+    confirmBtn.style.border = 'none'
+    confirmBtn.style.borderRadius = '4px'
+    confirmBtn.style.backgroundColor = '#4361ee'
+    confirmBtn.style.color = 'white'
+    confirmBtn.style.cursor = 'pointer'
+    confirmBtn.style.fontWeight = 'bold'
+    confirmBtn.style.fontSize = '15px'
+    confirmBtn.style.minWidth = '120px'
+    confirmBtn.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.3)'
+    confirmBtn.style.transition = 'background-color 0.2s'
+
+    // Create Cancel button
+    const cancelBtn = document.createElement('button')
+    cancelBtn.textContent = 'Cancel'
+    cancelBtn.style.padding = '10px 20px'
+    cancelBtn.style.border = '1px solid rgba(255, 255, 255, 0.3)'
+    cancelBtn.style.borderRadius = '4px'
+    cancelBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+    cancelBtn.style.color = 'white'
+    cancelBtn.style.cursor = 'pointer'
+    cancelBtn.style.fontSize = '15px'
+    cancelBtn.style.minWidth = '120px'
+    cancelBtn.style.transition = 'background-color 0.2s'
+
+    // Add hover effects
+    confirmBtn.addEventListener('mouseover', () => {
+      confirmBtn.style.backgroundColor = '#2845e0'
+    })
+    confirmBtn.addEventListener('mouseout', () => {
+      confirmBtn.style.backgroundColor = '#4361ee'
+    })
+    cancelBtn.addEventListener('mouseover', () => {
+      cancelBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.2)'
+    })
+    cancelBtn.addEventListener('mouseout', () => {
+      cancelBtn.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'
+    })
+
+    // Function to remove the dialog
+    const removeDialog = () => {
+      document.body.removeChild(overlay)
+    }
+
+    // Add event listeners
+    confirmBtn.onclick = () => {
+      removeDialog()
+      resolve(true)
+    }
+
+    cancelBtn.onclick = () => {
+      removeDialog()
+      resolve(false)
+    }
+
+    // Assemble the dialog
+    dialog.appendChild(icon)
+    dialog.appendChild(title)
+    dialog.appendChild(messageP)
+    buttonDiv.appendChild(confirmBtn)
+    buttonDiv.appendChild(cancelBtn)
+    dialog.appendChild(buttonDiv)
+    overlay.appendChild(dialog)
+
+    // Add to body
+    document.body.appendChild(overlay)
+  })
+}
+
 export default {
   showMessage,
   showOverlay,
@@ -765,5 +910,6 @@ export default {
   initializeUI,
   showUpdateUI,
   showVersionOverlay,
-  triggerExtensionDownload
+  triggerExtensionDownload,
+  showConfirmationDialog
 } 

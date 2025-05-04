@@ -530,7 +530,7 @@ const scrapers = {
       console.group('Indeed - Job Scraping - Click & Scrape')
 
       // Add a delay before starting the scraping process
-      const initialDelay = 2500 // 2.5 seconds
+      const initialDelay = 4000 // 4 seconds
       console.log(`Indeed: Waiting ${initialDelay}ms before starting scrape...`)
       await new Promise(resolve => setTimeout(resolve, initialDelay))
 

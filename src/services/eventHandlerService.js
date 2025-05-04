@@ -66,6 +66,16 @@ function setupEventListeners (elements) {
  * @param {Object} elements UI elements
  */
 async function handleSearch (elements) {
+  // Show confirmation prompt before proceeding using custom UI dialog
+  const proceed = await uiService.showConfirmationDialog("Please avoid starting a new search within 10 minutes of the previous one. Proceed with this search?")
+
+  if (!proceed) {
+    console.log('User cancelled search via custom dialog.')
+    return // Stop if user clicks Cancel
+  }
+
+  // --- If user confirmed, proceed with the search ---
+
   // Validate the form first
   const validation = uiService.validateSearchForm(elements)
   if (!validation.isValid) {

@@ -27,7 +27,7 @@ export function sendVersionCheckMessage (tab, version, requestId) {
         }
       }, response => {
         if (chrome.runtime.lastError) {
-          console.error("Error sending message to content script:", chrome.runtime.lastError)
+          // console.error("Error sending message to content script:", chrome.runtime.lastError)
 
           // Check if it's the "Receiving end does not exist" error
           if (chrome.runtime.lastError.message.includes("Receiving end does not exist")) {

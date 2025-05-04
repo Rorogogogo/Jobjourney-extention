@@ -12,14 +12,30 @@ function waitForPageLoad (tabId) {
   })
 }
 
-// Function to scrape from a single tab
-async function scrapeFromTab (tab) {
+// Function to scrape from a single tab, managing its window context
+async function scrapeFromTab (tabId) {
+  let windowId = null // Keep track of the window we create
+
   return new Promise(async (resolve) => {
     try {
-      // Get the initial tab info
-      const currentTab = await chrome.tabs.get(tab.id)
+      // Notify background: Scraping starting for this tab
+      chrome.runtime.sendMessage({ action: 'SCRAPING_STATE_UPDATE', data: { tabId: tabId, isActive: true } })
+
+      // Move the tab to a new focused window immediately
+      const window = await chrome.windows.create({
+        tabId: tabId,
+        focused: true,
+        type: 'normal'
+      })
+      windowId = window.id
+
+      // Wait for the tab to finish loading in the new window
+      await waitForPageLoad(tabId)
+
+      // Get the URL after loading (optional, for logging)
+      const currentTab = await chrome.tabs.get(tabId) // Now safe to get details
       let currentUrl = currentTab.url
-      console.log(`Initial scraping URL:`, currentUrl)
+      console.log(`Initial scraping URL in new window:`, currentUrl)
 
       // Use a simple default platform - proper data will come from UI
       const platform = "Unknown"
@@ -37,9 +53,10 @@ async function scrapeFromTab (tab) {
       let pageNum = 1
       const MAX_PAGES = 40 // Maximum pages to scrape
 
-      // Show overlay and set scraping state at the start
-      await chrome.storage.local.set({ isScrapingActive: true })
-      await chrome.tabs.sendMessage(tab.id, { action: 'showScrapeOverlay' })
+      // Show overlay - Removed shared state setting
+      // await chrome.storage.local.set({ isScrapingActive: true })
+      // Send message to the specific tabId to show overlay
+      await chrome.tabs.sendMessage(tabId, { action: 'showScrapeOverlay' })
 
       // Start pagination loop
       while (currentUrl && pageNum <= MAX_PAGES) {
@@ -49,18 +66,18 @@ async function scrapeFromTab (tab) {
         // Update tab URL if not first page
         if (pageNum > 1) {
           console.log("Updating tab URL to:", currentUrl)
-          await chrome.tabs.update(tab.id, { url: currentUrl })
-          await waitForPageLoad(tab.id)
+          await chrome.tabs.update(tabId, { url: currentUrl })
+          await waitForPageLoad(tabId)
         }
 
-        // Scrape current page
+        // Scrape current page using tabId
         const response = await new Promise(innerResolve => {
-          chrome.tabs.sendMessage(tab.id, {
+          chrome.tabs.sendMessage(tabId, {
             action: 'scrapeJobs',
             maxPages: 1 // Tell content script to only scrape current page
           }, (response) => {
             if (chrome.runtime.lastError) {
-              console.error(`Error scraping page ${pageNum}:`, chrome.runtime.lastError)
+              // console.error(`Error scraping page ${pageNum}:`, chrome.runtime.lastError)
               innerResolve({ success: false })
             } else {
               innerResolve(response)
@@ -94,13 +111,7 @@ async function scrapeFromTab (tab) {
         }
       }
 
-      // Clean up
-      await chrome.storage.local.set({ isScrapingActive: false })
-      try {
-        await chrome.tabs.sendMessage(tab.id, { action: 'removeScrapeOverlay' })
-      } catch (error) {
-        console.log('Tab might be closed, cannot remove overlay:', error)
-      }
+      // Clean up logic is moved to the finally block
 
       // Process and return jobs
       console.log('Total jobs before deduplication:', allJobs.length)
@@ -125,13 +136,38 @@ async function scrapeFromTab (tab) {
 
     } catch (error) {
       console.error('Error in scrapeFromTab with pagination:', error)
-      await chrome.storage.local.set({ isScrapingActive: false })
+      // Error handling remains similar, resolution happens in finally
       resolve({
         jobs: [],
         config: {
           error: error.toString()
         }
       })
+    } finally {
+      // --- Cleanup --- moved here
+      console.log('Running finally block for scrapeFromTab')
+      // Removed shared state clearing
+      // await chrome.storage.local.set({ isScrapingActive: false })
+      // Notify background: Scraping finished for this tab
+      chrome.runtime.sendMessage({ action: 'SCRAPING_STATE_UPDATE', data: { tabId: tabId, isActive: false } })
+      try {
+        // Try removing overlay from the specific tab via message
+        await chrome.tabs.sendMessage(tabId, { action: 'removeScrapeOverlay' })
+      } catch (error) {
+        console.log('Tab might be closed, cannot remove overlay:', error)
+      }
+
+      // Close the window this function created
+      if (windowId) {
+        try {
+          console.log(`Attempting to close window: ${windowId}`)
+          await chrome.windows.remove(windowId)
+          console.log(`Window ${windowId} closed successfully.`)
+        } catch (e) {
+          // console.warn(`Could not remove window ${windowId} (may already be closed):`, e)
+        }
+      }
+      // --- End Cleanup ---
     }
   })
 }

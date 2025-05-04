@@ -63,24 +63,21 @@ async function searchJobs (searchInputValue, locationValue, selectedPlatforms, p
       let errorResult = null
 
       try {
-        // Open the site in a new tab
+        // Create the tab (inactive, background)
         const tab = await chrome.tabs.create({
           url: site.url,
           active: false
         })
+        const tabId = tab.id // Get the ID immediately
 
-        // Wait for page to load
-        await scraperService.waitForPageLoad(tab.id)
-
-        // Scrape jobs from the tab - handle new return format
-        const result = await scraperService.scrapeFromTab(tab)
+        // Scrape jobs using the tabId. scrapeFromTab will handle window creation/focus and closing.
+        const result = await scraperService.scrapeFromTab(tabId) // Pass tabId
         platformJobs = result.jobs || []
         platformConfig = result.config || {}
 
         console.log(`Found ${platformJobs.length} jobs from ${site.platform}`, platformConfig)
 
-        // Close the tab
-        try { await chrome.tabs.remove(tab.id) } catch (e) { /* ignore error if tab already closed */ }
+        // Window/Tab closure is handled within scrapeFromTab's finally block
 
       } catch (error) {
         console.error(`Error scraping ${site.platform}:`, error)

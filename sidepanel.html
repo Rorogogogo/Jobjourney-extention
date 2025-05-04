@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html>
 
+
 <head>
   <title>JobJourney Assistant</title>
   <style>
@@ -575,7 +576,21 @@
     <div id="websiteOptions" style="margin: 4px 0 10px 0;"></div>
 
     <div class="search-section">
-      <input type="text" id="searchInput" class="search-input" placeholder="Enter job title or keywords" required>
+      <input type="text" id="searchInput" list="jobSuggestions" class="search-input"
+        placeholder="Enter job title or keywords" required>
+      <datalist id="jobSuggestions">
+        <option value="Software Engineer"></option>
+        <option value="Data Scientist"></option>
+        <option value="Product Manager"></option>
+        <option value="UX Designer"></option>
+        <option value="Marketing Manager"></option>
+        <option value="Project Manager"></option>
+        <option value="Business Analyst"></option>
+        <option value="Web Developer"></option>
+        <option value="Accountant"></option>
+        <option value="Graphic Designer"></option>
+        <!-- Add more suggestions as needed -->
+      </datalist>
 
       <div class="search-row">
         <select id="country" class="location-select" required>

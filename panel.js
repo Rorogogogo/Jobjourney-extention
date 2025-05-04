@@ -251,7 +251,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Notify background that panel is active
   notifyBackgroundOfPanelState(true)
 
-  // Initialize UI
+  // Initialize UI (this gets elements including searchInput)
   initializeUI()
 
   // Check version
@@ -300,7 +300,7 @@ function checkVersion () {
 
 // Clean up when the window is about to unload
 window.addEventListener('beforeunload', () => {
-  console.log('Panel window unloading, cleaning up connections')
+  console.log('Panel window unloading, cleaning up connections and intervals')
 
   // Notify background that panel is inactive
   try {

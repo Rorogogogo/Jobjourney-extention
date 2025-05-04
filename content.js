@@ -112,32 +112,24 @@ function removeScrapeOverlay () {
   }
 }
 
-// Add state management
-let isScrapingActive = false
-
 // Listen for messages from popup or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request)
 
   if (request.action === 'showScrapeOverlay') {
-    isScrapingActive = true
+    // Directly create overlay when message received
     createScrapeOverlay()
-    // Store the scraping state
-    chrome.storage.local.set({ isScrapingActive: true })
     sendResponse({ success: true })
-    return true
+    return true // Indicate async response potentially
   }
 
   if (request.action === 'removeScrapeOverlay') {
-    isScrapingActive = false
+    // Directly remove overlay when message received
     removeScrapeOverlay()
-    // Clear the scraping state
-    chrome.storage.local.set({ isScrapingActive: false })
     sendResponse({ success: true })
-    return true
+    return true // Indicate async response potentially
   }
 
-  console.log('Received message:', request)
   console.log('Current page URL:', window.location.href)
   console.log('Current page title:', document.title)
   console.log('Document ready state:', document.readyState)
@@ -246,37 +238,6 @@ function determineDeviceType () {
   }
   return 'desktop'
 }
-
-// Check scraping state on page load
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const result = await chrome.storage.local.get('isScrapingActive')
-    if (result.isScrapingActive) {
-      createScrapeOverlay()
-    }
-  } catch (error) {
-    console.error('Error checking scraping state:', error)
-  }
-})
-
-// Also check immediately in case DOMContentLoaded already fired
-chrome.storage.local.get('isScrapingActive', (result) => {
-  if (result.isScrapingActive) {
-    createScrapeOverlay()
-  }
-})
-
-// Ensure overlay persists after dynamic page updates
-const observer = new MutationObserver(() => {
-  if (isScrapingActive && !document.getElementById('jobjourney-scrape-overlay-container')) {
-    createScrapeOverlay()
-  }
-})
-
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true
-})
 
 // Listen for messages from the website
 window.addEventListener('message', function (event) {
