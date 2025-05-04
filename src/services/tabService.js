@@ -1,80 +1,82 @@
-// Function to check if JobJourney tab exists and is ready
+// Import config
+import config from '../config/config.js'
+
+/**
+ * Find a JobJourney tab that matches our criteria
+ * @returns {Promise<chrome.tabs.Tab|null>} The found tab or null
+ */
 async function findJobJourneyTab () {
-  const tabs = await chrome.tabs.query({})
-  return tabs.find(tab =>
-    tab.url && (
-      tab.url.includes('jobjourney.me/job-market?source=extension') ||
-      tab.url.includes('localhost:5001/job-market?source=extension')
-    )
-  )
+  // Use a broader URL pattern similar to versionCheck.js
+  const tabs = await chrome.tabs.query({
+    url: [
+      "*://jobjourney.me/job-market*",
+      "http://localhost:5001/job-market*",
+      "https://localhost:5001/job-market*"
+    ]
+  })
+
+  return tabs.length > 0 ? tabs[0] : null
 }
 
-// Function to ensure JobJourney website is open
-async function ensureJobJourneyWebsite (shouldFocusPopup = true) {
-  console.group('ensureJobJourneyWebsite')
+/**
+ * Ensure a JobJourney website tab is open
+ * @param {boolean} shouldFocusTab - Whether to focus the tab
+ * @param {string} [version] - Optional version to include in URL
+ * @returns {Promise<chrome.tabs.Tab>} The tab
+ */
+async function ensureJobJourneyWebsite (shouldFocusTab = true, version) {
+  console.log("ensureJobJourneyWebsite, focus:", shouldFocusTab)
+
   try {
+    // Try to find an existing tab
     const existingTab = await findJobJourneyTab()
-    console.log('Existing JobJourney tab:', existingTab)
 
-    if (!existingTab) {
-      console.log('No existing tab found, creating new tab')
-      try {
-        // Get base URL and open new tab
-        const baseUrl = await chrome.runtime.sendMessage({ action: 'getBaseUrl' })
-        console.log('Got base URL:', baseUrl)
+    if (existingTab) {
+      console.log("Using existing JobJourney tab:", existingTab.id)
 
-        if (!baseUrl) {
-          throw new Error('Failed to get JobJourney URL - base URL is undefined')
-        }
-
-        const manifest = chrome.runtime.getManifest()
-        const url = `${baseUrl}/job-market?source=extension&version=${manifest.version}`
-        console.log('Opening JobJourney URL:', url)
-
-        const tab = await chrome.tabs.create({
-          url: url,
-          active: true
-        })
-        console.log('Created new tab:', tab)
-
-        // Wait for tab to load
-        console.log('Waiting for tab to load...')
-        await new Promise((resolve, reject) => {
-          const timeout = setTimeout(() => {
-            chrome.tabs.onUpdated.removeListener(listener)
-            reject(new Error('Timeout waiting for tab to load'))
-          }, 10000) // 10 second timeout
-
-          const listener = function (tabId, info) {
-            console.log('Tab update event:', { tabId, info })
-            if (tabId === tab.id && info.status === 'complete') {
-              console.log('Tab loaded successfully')
-              chrome.tabs.onUpdated.removeListener(listener)
-              clearTimeout(timeout)
-              setTimeout(() => {
-                if (shouldFocusPopup) {
-                  // Get the popup window and focus it
-                  chrome.windows.getCurrent(window => {
-                    chrome.windows.update(window.id, { focused: true })
-                  })
-                }
-                resolve(tab)
-              }, 1000) // Give extra time for scripts to initialize
-            }
-          }
-          chrome.tabs.onUpdated.addListener(listener)
-        })
-        console.log('Tab fully loaded')
-        return tab
-      } catch (error) {
-        console.error('Error ensuring JobJourney website:', error)
-        throw error // Re-throw to be handled by caller
+      // Optionally focus the existing tab
+      if (shouldFocusTab) {
+        await chrome.tabs.update(existingTab.id, { active: true })
       }
+
+      return existingTab
     }
-    console.log('Using existing tab')
-    return existingTab
-  } finally {
-    console.groupEnd()
+
+    // No existing tab, create a new one
+    console.log("No JobJourney tabs found, creating a new one")
+
+    // Get base URL from config
+    const baseUrl = await config.getBaseUrl()
+
+    // Get version from parameter or manifest
+    const versionToUse = version || chrome.runtime.getManifest().version
+
+    const url = `${baseUrl}/job-market?source=extension&version=${versionToUse}`
+    console.log("Opening JobJourney at:", url)
+
+    // Create the tab
+    const tab = await chrome.tabs.create({
+      url: url,
+      active: shouldFocusTab // Control whether tab is focused
+    })
+
+    // Wait for tab to load
+    await new Promise((resolve) => {
+      const listener = function (tabId, changeInfo) {
+        if (tabId === tab.id && changeInfo.status === 'complete') {
+          chrome.tabs.onUpdated.removeListener(listener)
+          resolve()
+        }
+      }
+      chrome.tabs.onUpdated.addListener(listener)
+    })
+
+    console.log("JobJourney tab loaded successfully:", tab.id)
+    return tab
+
+  } catch (error) {
+    console.error("Error ensuring JobJourney website:", error)
+    throw error
   }
 }
 

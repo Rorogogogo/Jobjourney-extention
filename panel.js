@@ -1,581 +1,311 @@
-import { supportedWebsites } from './websites.js'
+// ============================
+// IMPORTS AND INITIALIZATION
+// ============================
+import uiService from './src/services/uiService.js'
+import eventHandlerService from './src/services/eventHandlerService.js'
 import versionService from './src/services/versionService.js'
 import tabService from './src/services/tabService.js'
-import jobService from './src/services/jobService.js'
-import scraperService from './src/services/scraperService.js'
-import uiService from './src/services/uiService.js'
-import storageService from './src/services/storageService.js'
 
-// Notify background script that side panel is loaded
-if (window.location.pathname.includes('sidepanel.html')) {
-  chrome.runtime.sendMessage({ action: 'sidePanelLoaded' })
-}
+// ============================
+// STATE MANAGEMENT
+// ============================
+// Create a connection to the background script
 
-// Event handler for platform checkboxes
-const handleCheckboxChange = async (e) => {
-  if (e.target.type === 'checkbox' && e.target.closest('.website-option')) {
-    const newSettings = {}
-    supportedWebsites.forEach(website => {
-      const checkbox = document.getElementById(website.id)
-      if (checkbox) {
-        newSettings[website.id] = checkbox.checked
-      }
-    })
-    await storageService.saveWebsiteSettings(newSettings)
-    const statusMessage = document.getElementById('statusMessage')
-    if (statusMessage) {
-      uiService.showMessage(statusMessage, 'Settings saved')
-    }
+const port = chrome.runtime.connect({ name: "panel" })
+
+// Flag to track if we've already displayed a version message
+let versionCheckCompleted = false
+
+// ============================
+// MESSAGE HANDLERS
+// ============================
+
+// Set up port message listener
+port.onMessage.addListener((message) => {
+  console.log('Panel received message:', message)
+
+  // Handle version status updates
+  if (message.action === "VERSION_STATUS_UPDATE") {
+    handleVersionStatusUpdate(message)
   }
-}
-
-// Function to update location options based on country selection
-function updateLocationOptions (country) {
-  const locationSelect = document.getElementById('location')
-  const templateId = {
-    'United States': 'usLocations',
-    'Australia': 'australiaLocations',
-    'United Kingdom': 'ukLocations',
-    'Canada': 'canadaLocations',
-    'New Zealand': 'newZealandLocations'
-  }[country]
-
-  // Clear current options except the first one
-  while (locationSelect.options.length > 1) {
-    locationSelect.remove(1)
+  // Handle scraping responses
+  else if (message.action === "SCRAPING_STARTED") {
+    console.log('Scraping started:', message.data)
+    updateScrapingStatus(message.data)
   }
-
-  if (templateId) {
-    const template = document.getElementById(templateId)
-    const options = template.content.cloneNode(true)
-    locationSelect.appendChild(options)
-    locationSelect.disabled = false
-  } else {
-    locationSelect.disabled = true
+  else if (message.action === "SCRAPING_PROGRESS") {
+    console.log('Scraping progress:', message.data)
+    updateScrapingProgress(message.data)
   }
-
-  // Update website options based on country
-  const websiteOptions = document.getElementById('websiteOptions')
-  websiteOptions.innerHTML = '' // Clear current options
-
-  // LinkedIn is always available
-  const linkedinDiv = document.createElement('div')
-  linkedinDiv.className = 'website-option'
-  linkedinDiv.innerHTML = `
-    <label>
-      <input type="checkbox" 
-             id="linkedin" 
-             checked>
-      LinkedIn
-    </label>
-  `
-  websiteOptions.appendChild(linkedinDiv)
-
-  // Indeed is always available
-  const indeedDiv = document.createElement('div')
-  indeedDiv.className = 'website-option'
-  indeedDiv.innerHTML = `
-    <label>
-      <input type="checkbox" 
-             id="indeed" 
-             checked>
-      Indeed ${country ? `(${country})` : ''}
-    </label>
-  `
-  websiteOptions.appendChild(indeedDiv)
-
-  // SEEK is available for Australia and New Zealand
-  if (country === 'Australia' || country === 'New Zealand') {
-    const seekDiv = document.createElement('div')
-    seekDiv.className = 'website-option'
-    seekDiv.innerHTML = `
-      <label>
-        <input type="checkbox" 
-               id="seek" 
-               checked>
-        SEEK ${country === 'New Zealand' ? 'NZ' : ''}
-      </label>
-    `
-    websiteOptions.appendChild(seekDiv)
+  else if (message.action === "SCRAPING_COMPLETED") {
+    console.log('Scraping completed:', message.data)
+    handleScrapingCompleted(message.data)
   }
-}
+  else if (message.action === "SCRAPING_ERROR") {
+    console.error('Scraping error:', message.data)
+    handleScrapingError(message.data)
+  }
+})
 
-// Function to display empty state
-function showEmptyState (jobList, message = 'No jobs found', subMessage = 'Try adjusting your search criteria or select different job platforms') {
-  // Clear any existing content
-  jobList.innerHTML = ''
-
-  // Create empty state container
-  const emptyState = document.createElement('div')
-  emptyState.className = 'empty-state'
-
-  // Add icon
-  const icon = document.createElement('div')
-  icon.className = 'empty-state-icon'
-  icon.textContent = '🔍'
-
-  // Add main text
-  const text = document.createElement('div')
-  text.className = 'empty-state-text'
-  text.textContent = message
-
-  // Add subtext
-  const subtext = document.createElement('div')
-  subtext.className = 'empty-state-subtext'
-  subtext.textContent = subMessage
-
-  // Assemble the empty state
-  emptyState.appendChild(icon)
-  emptyState.appendChild(text)
-  emptyState.appendChild(subtext)
-
-  // Add to job list
-  jobList.appendChild(emptyState)
-}
-
-// Display jobs in the UI
-function displayJobs (jobs) {
-  const jobList = document.getElementById('jobList')
-  jobList.innerHTML = ''
-
-  if (!jobs || jobs.length === 0) {
-    showEmptyState(jobList)
+// Handle version status updates
+function handleVersionStatusUpdate (message) {
+  // Check if we've already processed a version message
+  if (versionCheckCompleted) {
+    console.log('Version check already completed, ignoring update')
     return
   }
 
-  jobs.forEach(job => {
-    jobList.appendChild(uiService.createJobCard(job))
+  console.log('Received version status update:', message.data)
+
+  // Mark that we've shown a version message
+  versionCheckCompleted = true
+
+  // Handle incompatible version if needed
+  if (message.data && message.data.isCompatible === false) {
+    uiService.showUpdateUI({
+      currentVersion: message.data.currentVersion,
+      minimumVersion: message.data.minimumVersion,
+      message: message.data.message
+    })
+  }
+}
+
+// Set up runtime message listener for direct frontend-to-panel communication
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // Handle CHECK_PANEL_STATE messages directly from frontend
+  if (message.action === 'CHECK_PANEL_STATE') {
+    // The panel is obviously active if this code is running
+    if (message.debug) {
+      console.log('Panel directly received CHECK_PANEL_STATE request')
+    }
+
+    // Send immediate response confirming panel is active
+    sendResponse({
+      isPanelActive: true,
+      directFromPanel: true,
+      timestamp: Date.now()
+    })
+
+    // Tell the background script the panel is active too
+    notifyBackgroundOfPanelState(true)
+
+    return true // Keep the message channel open
+  }
+
+  return false // Let other handlers process this message
+})
+
+// ============================
+// PANEL STATE MANAGEMENT
+// ============================
+
+// Notify background script of panel state
+function notifyBackgroundOfPanelState (isActive) {
+  port.postMessage({
+    action: 'PANEL_STATE_UPDATE',
+    data: {
+      isActive: isActive,
+      timestamp: Date.now()
+    }
   })
 }
 
-document.addEventListener('DOMContentLoaded', async () => {
-  console.log('DOM Content Loaded')
 
-  // Check version immediately when panel opens
-  const versionCheck = await versionService.checkVersion(false)
-  if (!versionCheck.isCompatible || versionCheck.requireUpdate) {
-    versionService.showUpdateUI({
-      currentVersion: versionCheck.currentVersion,
-      minimumVersion: versionCheck.minimumVersion,
-      message: versionCheck.message
-    })
-    return // Stop further initialization if version is incompatible
+
+// ============================
+// WEB APP MANAGEMENT
+// ============================
+
+// Function to ensure the JobJourney web app is open
+async function ensureJobJourneyWebAppOpen () {
+  console.log('Ensuring JobJourney web app is open')
+  try {
+    // Use the tabService to open the JobJourney website if it's not already open
+    const tab = await tabService.ensureJobJourneyWebsite(false) // false means don't focus popup
+    console.log('JobJourney web app tab:', tab.id)
+    return tab
+  } catch (error) {
+    console.error('Error opening JobJourney web app:', error)
+    return null
+  }
+}
+
+// ============================
+// SCRAPING STATUS MANAGEMENT
+// ============================
+
+// Function to update scraping status in UI
+function updateScrapingStatus (data) {
+  // Check if we have status elements
+  const statusElement = document.getElementById('scraping-status')
+  if (statusElement) {
+    statusElement.textContent = data.message || 'Processing...'
   }
 
-  const locationInput = document.getElementById('location')
-  const searchBtn = document.getElementById('searchBtn')
-  const scrapeBtn = document.getElementById('scrapeBtn')
-  const showInJobJourneyBtn = document.getElementById('showInJobJourneyBtn')
-  const jobList = document.getElementById('jobList')
-  const statusMessage = document.getElementById('statusMessage')
-  const progressSection = document.getElementById('progressSection')
-  const progressFill = document.getElementById('progressFill')
-  const progressText = document.getElementById('progressText')
-  const progressDetail = document.getElementById('progressDetail')
-  const overlay = document.getElementById('overlay')
-  const overlayText = document.getElementById('overlayText')
-  const overlayDetail = document.getElementById('overlayDetail')
-  const websiteOptions = document.getElementById('websiteOptions')
-  const countrySelect = document.getElementById('country')
-  const locationSelect = document.getElementById('location')
+  // Update detail if available
+  const detailElement = document.getElementById('scraping-detail')
+  if (detailElement && data.detail) {
+    detailElement.textContent = data.detail
+  }
 
-  console.log('websiteOptions element:', websiteOptions)
-  console.log('supportedWebsites:', supportedWebsites)
+  // Show the scraping section if not already visible
+  const scrapingSection = document.getElementById('scraping-section')
+  if (scrapingSection) {
+    scrapingSection.style.display = 'block'
+  }
+}
 
-  let scrapedJobs = []
+// Function to update scraping progress in UI
+function updateScrapingProgress (data) {
+  // Update progress bar if available
+  const progressBar = document.getElementById('scraping-progress')
+  if (progressBar) {
+    progressBar.value = data.overallProgress || 0
+  }
 
-  // Add country change handler
-  countrySelect.addEventListener('change', (e) => {
-    const country = e.target.value
-    updateLocationOptions(country)
-    // Save the country selection
-    if (country) {
-      storageService.saveLastCountry(country)
+  // Update platform-specific progress if needed
+  const platformElement = document.getElementById(`platform-${data.platform}-progress`)
+  if (platformElement) {
+    platformElement.value = data.progress || 0
+  }
+
+  // Update status text
+  const statusElement = document.getElementById('scraping-status')
+  if (statusElement) {
+    statusElement.textContent = `Scraping ${data.platform}: ${data.status} (${data.overallProgress}%)`
+  }
+}
+
+// Function to handle completed scraping
+function handleScrapingCompleted (data) {
+  console.log(`Scraping completed, found ${data.count} jobs`)
+
+  // Update status
+  const statusElement = document.getElementById('scraping-status')
+  if (statusElement) {
+    statusElement.textContent = `Found ${data.count} jobs across ${data.platforms.length} platforms`
+  }
+
+  // Update progress to 100%
+  const progressBar = document.getElementById('scraping-progress')
+  if (progressBar) {
+    progressBar.value = 100
+  }
+
+  // Display the jobs or notify the user they're available
+  const jobsResultElement = document.getElementById('jobs-result')
+  if (jobsResultElement) {
+    jobsResultElement.textContent = `${data.count} jobs found. View in JobJourney.`
+    jobsResultElement.style.display = 'block'
+
+    // Optionally add a click handler to open the jobs in JobJourney
+    jobsResultElement.onclick = () => {
+      chrome.runtime.sendMessage({
+        action: 'SHOW_IN_JOBJOURNEY',
+        data: { jobs: data.jobs }
+      })
     }
-  })
-
-  // Load last used country and location
-  const [lastCountry, lastLocation] = await Promise.all([
-    storageService.loadLastCountry(),
-    storageService.loadLastLocation()
-  ])
-
-  // First set the country and update location options
-  if (lastCountry) {
-    countrySelect.value = lastCountry
-    updateLocationOptions(lastCountry)
-  } else {
-    // If no country is selected, initialize with empty website options
-    updateLocationOptions('')
   }
 
-  // Then set the location if it exists
-  if (lastLocation) {
-    locationSelect.value = lastLocation
+  // Send jobs to JobJourney website for processing
+  try {
+    window.postMessage({
+      type: 'JOBS_SCRAPED',
+      source: 'JOBJOURNEY_EXTENSION',
+      data: {
+        jobs: data.jobs,
+        query: data.query
+      },
+      timestamp: Date.now()
+    }, '*')
+  } catch (error) {
+    console.error('Error sending scraped jobs to website:', error)
+  }
+}
+
+// Function to handle scraping errors
+function handleScrapingError (data) {
+  // Update status to show error
+  const statusElement = document.getElementById('scraping-status')
+  if (statusElement) {
+    statusElement.textContent = data.error || 'An error occurred during scraping'
+    statusElement.classList.add('error')
   }
 
-  // Load saved settings
-  const savedSettings = await storageService.loadWebsiteSettings()
-  console.log('savedSettings:', savedSettings)
-
-  // Add the change event listener to the websiteOptions container
-  if (websiteOptions) {
-    websiteOptions.addEventListener('change', handleCheckboxChange)
+  // Show error details
+  const detailElement = document.getElementById('scraping-detail')
+  if (detailElement) {
+    detailElement.textContent = `Error occurred while scraping ${data.platforms.join(', ')}`
+    detailElement.classList.add('error')
   }
+}
 
-  // Update show in JobJourney button handler
-  showInJobJourneyBtn.addEventListener('click', async () => {
-    console.log('Show in JobJourney button clicked')
-    console.log('Jobs to send:', scrapedJobs)
+// ============================
+// INITIALIZATION AND LIFECYCLE
+// ============================
 
-    try {
-      const response = await jobService.sendJobsToJobJourney(scrapedJobs)
-      console.log('Response from sendJobsToJobJourney:', response)
+// Main initialization when DOM is loaded
+document.addEventListener('DOMContentLoaded', () => {
+  console.log('🟢 Panel DOM loaded at:', new Date().toISOString())
 
-      if (response && response.success) {
-        uiService.showMessage(statusMessage, 'Jobs sent to JobJourney successfully')
+  // Notify background that panel is active
+  notifyBackgroundOfPanelState(true)
 
-        // Get base URL and show jobs
-        const baseUrl = await chrome.runtime.sendMessage({ action: 'getBaseUrl' })
-        if (!baseUrl) {
-          throw new Error('Failed to get JobJourney URL')
-        }
+  // Initialize UI (this gets elements including searchInput)
+  initializeUI()
 
-        await jobService.sendJobsAndShow(scrapedJobs, baseUrl)
-      } else {
-        uiService.showMessage(statusMessage, response.message || 'Failed to send jobs to JobJourney', true)
-        console.error('Failed to send jobs to JobJourney:', response)
-      }
-    } catch (error) {
-      console.error('Error sending jobs to JobJourney:', error)
-      uiService.showMessage(statusMessage, 'Error sending jobs to JobJourney', true)
-    }
-  })
+  // Check version
+  checkVersion()
+})
 
-  // Update search button click handler
-  searchBtn.addEventListener('click', async () => {
-    const locationSelect = document.getElementById('location')
-    const searchInput = document.getElementById('searchInput')
-    const countrySelect = document.getElementById('country')
-    const location = locationSelect.value.trim()
-    const searchTerm = searchInput.value.trim()
-    const country = countrySelect.value.trim()
+// Initialize the UI elements
+function initializeUI () {
+  // Initialize UI using the service
+  const elements = uiService.initializeUI(
+    eventHandlerService.setupEventListeners,
+    eventHandlerService.loadSavedPreferences
+  )
 
-    // Get the current extension window
-    const currentWindow = await chrome.windows.getCurrent()
 
-    if (!location) {
-      uiService.showMessage(statusMessage, 'Please select a location', true)
+}
+
+// Check the extension version
+function checkVersion () {
+  // Check version using port-based messaging
+  versionService.checkVersionWithPort(port).then(versionResult => {
+    // Check if we've already processed a version message
+    if (versionCheckCompleted) {
+      console.log('Version check already completed, ignoring duplicate result')
       return
     }
 
-    if (!searchTerm) {
-      uiService.showMessage(statusMessage, 'Please enter search keywords', true)
-      return
-    }
+    // Mark that we've shown a version message
+    versionCheckCompleted = true
 
-    console.log('=== Starting Job Search ===')
-    console.log('Search Term:', searchTerm)
-    console.log('Location:', location)
-    console.log('Country:', country)
+    console.log('Version check completed with result:', versionResult.isCompatible ? 'Compatible ✅' : 'Update required ⚠️')
 
-    // Send scraping started message to frontend
-    await tabService.ensureJobJourneyWebsite().then(tab => {
-      chrome.scripting.executeScript({
-        target: { tabId: tab.id },
-        func: (message) => {
-          window.postMessage(message, '*')
-        },
-        args: [{
-          type: 'SCRAPING_STATUS',
-          data: {
-            status: 'started',
-            message: 'Started scraping jobs'
-          }
-        }]
+    // Handle incompatible version
+    if (!versionResult.isCompatible) {
+      uiService.showUpdateUI({
+        currentVersion: versionResult.currentVersion,
+        minimumVersion: versionResult.minimumVersion,
+        message: versionResult.message
       })
-    })
-
-    // Show overlay and disable interaction
-    uiService.showOverlay(overlay, true)
-
-    // Save location and country to storage
-    await Promise.all([
-      storageService.saveLastLocation(location),
-      storageService.saveLastCountry(country)
-    ])
-
-    // Reset state
-    scrapedJobs = []
-    jobList.innerHTML = ''
-
-    // Show progress section
-    progressSection.style.display = 'block'
-    uiService.updateProgress(progressFill, progressText, overlayText, progressDetail, overlayDetail, 0, 'Starting job search...')
-
-    try {
-      // Clear any existing scraping state at the start
-      await storageService.updateScrapingState(false)
-
-      // Get current website settings
-      const savedSettings = await storageService.loadWebsiteSettings()
-      console.log('Current website settings:', savedSettings)
-
-      // Get sites to scrape based on checkbox selection
-      const sites = scraperService.createJobSearchUrls(searchTerm, location)
-        .filter(site => {
-          const checkbox = document.getElementById(site.id)
-          return checkbox && checkbox.checked
-        })
-
-      if (sites.length === 0) {
-        uiService.showMessage(statusMessage, 'Please select at least one website', true)
-        progressSection.style.display = 'none'
-        uiService.showOverlay(overlay, false)
-        return
-      }
-
-      console.log('Sites to scrape after filtering:', sites)
-      let completedSites = 0
-      const totalSites = sites.length
-
-      // Get all windows to find the main browser window
-      const windows = await chrome.windows.getAll({ windowTypes: ['normal'] })
-      console.log('Found browser windows:', windows.length)
-
-      const mainWindow = windows.find(w => w.type === 'normal')
-      if (!mainWindow) {
-        throw new Error('Could not find main browser window')
-      }
-
-      for (const site of sites) {
-        console.log(`\n=== Processing ${site.platform} ===`)
-        const progress = (completedSites / totalSites) * 100
-        uiService.updateProgress(
-          progressFill,
-          progressText,
-          overlayText,
-          progressDetail,
-          overlayDetail,
-          progress,
-          `Scraping ${site.platform}...`,
-          `Starting scrape for ${site.platform}`
-        )
-
-        const tab = await chrome.tabs.create({
-          url: site.url,
-          windowId: mainWindow.id,
-          active: true
-        })
-
-        // Add tab close listener
-        const tabClosedPromise = new Promise(resolve => {
-          const listener = (tabId) => {
-            if (tabId === tab.id) {
-              chrome.tabs.onRemoved.removeListener(listener)
-              resolve()
-            }
-          }
-          chrome.tabs.onRemoved.addListener(listener)
-        })
-
-        try {
-          await scraperService.waitForPageLoad(tab.id)
-
-          // Race between scraping and tab closure
-          const jobs = await Promise.race([
-            scraperService.scrapeWithPagination(tab, site.platform, (currentPage) => {
-              uiService.updateProgress(
-                progressFill,
-                progressText,
-                overlayText,
-                progressDetail,
-                overlayDetail,
-                progress,
-                `Scraping ${site.platform}...`,
-                `Processing page ${currentPage} in ${site.platform}`
-              )
-            }),
-            tabClosedPromise.then(async () => {
-              console.log(`Tab closed for ${site.platform}`)
-              // Clear scraping state if tab is closed
-              await storageService.updateScrapingState(false)
-              return [] // Return empty array if tab was closed
-            })
-          ])
-
-          scrapedJobs.push(...jobs)
-          completedSites++
-          const progressPercent = (completedSites / totalSites) * 100
-          uiService.updateProgress(
-            progressFill,
-            progressText,
-            overlayText,
-            progressDetail,
-            overlayDetail,
-            progressPercent,
-            `Completed ${site.platform}`,
-            `Found ${jobs.length} jobs from ${site.platform}`
-          )
-          uiService.showMessage(statusMessage, `Scraped ${jobs.length} jobs from ${site.platform}`)
-
-          // Update UI
-          jobList.innerHTML = ''
-          scrapedJobs.forEach(job => {
-            jobList.appendChild(uiService.createJobCard(job))
-          })
-        } catch (error) {
-          console.error(`Error processing ${site.platform}:`, error)
-          // Clear scraping state on error
-          await storageService.updateScrapingState(false)
-          completedSites++
-        }
-      }
-
-      console.log('=== Scraping Complete ===')
-      console.log('Total jobs scraped:', scrapedJobs.length)
-      uiService.updateProgress(
-        progressFill,
-        progressText,
-        overlayText,
-        progressDetail,
-        overlayDetail,
-        100,
-        `Scraping Complete!`,
-        `Found ${scrapedJobs.length} jobs from ${totalSites} sites`
-      )
-      uiService.showMessage(statusMessage, `Successfully scraped ${scrapedJobs.length} jobs!`)
-      uiService.updateButtonStates(showInJobJourneyBtn, scrapedJobs.length > 0)
-
-      // Send scraping completed message to frontend
-      await tabService.ensureJobJourneyWebsite().then(tab => {
-        chrome.scripting.executeScript({
-          target: { tabId: tab.id },
-          func: (message) => {
-            window.postMessage(message, '*')
-          },
-          args: [{
-            type: 'SCRAPING_STATUS',
-            data: {
-              status: 'completed',
-              message: `Found ${scrapedJobs.length} jobs`,
-              totalJobs: scrapedJobs.length
-            }
-          }]
-        })
-      })
-
-      // Automatically trigger show in JobJourney if jobs were found
-      if (scrapedJobs.length > 0) {
-        try {
-          const response = await jobService.sendJobsToJobJourney(scrapedJobs)
-          console.log('Auto-sending jobs to JobJourney:', response)
-
-          if (response && response.success) {
-            uiService.showMessage(statusMessage, 'Jobs sent to JobJourney successfully')
-            // No need to get base URL or show jobs again since they're already sent and shown
-          } else {
-            console.error('Failed to auto-send jobs to JobJourney:', {
-              success: response?.success,
-              message: response?.message,
-              fullResponse: JSON.stringify(response, null, 2)
-            })
-            uiService.showMessage(statusMessage, `Failed to send jobs: ${response?.message || 'Unknown error'}`, true)
-          }
-        } catch (error) {
-          console.error('Error auto-sending jobs to JobJourney:', {
-            message: error.message,
-            stack: error.stack,
-            fullError: JSON.stringify(error, null, 2)
-          })
-          uiService.showMessage(statusMessage, `Error sending jobs: ${error.message || 'Unknown error'}`, true)
-        }
-      }
-
-    } catch (error) {
-      console.error('Error during scraping:', error)
-      uiService.showMessage(statusMessage, 'An error occurred during scraping', true)
-      uiService.updateProgress(progressFill, progressText, overlayText, progressDetail, overlayDetail, 0, 'Scraping failed', error.message)
-    } finally {
-      // Clear scraping state and clean up
-      await storageService.updateScrapingState(false)
-      uiService.showOverlay(overlay, false)
-      // Focus back on the extension window at the end
-      chrome.windows.update(currentWindow.id, { focused: true })
-    }
-  })
-})
-
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Panel received message:', request)
-
-  if (request.action === 'START_SCRAPING') {
-    const data = request.data
-
-    // Set search input
-    const searchInput = document.getElementById('searchInput')
-    if (searchInput) searchInput.value = data.jobTitle
-
-    // Set country
-    console.log('Setting country:', data.country)
-    const countrySelect = document.getElementById('country')
-    if (countrySelect) {
-      countrySelect.value = data.country
-      // Trigger change event to update location options
-      countrySelect.dispatchEvent(new Event('change'))
-    }
-
-    // Wait for location options to update
-    setTimeout(() => {
-      // Set location
-      const locationSelect = document.getElementById('location')
-      if (locationSelect) locationSelect.value = `${data.city}`
-
-      // First uncheck all checkboxes
-      const checkboxes = document.querySelectorAll('.website-option input[type="checkbox"]')
-      checkboxes.forEach(checkbox => {
-        checkbox.checked = false
-      })
-
-      // Then only check the platforms we want
-      console.log('Setting platforms:', data.platforms)
-      data.platforms.forEach(platform => {
-        const checkbox = document.getElementById(platform.toLowerCase())
-        console.log('Setting checkbox for platform:', platform, checkbox)
-        if (checkbox) checkbox.checked = true
-      })
-
-      // Trigger search button click
-      const searchBtn = document.getElementById('searchBtn')
-      if (searchBtn) searchBtn.click()
-
-      sendResponse({ success: true })
-    }, 500)
-
-    return true // Keep the message channel open for the async response
-  }
-
-  // Remove the auto-send trigger for JOBS_RECEIVED_RESPONSE since it's just a confirmation
-  if (request.action === 'JOBS_RECEIVED_RESPONSE') {
-    console.log('Received jobs response confirmation:', request.data)
-    return true
-  }
-})
-
-// Update message listener in content.js
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-  console.log('Received message:', request)
-
-  if (request.action === 'getNextPageUrl') {
-    const platform = Object.values(scrapers).find(s => s.isMatch(window.location.href))
-    if (platform && platform.getNextPageUrl) {
-      const nextUrl = platform.getNextPageUrl()
-      sendResponse({ nextUrl })
     } else {
-      sendResponse({ nextUrl: null })
+      // If version is compatible, ensure the JobJourney web app is open
+      ensureJobJourneyWebAppOpen()
     }
-    return true
-  }
+  })
+}
 
-  // ... existing message handling code ...
-}) 
+// Clean up when the window is about to unload
+window.addEventListener('beforeunload', () => {
+  console.log('Panel window unloading, cleaning up connections and intervals')
+
+  // Notify background that panel is inactive
+  try {
+    notifyBackgroundOfPanelState(false)
+  } catch (error) {
+    // Ignore errors during shutdown
+  }
+})

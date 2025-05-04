@@ -1,38 +1,5 @@
-// Add test function
-function testScraping () {
-  const currentUrl = window.location.href
-  console.log('Testing scraping on URL:', currentUrl)
-
-  // Test selectors
-  if (currentUrl.includes('linkedin.com')) {
-    console.log('Testing LinkedIn selectors:')
-    console.log('Job cards:', document.querySelectorAll('div.base-card.base-card--link.job-search-card').length)
-    console.log('First job title:', document.querySelector('h3.base-search-card__title')?.textContent.trim())
-    console.log('First company:', document.querySelector('h4.base-search-card__subtitle a')?.textContent.trim())
-  }
-  else if (currentUrl.includes('seek.com.au')) {
-    console.log('Testing SEEK selectors:')
-    console.log('Job cards:', document.querySelectorAll('article[data-card-type="JobCard"]').length)
-    console.log('First job title:', document.querySelector('[data-automation="job-title"]')?.textContent.trim())
-    console.log('First company:', document.querySelector('[data-automation="job-company-name"]')?.textContent.trim())
-  }
-  else if (currentUrl.includes('indeed.com')) {
-    console.log('Testing Indeed selectors:')
-    console.log('Job cards:', document.querySelectorAll('div.job_seen_beacon').length)
-    console.log('First job title:', document.querySelector('h2.jobTitle a')?.textContent.trim())
-    console.log('First company:', document.querySelector('span.companyName')?.textContent.trim())
-  }
-  1
-  // Test actual scraping
-  const platform = Object.values(scrapers).find(s => s.isMatch(currentUrl))
-  if (platform) {
-    console.log('Testing scraping function:')
-    const jobs = platform.scrapeJobList()
-    console.log('Scraped jobs:', jobs)
-    return jobs
-  }
-  return null
-}
+// Add this early in the content script to announce it's loaded
+console.log('🔵 JobJourney content script loaded on:', window.location.href)
 
 // Add overlay functionality
 function createScrapeOverlay () {
@@ -145,32 +112,24 @@ function removeScrapeOverlay () {
   }
 }
 
-// Add state management
-let isScrapingActive = false
-
 // Listen for messages from popup or background script
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log('Content script received message:', request)
 
   if (request.action === 'showScrapeOverlay') {
-    isScrapingActive = true
+    // Directly create overlay when message received
     createScrapeOverlay()
-    // Store the scraping state
-    chrome.storage.local.set({ isScrapingActive: true })
     sendResponse({ success: true })
-    return true
+    return true // Indicate async response potentially
   }
 
   if (request.action === 'removeScrapeOverlay') {
-    isScrapingActive = false
+    // Directly remove overlay when message received
     removeScrapeOverlay()
-    // Clear the scraping state
-    chrome.storage.local.set({ isScrapingActive: false })
     sendResponse({ success: true })
-    return true
+    return true // Indicate async response potentially
   }
 
-  console.log('Received message:', request)
   console.log('Current page URL:', window.location.href)
   console.log('Current page title:', document.title)
   console.log('Document ready state:', document.readyState)
@@ -213,6 +172,20 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     const platform = Object.values(scrapers).find(s => s.isMatch(currentUrl))
     if (platform) {
       try {
+        // Gather platform-specific metadata
+        const platformInfo = {
+          platform: determinePlatform(currentUrl),
+          url: currentUrl,
+          title: document.title,
+          userAgent: navigator.userAgent,
+          timestamp: Date.now(),
+          viewport: {
+            width: window.innerWidth,
+            height: window.innerHeight
+          },
+          deviceType: determineDeviceType()
+        }
+
         platform.scrapeJobList().then(result => {
           console.log('Scraping result:', result)
           console.log(result.jobs)
@@ -220,7 +193,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           sendResponse({
             success: true,
             data: result.jobs,
-            nextUrl: result.nextUrl
+            nextUrl: result.nextUrl,
+            platformInfo: platformInfo
           })
         })
         return true // Keep message channel open
@@ -232,87 +206,71 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
     return true
   }
+})
 
-  if (request.action === 'scrapeJobDetail') {
-    const currentUrl = window.location.href
-    console.log('Current URL:', currentUrl)
-
-    const platform = Object.values(scrapers).find(s => s.isMatch(currentUrl))
-    console.log('Matched platform:', platform?.constructor.name)
-
-    if (platform) {
-      try {
-        const jobDetail = platform.scrapeJobDetail()
-        console.log('Scraped job detail:', jobDetail)
-        sendResponse({ success: true, data: jobDetail })
-      } catch (error) {
-        console.error('Error during detail scraping:', error)
-        sendResponse({ success: false, error: error.message })
-      }
-    } else {
-      console.log('No matching platform found')
-      sendResponse({ success: false, error: 'Unsupported platform' })
-    }
+// Function to determine current platform
+function determinePlatform (url) {
+  if (url.includes('linkedin.com')) {
+    return 'LinkedIn'
+  } else if (url.includes('seek.com.au')) {
+    return 'SEEK AU'
+  } else if (url.includes('seek.co.nz')) {
+    return 'SEEK NZ'
+  } else if (url.includes('indeed.com')) {
+    const domain = new URL(url).hostname
+    if (domain.startsWith('au.')) return 'Indeed AU'
+    if (domain.startsWith('uk.')) return 'Indeed UK'
+    if (domain.startsWith('ca.')) return 'Indeed CA'
+    return 'Indeed'
+  } else {
+    return 'Unknown'
   }
+}
 
-  // Required for async response
-  return true
-})
-
-// Check scraping state on page load
-document.addEventListener('DOMContentLoaded', async () => {
-  try {
-    const result = await chrome.storage.local.get('isScrapingActive')
-    if (result.isScrapingActive) {
-      createScrapeOverlay()
-    }
-  } catch (error) {
-    console.error('Error checking scraping state:', error)
+// Function to determine device type
+function determineDeviceType () {
+  const ua = navigator.userAgent
+  if (/(tablet|ipad|playbook|silk)|(android(?!.*mobi))/i.test(ua)) {
+    return 'tablet'
   }
-})
-
-// Also check immediately in case DOMContentLoaded already fired
-chrome.storage.local.get('isScrapingActive', (result) => {
-  if (result.isScrapingActive) {
-    createScrapeOverlay()
+  if (/Mobile|Android|iP(hone|od)|IEMobile|BlackBerry|Kindle|Silk-Accelerated|(hpw|web)OS|Opera M(obi|ini)/.test(ua)) {
+    return 'mobile'
   }
-})
-
-// Ensure overlay persists after dynamic page updates
-const observer = new MutationObserver(() => {
-  if (isScrapingActive && !document.getElementById('jobjourney-scrape-overlay-container')) {
-    createScrapeOverlay()
-  }
-})
-
-observer.observe(document.documentElement, {
-  childList: true,
-  subtree: true
-})
+  return 'desktop'
+}
 
 // Listen for messages from the website
 window.addEventListener('message', function (event) {
   // Make sure the message is from our website
   if (event.source !== window) return
 
-  console.log('Content script received message from website:', event.data)
+  // Handle VERSION_CHECK_RESPONSE message
+  if (event.data.type === 'VERSION_CHECK_RESPONSE') {
+    console.log('Received VERSION_CHECK_RESPONSE:', event.data)
 
-  // Handle START_SCRAPING message
-  if (event.data.type === 'START_SCRAPING') {
-    console.log('Forwarding START_SCRAPING message to extension:', event.data)
-
-    // Forward the message to the extension's background script
+    // Forward the response to any listeners in the extension
+    // This ensures the extension's versionService receives the compatibility information
     chrome.runtime.sendMessage({
-      action: 'START_SCRAPING',
+      action: 'VERSION_CHECK_RESPONSE',
       data: event.data.data
-    }, response => {
-      console.log('Received response from extension:', response)
-      // Send response back to website
-      window.postMessage({
-        type: 'SCRAPING_RESPONSE',
-        data: response
-      }, '*')
+    }, (response) => {
+      // Make sure we handle response or lack thereof properly to avoid "message channel closed" error
+      if (chrome.runtime.lastError) {
+        console.warn('Error sending VERSION_CHECK_RESPONSE to background:', chrome.runtime.lastError.message)
+      } else if (response) {
+        console.log('Background acknowledged VERSION_CHECK_RESPONSE:', response)
+      }
     })
+
+    // Also post it to the window in case local listeners are waiting
+    window.postMessage({
+      type: 'VERSION_CHECK_RESPONSE_INTERNAL',
+      source: 'JOBJOURNEY_EXTENSION',
+      data: event.data.data,
+      timestamp: Date.now()
+    }, '*')
+
+    return
   }
 
   // Handle sendJobs response
@@ -331,6 +289,102 @@ window.addEventListener('message', function (event) {
   }
 })
 
-// Notify website that extension is available
-window.postMessage({ type: 'EXTENSION_AVAILABLE' }, '*');
+// Add listener for messages from the background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  console.log('Message received from background script:', message)
+
+  // Handle scraping status updates
+  if (message.action === 'SCRAPING_STATUS_UPDATE') {
+    console.log('Forwarding scraping status update to website:', message.data)
+
+    // Forward the status update to the website
+    window.postMessage({
+      type: 'SCRAPING_STATUS',
+      data: message.data,
+      source: 'JOBJOURNEY_EXTENSION',
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP',
+      protocolVersion: '1.0'
+    }, '*')
+  }
+
+  // Handle scraped jobs
+  if (message.action === 'JOBS_SCRAPED') {
+    console.log('Content script: Received scraped jobs message', message.data)
+
+    // Forward the jobs to the website
+    window.postMessage({
+      type: 'JOBS_SCRAPED',
+      data: message.data,
+      source: 'JOBJOURNEY_EXTENSION',
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP',
+      protocolVersion: '1.0'
+    }, '*')
+
+    // Send response back to acknowledge receipt
+    if (sendResponse) {
+      sendResponse({ received: true, jobCount: message.data?.jobs?.length || 0 })
+    }
+
+    return true // Keep the message channel open for async response
+  }
+
+  // Handle download extension message
+  if (message.action === 'DOWNLOAD_EXTENSION') {
+    console.log('Forwarding download extension request to website:', message.data)
+
+    // Forward the message to the website
+    window.postMessage({
+      type: 'DOWNLOAD_EXTENSION',
+      data: message.data,
+      source: 'JOBJOURNEY_EXTENSION',
+      timestamp: Date.now(),
+      target: 'JOBJOURNEY_APP',
+      protocolVersion: '1.0'
+    }, '*')
+
+    // Send response back to extension
+    sendResponse({ received: true, forwarded: true })
+  }
+
+  if (message.action === 'VERSION_CHECK_REQUEST') {
+    console.log('Content script received version check request:', message.data)
+
+    // Acknowledge receipt
+    sendResponse({ received: true })
+
+    // Forward to web page using postMessage
+    window.postMessage({
+      type: 'VERSION_CHECK',
+      source: 'JOBJOURNEY_EXTENSION',
+      data: message.data,
+      timestamp: Date.now()
+    }, '*')
+
+    return true // Keep the message channel open
+  }
+
+  return true // Keep the message channel open for async response
+})
+
+// Listen for messages from the web page
+window.addEventListener('message', (event) => {
+  // Make sure message is from our page, not from extension
+  if (event.source === window &&
+    event.data.source === 'JOBJOURNEY_WEBSITE' &&
+    event.data.type === 'VERSION_CHECK_RESPONSE') {
+
+    console.log('Content script received response from web page:', event.data)
+
+    // Forward to background script
+    chrome.runtime.sendMessage({
+      action: 'VERSION_CHECK_RESPONSE',
+      data: {
+        ...event.data.data,
+        requestId: event.data.data.requestId || event.data.requestId
+      }
+    })
+  }
+});
 
