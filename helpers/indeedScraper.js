@@ -353,7 +353,7 @@ const indeedScraper = {
             job = Job.createFromIndeed(basicInfo) // Fallback to basic
           }
         } else {
-          console.warn(`Details panel did not load for job ${i + 1}. Using basic info.`)
+          // console.warn(`Details panel did not load for job ${i + 1}. Using basic info.`)
           job = Job.createFromIndeed(basicInfo) // Fallback to basic
         }
 

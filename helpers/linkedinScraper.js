@@ -423,6 +423,38 @@ const linkedInScraper = {
     if (jobNodes.length > 0) {
       console.log('Processing jobs using click and scrape method')
 
+      // Attempt to identify the correct scrollable container for the job list
+      let scrollContainer = null
+      if (jobNodes.length > 0) {
+        const firstJobNode = jobNodes[0]
+        // A job node can either be the li.scaffold-layout__list-item itself
+        // or a div.job-card-job-posting-card-wrapper inside such an li.
+        const parentLi = firstJobNode.tagName === 'LI' ? firstJobNode : firstJobNode.closest('li.scaffold-layout__list-item')
+
+        if (parentLi && parentLi.parentElement && parentLi.parentElement.tagName === 'UL') {
+          const jobListUL = parentLi.parentElement
+          if (jobListUL.parentElement && jobListUL.parentElement.tagName === 'DIV') {
+            scrollContainer = jobListUL.parentElement
+            console.log('Determined scroll container to be:', scrollContainer.className)
+            // Optional: Check if the container is actually scrollable
+            const style = window.getComputedStyle(scrollContainer)
+            if (!(style.overflowY === 'auto' || style.overflowY === 'scroll' || style.overflow === 'auto' || style.overflow === 'scroll')) {
+              console.warn('Warning: Identified scroll container may not be configured for vertical scrolling. Its overflow-y is:', style.overflowY, 'and overflow is:', style.overflow)
+            }
+          }
+        }
+      }
+
+      // Fallback if the specific container isn't found by the new logic
+      if (!scrollContainer) {
+        scrollContainer = document.querySelector('.scaffold-layout__list') // Previous primary target
+        if (scrollContainer) {
+          console.log('Using fallback scroll container selector: .scaffold-layout__list')
+        } else {
+          console.warn('Scroll container not identified. Will rely on node.scrollIntoView() which might scroll the main window.')
+        }
+      }
+
       // Function to check if job details panel is fully loaded with exponential backoff
       const waitForJobDetailsPanel = async () => {
         let attempts = 0
@@ -501,33 +533,75 @@ const linkedInScraper = {
           // Extract basic info from the card before clicking
           const titleNode = node.querySelector('.artdeco-entity-lockup__title')
           const companyNode = node.querySelector('.artdeco-entity-lockup__subtitle div[dir="ltr"]')
-          const jobUrlNode = node.querySelector('a.job-card-job-posting-card-wrapper__card-link')
-          const jobUrl = jobUrlNode?.href || ''
 
           // Basic info for fallback
           const basicInfo = {
             title: titleNode?.textContent?.trim() || '',
             company: companyNode?.textContent?.trim() || '',
-            jobUrl: jobUrl
+            jobUrl: '' // Will be populated after finding the clickable anchor and its href
           }
 
-          console.log(`Clicking job ${i + 1}/${Math.min(jobNodes.length, 30)}: ${basicInfo.title}`)
+          // Scroll to bring the job card into view
+          if (scrollContainer) {
+            console.log(`Scrolling specific container for job ${i + 1} (${basicInfo.title}). Container class: ${scrollContainer.className}`)
+            // Calculate the node's position relative to the scroll container's viewport
+            const nodeRect = node.getBoundingClientRect()
+            const containerRect = scrollContainer.getBoundingClientRect()
 
-          // Find the proper clickable element - try the anchor element first as it's more reliable
-          const clickableElement =
-            // First try to find the anchor link which is the most reliable element to click
-            node.querySelector('a.job-card-job-posting-card-wrapper__card-link') ||
-            // Or try to find another clickable element inside
-            node.querySelector('.artdeco-entity-lockup__title') ||
-            // Or try to find another clickable element inside
-            node.querySelector('.job-card-container--clickable') ||
-            // Finally fall back to the node itself
-            node
+            // Amount to scroll: current scroll position + (node's top relative to container's top) - desired offset from container top
+            const scrollOffset = nodeRect.top - containerRect.top // Node's top relative to container's visible area top
+            // Aim to place node about 1/3 down from the container's top, or less if container is small
+            const desiredNodePositionInContainer = Math.min(scrollContainer.offsetHeight / 3, 150)
 
-          console.log('Clicking element: ', clickableElement.tagName)
+            const newScrollTop = scrollContainer.scrollTop + scrollOffset - desiredNodePositionInContainer
 
-          // Click on the job card to show details - use the anchor link when available
-          clickableElement.click()
+            console.log(`Node top: ${nodeRect.top.toFixed(0)}, Container top: ${containerRect.top.toFixed(0)}, Current scrollTop: ${scrollContainer.scrollTop.toFixed(0)}, Calculated new scrollTop: ${newScrollTop.toFixed(0)}`)
+            scrollContainer.scrollTo({ top: Math.max(0, newScrollTop), behavior: 'smooth' }) // Ensure scrollTop is not negative
+          } else {
+            // Fallback to window scrolling if container not found or if the previous node.scrollIntoView was preferred
+            console.log(`Scrolling window for job ${i + 1} (${basicInfo.title}) into view (fallback)...`)
+            node.scrollIntoView({ behavior: 'smooth', block: 'center' })
+          }
+          await new Promise(resolve => setTimeout(resolve, 100)) // Delay after scroll
+
+          console.log(`Processing job ${i + 1}/${Math.min(jobNodes.length, 30)}: "${basicInfo.title || '(title missing)'}"`)
+
+          // Find the INTENDED clickable element - the main anchor link
+          const clickableAnchor = node.querySelector('a.job-card-list__title--link') // Main link for job title
+
+          // Populate jobUrl from the anchor if found, and update basicInfo
+          if (clickableAnchor && clickableAnchor.href) {
+            try {
+              basicInfo.jobUrl = new URL(clickableAnchor.href, window.location.origin).href // Ensure absolute URL
+            } catch (e) {
+              console.warn(`[Job ${i + 1}] Failed to parse anchor href: ${clickableAnchor.href}`, e)
+              // Fallback to data-job-id if href is bad
+              const jobCardDiv = node.querySelector('div[data-job-id]')
+              const dataJobId = jobCardDiv ? jobCardDiv.dataset.jobId : node.dataset.jobId
+              if (dataJobId) {
+                basicInfo.jobUrl = `https://www.linkedin.com/jobs/view/${dataJobId}`
+              }
+            }
+          } else { // If anchor not found, or no href, try data-job-id directly for URL
+            const jobCardDiv = node.querySelector('div[data-job-id]')
+            const dataJobId = jobCardDiv ? jobCardDiv.dataset.jobId : node.dataset.jobId
+            if (dataJobId) {
+              basicInfo.jobUrl = `https://www.linkedin.com/jobs/view/${dataJobId}`
+            }
+          }
+
+          // Validate node and clickable element before proceeding
+          if (!basicInfo.title || !clickableAnchor) {
+            console.warn(`Skipping job ${i + 1} ("${basicInfo.title || 'EMPTY'}") due to missing title OR missing clickable job link. Anchor found: ${!!clickableAnchor}. URL: "${basicInfo.jobUrl}". Attempting window scroll.`)
+            window.scrollBy(0, window.innerHeight / 3) // Scroll main window down
+            await new Promise(resolve => setTimeout(resolve, 750)) // Wait for potential refresh
+            continue // Move to the next job node in the list
+          }
+
+          console.log(`Clicking job link for "${basicInfo.title}" (element: ${clickableAnchor.tagName}, classes: ${clickableAnchor.className})`)
+
+          // Click on the job card's anchor link to show details
+          clickableAnchor.click()
 
           // Wait for job details panel to load or update with exponential backoff
           const detailsLoaded = await waitForJobDetailsPanel()
@@ -569,7 +643,7 @@ const linkedInScraper = {
 
           // Add a longer, randomized delay between job clicks to avoid rate limiting
           const baseDelay = 300 // Increased base delay
-          const randomDelay = Math.random() * 800 // Random component up to 700ms
+          const randomDelay = Math.random() * 300 // Random component up to 700ms
           const totalDelay = baseDelay + randomDelay
           console.log(`Waiting ${totalDelay.toFixed(0)}ms before next job click to avoid rate limiting...`)
           await new Promise(r => setTimeout(r, totalDelay))
@@ -625,11 +699,11 @@ const linkedInScraper = {
     }
 
     // Add a longer, randomized delay before checking for the next page
-    const baseFinalDelay = 1000 // 2 seconds base
-    const randomFinalDelay = Math.random() * 1000 // Random component up to 2 seconds
-    const finalDelay = baseFinalDelay + randomFinalDelay
-    console.log(`Waiting ${finalDelay.toFixed(0)}ms after processing all jobs on this page before checking for next...`)
-    await new Promise(r => setTimeout(r, finalDelay))
+    // const baseFinalDelay = 1000 // 2 seconds base
+    // const randomFinalDelay = Math.random() * 1000 // Random component up to 2 seconds
+    // const finalDelay = baseFinalDelay + randomFinalDelay
+    // console.log(`Waiting ${finalDelay.toFixed(0)}ms after processing all jobs on this page before checking for next...`)
+    // await new Promise(r => setTimeout(r, finalDelay))
 
 
     // Check for next page with specific LinkedIn next button selector
