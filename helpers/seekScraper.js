@@ -11,7 +11,7 @@ async function scrapeSeekJobDetailPanel (basicInfo = {}) {
     }
 
     if (!panel) {
-      console.warn('SEEK job details panel not found after retry')
+      // console.warn('SEEK job details panel not found after retry')
       return null
     }
 

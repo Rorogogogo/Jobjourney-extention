@@ -217,7 +217,7 @@ function scrapeCurrentJobDetail () {
 
     // Validate essential fields before creating Job object
     if (!title || !company) {
-      console.warn("Failed to extract essential details (title or company) from panel.", { title, company })
+      // console.warn("Failed to extract essential details (title or company) from panel.", { title, company })
       return null // Return null if we couldn't get basic info
     }
 
@@ -359,7 +359,7 @@ const scrapeJobDetailFromPanel = () => {
 
     // Validate essential fields before creating Job object
     if (!title || !company) {
-      console.warn("Failed to extract essential details (title or company) from panel.", { title, company })
+      // console.warn("Failed to extract essential details (title or company) from panel.", { title, company })
       return null // Return null if we couldn't get basic info
     }
 
