@@ -42,7 +42,10 @@
       ],
       "js": [
         "helpers/jobScrapers.js",
-        "content.js"
+        "content.js",
+        "helpers/linkedinScraper.js",
+        "helpers/seekScraper.js",
+        "helpers/indeedScraper.js"
       ]
     }
   ],

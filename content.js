@@ -139,38 +139,17 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     console.log('=== Starting Job Scraping ===')
     console.log('Page URL:', currentUrl)
 
-    // Define website structures for different platforms
-    const websiteStructures = {
-      linkedin: {
-        jobCards: 'div.base-card.base-card--link.job-search-card',
-        jobTitle: 'h3.base-search-card__title',
-        company: 'h4.base-search-card__subtitle a'
-      },
-      seekAustralia: {
-        jobCards: 'article[data-card-type="JobCard"]',
-        jobTitle: '[data-automation="job-title"]',
-        company: '[data-automation="job-company-name"]'
-      },
-      seekNewZealand: {
-        jobCards: 'article[data-card-type="JobCard"]',
-        jobTitle: '[data-automation="job-title"]',
-        company: '[data-automation="job-company-name"]'
-      }
+    // Determine the correct platform scraper
+    let platformScraper = null
+    if (window.linkedInScraper && window.linkedInScraper.isMatch(currentUrl)) {
+      platformScraper = window.linkedInScraper
+    } else if (window.seekScraper && window.seekScraper.isMatch(currentUrl)) {
+      platformScraper = window.seekScraper
+    } else if (window.indeedScraper && window.indeedScraper.isMatch(currentUrl)) {
+      platformScraper = window.indeedScraper
     }
 
-    let websiteStructure = null
-    if (currentUrl.includes('linkedin.com/jobs')) {
-      websiteStructure = websiteStructures.linkedin
-    }
-    else if (currentUrl.includes('seek.com.au')) {
-      websiteStructure = websiteStructures.seekAustralia
-    }
-    else if (currentUrl.includes('seek.co.nz')) {
-      websiteStructure = websiteStructures.seekNewZealand || websiteStructures.seekAustralia // Fall back to Australia if NZ not defined
-    }
-
-    const platform = Object.values(scrapers).find(s => s.isMatch(currentUrl))
-    if (platform) {
+    if (platformScraper) {
       try {
         // Gather platform-specific metadata
         const platformInfo = {
@@ -186,7 +165,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
           deviceType: determineDeviceType()
         }
 
-        platform.scrapeJobList().then(result => {
+        platformScraper.scrapeJobList().then(result => {
           console.log('Scraping result:', result)
           console.log(result.jobs)
           console.log('Next URL found:', result.nextUrl)
