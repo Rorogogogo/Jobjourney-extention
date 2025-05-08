@@ -7,8 +7,12 @@ const config = {
   // Production environment
   production: {
     baseUrl: 'https://jobjourney.me'
-  }
+  },
+  extension_version: '2.0.0',
+  extension_update_date: 'May 6, 2024'
 }
+
+
 
 async function getBaseUrl () {
   try {
@@ -36,5 +40,7 @@ async function getBaseUrl () {
 }
 
 export default {
-  getBaseUrl
+  getBaseUrl,
+  version: config.extension_version,
+  updateDate: config.extension_update_date
 } 

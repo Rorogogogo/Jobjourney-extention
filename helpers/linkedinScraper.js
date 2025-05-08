@@ -642,7 +642,7 @@ const linkedInScraper = {
           }
 
           // Add a longer, randomized delay between job clicks to avoid rate limiting
-          const baseDelay = 300 // Increased base delay
+          const baseDelay = 450 // Increased base delay
           const randomDelay = Math.random() * 300 // Random component up to 700ms
           const totalDelay = baseDelay + randomDelay
           console.log(`Waiting ${totalDelay.toFixed(0)}ms before next job click to avoid rate limiting...`)
