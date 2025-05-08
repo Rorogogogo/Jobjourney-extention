@@ -162,7 +162,7 @@ const indeedScraper = {
 
     // If the primary selector fails, try a broader one as fallback
     if (jobNodes.length === 0) {
-      console.warn("Primary selector '" + jobCardSelector + "' found 0 nodes. Trying fallback...")
+      // console.warn("Primary selector '" + jobCardSelector + "' found 0 nodes. Trying fallback...")
       const fallbackSelector = 'div.jobsearch-SerpJobCard, div.result, div.job_seen_beacon, li > div[class*="cardOutline"]'
       jobNodes = document.querySelectorAll(fallbackSelector)
       console.log('Fallback selector found nodes:', jobNodes.length)

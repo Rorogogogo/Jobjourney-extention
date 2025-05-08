@@ -135,7 +135,7 @@ async function scrapeFromTab (tabId) {
       })
 
     } catch (error) {
-      console.error('Error in scrapeFromTab with pagination:', error)
+      console.log('Error in scrapeFromTab with pagination:', error)
       // Error handling remains similar, resolution happens in finally
       resolve({
         jobs: [],
