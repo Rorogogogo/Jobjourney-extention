@@ -28,7 +28,7 @@ async function scrapeSeekJobDetailPanel (basicInfo = {}) {
     const location = locationElement ? locationElement.textContent.trim() : basicInfo.location || ''
 
     // Job URL - use the current URL or the one from the basic info
-    const jobUrl = window.location.href.split('?')[0] || basicInfo.jobUrl
+    const jobUrl = basicInfo.jobUrl || window.location.href.split('?')[0] || ''
 
     // Work type (Full-time/Part-time)
     const workTypeElement = panel.querySelector('[data-automation="job-detail-work-type"]')
