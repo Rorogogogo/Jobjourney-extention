@@ -17,7 +17,7 @@ function scrapeIndeedJobDetailPanel (panelElement, basicInfo = {}) {
     // --- Basic Info ---
     const title = titleElement?.textContent?.trim() || basicInfo.title || ''
     const company = companyElement?.textContent?.trim() || basicInfo.company || ''
-    const jobUrl = window.location.href.split('?')[0] || basicInfo.jobUrl || '' // Use current URL primarily
+    const jobUrl = basicInfo.jobUrl || window.location.href.split('?')[0] || ''
 
     // --- Location & Workplace Type ---
     let location = ''
@@ -280,16 +280,8 @@ const indeedScraper = {
           jobUrl = titleLink.href
         } else {
           const cardLink = node.closest('a') || node.querySelector('a')
-          if (cardLink?.href && cardLink.href.includes('/clk?')) {
-            // Use data-jk attribute to construct a more stable URL if possible
-            const jobKey = node.querySelector('[data-jk]')?.getAttribute('data-jk') || node.closest('[data-jk]')?.getAttribute('data-jk')
-            if (jobKey) {
-              jobUrl = `https://au.indeed.com/viewjob?jk=${jobKey}` // Adapt domain if needed
-            } else {
-              jobUrl = cardLink.href // Fallback to click URL
-            }
-          } else if (cardLink?.href) {
-            jobUrl = cardLink.href // Fallback to any link href
+          if (cardLink?.href) {
+            jobUrl = cardLink.href
           }
         }
 
