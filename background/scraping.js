@@ -15,6 +15,9 @@ export async function startScraping (data) {
     // Collect all jobs
     const allJobs = []
 
+    // Keep track of failed platforms for potential retry
+    const failedPlatforms = []
+
     // Progress update callback
     const progressCallback = (progress, platformName, status) => {
       const message = {
@@ -43,9 +46,40 @@ export async function startScraping (data) {
         // Update progress
         progressCallback(0, platform, 'starting')
 
-        // Scrape jobs from this platform
-        const jobs = await scraperService.scrapeFromPlatform(platform, jobTitle, city, country,
-          (progress, status) => progressCallback(progress, platform, status))
+        // Scrape jobs from this platform with retry mechanism
+        let retryCount = 0
+        const MAX_RETRIES = 1 // Allow one retry per platform
+        let jobs = []
+
+        while (retryCount <= MAX_RETRIES) {
+          try {
+            jobs = await scraperService.scrapeFromPlatform(platform, jobTitle, city, country,
+              (progress, status) => progressCallback(progress, platform, status))
+
+            if (jobs.length > 0) {
+              // Success - break out of retry loop
+              break
+            } else if (retryCount < MAX_RETRIES) {
+              console.log(`No jobs found for ${platform}, trying once more...`)
+              retryCount++
+              // Brief delay before retry
+              await new Promise(r => setTimeout(r, 1000))
+            } else {
+              console.log(`Still no jobs found for ${platform} after retry`)
+              break
+            }
+          } catch (retryErr) {
+            if (retryErr.message && retryErr.message.includes('Receiving end does not exist') && retryCount < MAX_RETRIES) {
+              console.log(`Connection lost for ${platform}, retrying...`)
+              retryCount++
+              // Brief delay before retry
+              await new Promise(r => setTimeout(r, 1500))
+            } else {
+              // Different error or max retries reached
+              throw retryErr
+            }
+          }
+        }
 
         console.log(`Found ${jobs.length} jobs from ${platform}`)
         allJobs.push(...jobs)
@@ -55,6 +89,7 @@ export async function startScraping (data) {
         progressCallback(100, platform, 'completed')
       } catch (err) {
         console.error(`Error scraping from ${platform}:`, err)
+        failedPlatforms.push(platform)
         currentProgress += 1
         progressCallback(100, platform, 'error')
       }
@@ -68,6 +103,7 @@ export async function startScraping (data) {
         jobs: allJobs,
         count: allJobs.length,
         platforms: platforms,
+        failedPlatforms: failedPlatforms.length > 0 ? failedPlatforms : undefined,
         query: {
           jobTitle,
           city,

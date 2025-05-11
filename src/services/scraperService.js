@@ -20,7 +20,6 @@ async function scrapeFromTab (tabId) {
     try {
       // Notify background: Scraping starting for this tab
       chrome.runtime.sendMessage({ action: 'SCRAPING_STATE_UPDATE', data: { tabId: tabId, isActive: true } })
-
       // Move the tab to a new focused window immediately
       const window = await chrome.windows.create({
         tabId: tabId,
@@ -31,6 +30,14 @@ async function scrapeFromTab (tabId) {
 
       // Wait for the tab to finish loading in the new window
       await waitForPageLoad(tabId)
+
+      // Set the zoom level to 0.8 (zoomed out) to ensure content is visible even in smaller windows
+      try {
+        await chrome.tabs.setZoom(tabId, 0.5)
+        console.log('Set zoom level to 0.8 for better visibility')
+      } catch (zoomError) {
+        console.warn('Failed to set zoom level:', zoomError)
+      }
 
       // Get the URL after loading (optional, for logging)
       const currentTab = await chrome.tabs.get(tabId) // Now safe to get details
