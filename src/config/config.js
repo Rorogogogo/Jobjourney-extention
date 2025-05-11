@@ -8,8 +8,8 @@ const config = {
   production: {
     baseUrl: 'https://jobjourney.me'
   },
-  extension_version: '2.0.0',
-  extension_update_date: 'May 6, 2024'
+  extension_version: '2.0.2',
+  extension_update_date: 'May 11, 2025'
 }
 
 
