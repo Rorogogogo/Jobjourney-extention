@@ -698,24 +698,55 @@ const linkedInScraper = {
       })
     }
 
-    // Add a longer, randomized delay before checking for the next page
-    // const baseFinalDelay = 1000 // 2 seconds base
-    // const randomFinalDelay = Math.random() * 1000 // Random component up to 2 seconds
-    // const finalDelay = baseFinalDelay + randomFinalDelay
-    // console.log(`Waiting ${finalDelay.toFixed(0)}ms after processing all jobs on this page before checking for next...`)
-    // await new Promise(r => setTimeout(r, finalDelay))
-
-
-    // Check for next page with specific LinkedIn next button selector
+    // Try to find the next button first
     const nextButton = document.querySelector([
       'button.jobs-search-pagination__button--next',
       'button.artdeco-button--icon-right[aria-label="View next page"]',
       'button.artdeco-button[data-test-pagination-page-btn]'
     ].join(','))
 
+    // If next button exists, use it
+    if (nextButton) {
+      nextButton.click()
+    } else {
+      // Check if we're on the last page
+      const currentPageElement = document.querySelector('.jobs-search-pagination__indicator-button--active')
+      if (currentPageElement) {
+        // Try to get the page state text (e.g., "Page 11 of 14")
+        const pageStateText = document.querySelector('.jobs-search-pagination__page-state')?.textContent || ''
+        const match = pageStateText.match(/Page (\d+) of (\d+)/)
+
+        if (match && match[1] !== match[2]) {
+          // We're not on the last page, find the next page button
+          const currentPage = parseInt(match[1], 10)
+
+          // Try to find a button with the next page number
+          const nextPageButton = document.querySelector(`.jobs-search-pagination__indicator-button[aria-label="Page ${currentPage + 1}"]`)
+
+          if (nextPageButton) {
+            nextPageButton.click()
+          } else {
+            // If we can't find a specific next page button, try to find any page after current
+            const allPageButtons = [...document.querySelectorAll('.jobs-search-pagination__indicator-button')]
+            const currentPageIndex = allPageButtons.findIndex(btn => btn.hasAttribute('aria-current'))
+
+            if (currentPageIndex !== -1 && currentPageIndex < allPageButtons.length - 1) {
+              allPageButtons[currentPageIndex + 1].click()
+            }
+          }
+        }
+      }
+    }
+
+    // Check for next page with specific LinkedIn next button selector
     let nextUrl = null
-    if (nextButton && !nextButton.disabled && nextButton.getAttribute('aria-disabled') !== 'true') {
-      // Get current page number from URL or default to 1
+
+    // Get page state information
+    const pageStateText = document.querySelector('.jobs-search-pagination__page-state')?.textContent || ''
+    const match = pageStateText.match(/Page (\d+) of (\d+)/)
+
+    if (match && match[1] !== match[2]) {
+      // We're not on the last page, create URL for next page
       const currentUrl = new URL(window.location.href)
       const currentStart = parseInt(currentUrl.searchParams.get('start') || '0')
       const pageSize = 25 // LinkedIn's default page size
