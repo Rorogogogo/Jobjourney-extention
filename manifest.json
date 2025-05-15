@@ -12,7 +12,6 @@
     "notifications",
     "sidePanel"
   ],
-  "host_permissions": [],
   "action": {
     "default_icon": {
       "16": "icons/icon16.png",
