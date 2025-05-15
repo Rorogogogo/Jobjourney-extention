@@ -7,9 +7,7 @@ const config = {
   // Production environment
   production: {
     baseUrl: 'https://jobjourney.me'
-  },
-  extension_version: '2.0.2',
-  extension_update_date: 'May 11, 2025'
+  }
 }
 
 
