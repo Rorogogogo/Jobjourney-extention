@@ -7,9 +7,7 @@
     "tabs",
     "storage",
     "scripting",
-    "system.display",
     "activeTab",
-    "notifications",
     "sidePanel"
   ],
   "action": {
