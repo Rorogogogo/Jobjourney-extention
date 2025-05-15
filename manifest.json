@@ -34,7 +34,6 @@
         "https://*.indeed.com/*",
         "https://*.reed.co.uk/*",
         "https://*.workopolis.com/*",
-        "http://localhost:5001/*",
         "https://*.jobjourney.me/*"
       ],
       "js": [
