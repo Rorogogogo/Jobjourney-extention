@@ -43,7 +43,7 @@ export class ConfigService {
     try {
       // Use CLI_CEB_DEV environment variable for reliable detection
       const isDevMode = process.env['CLI_CEB_DEV'] === 'true';
-      
+
       if (isDevMode) {
         this.config.environment = 'development';
         Logger.info('🔧 Development environment detected (CLI_CEB_DEV=true)');

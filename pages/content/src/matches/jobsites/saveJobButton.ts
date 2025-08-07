@@ -1,7 +1,7 @@
 // Save Job Button functionality for job detail pages
-export {};
-
 import { detectPRRequirement } from './prDetection';
+
+export {};
 
 interface JobData {
   title: string;
@@ -323,24 +323,25 @@ class SaveJobButton {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.title.title--11');
-    
+
     // Company is always Macquarie Group for this domain
     const company = 'Macquarie Group';
 
     const locationElement = document.querySelector(
-      '.article__content__view__field.field--location .article__content__view__field__value'
+      '.article__content__view__field.field--location .article__content__view__field__value',
     );
 
     const employmentTypeElement = document.querySelector(
-      '.article__content__view__field.field--employmentterm .article__content__view__field__value'
+      '.article__content__view__field.field--employmentterm .article__content__view__field__value',
     );
 
     // Extract job description from all relevant sections
     const descriptionElements = document.querySelectorAll('.article__content__view__field__value');
     let description = '';
-    descriptionElements.forEach((element) => {
+    descriptionElements.forEach(element => {
       const text = element.textContent?.trim();
-      if (text && text.length > 50) { // Only include substantial content
+      if (text && text.length > 50) {
+        // Only include substantial content
         description += text + '\n\n';
       }
     });
@@ -372,7 +373,7 @@ class SaveJobButton {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.default.heading');
-    
+
     // Company is always Atlassian for this domain
     const company = 'Atlassian';
 
@@ -380,7 +381,7 @@ class SaveJobButton {
     const highlightElement = document.querySelector('.job-posting-detail--highlight');
     let location = '';
     let department = '';
-    
+
     if (highlightElement) {
       const highlightText = highlightElement.textContent?.trim() || '';
       // Format: "Engineering | Sydney, Australia | Remote, Remote |"
@@ -428,7 +429,7 @@ class SaveJobButton {
 
     // Extract job information based on the Oracle HCM structure
     const titleElement = document.querySelector('.job-details__title');
-    
+
     // Company is always Westpac for this domain
     const company = 'Westpac';
 
@@ -437,7 +438,7 @@ class SaveJobButton {
     if (!locationElement) {
       // Alternative: look in job meta for locations
       const metaItems = document.querySelectorAll('.job-meta__item');
-      metaItems.forEach((item) => {
+      metaItems.forEach(item => {
         const titleEl = item.querySelector('.job-meta__title');
         if (titleEl?.textContent?.trim() === 'Locations') {
           locationElement = item.querySelector('.job-meta__pin-item');
@@ -448,7 +449,7 @@ class SaveJobButton {
       // Another alternative: direct posting locations selector
       locationElement = document.querySelector('posting-locations span');
     }
-    
+
     // Extract job description from the main content
     const descriptionElement = document.querySelector('.job-details__description-content.basic-formatter');
     let description = '';
@@ -459,7 +460,7 @@ class SaveJobButton {
     // Extract job schedule (Full time, Part time, etc.)
     const scheduleElements = document.querySelectorAll('.job-meta__item');
     let jobSchedule = '';
-    scheduleElements.forEach((element) => {
+    scheduleElements.forEach(element => {
       const titleElement = element.querySelector('.job-meta__title');
       const valueElement = element.querySelector('.job-meta__subitem');
       if (titleElement?.textContent?.trim() === 'Job Schedule' && valueElement) {
@@ -494,7 +495,7 @@ class SaveJobButton {
 
     // Extract job information based on the Canva structure
     const titleElement = document.querySelector('.hero-heading');
-    
+
     if (!titleElement) {
       console.warn('Canva: Could not find job title');
       return null;
@@ -506,7 +507,7 @@ class SaveJobButton {
     // Extract location from job meta list
     let location = '';
     const jobMetaItems = document.querySelectorAll('.job-meta li');
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Country') {
         const links = item.querySelectorAll('a');
@@ -519,7 +520,7 @@ class SaveJobButton {
 
     // Extract job schedule (Full-time, etc.)
     let jobSchedule = '';
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Schedule') {
         const span = item.querySelector('span');
@@ -554,7 +555,11 @@ class SaveJobButton {
     // Don't create button if we don't have essential data
     // Location is optional for some platforms like Westpac where it might be extracted differently
     if (!jobData.title || !jobData.company || !jobData.jobUrl) {
-      console.log('SaveJobButton: Missing essential data', { title: jobData.title, company: jobData.company, jobUrl: jobData.jobUrl });
+      console.log('SaveJobButton: Missing essential data', {
+        title: jobData.title,
+        company: jobData.company,
+        jobUrl: jobData.jobUrl,
+      });
       return false;
     }
 
@@ -680,14 +685,14 @@ class SaveJobButton {
       case 'macquarie':
         // Try to find a good insertion point near the job title
         const titleElement = document.querySelector('.title.title--11');
-        
+
         if (!titleElement) return null;
 
         // Look for the section header that contains the title
         const sectionHeader = titleElement.closest('.section__header__text');
         if (sectionHeader) {
           // Insert after the section header
-          return sectionHeader.parentElement as HTMLElement || null;
+          return (sectionHeader.parentElement as HTMLElement) || null;
         }
 
         // Fallback to title's parent container
@@ -706,12 +711,12 @@ class SaveJobButton {
         }
 
         // Final fallback
-        return titleElement.parentElement as HTMLElement || null;
+        return (titleElement.parentElement as HTMLElement) || null;
 
       case 'atlassian':
         // Find the main content area where the title is located
         const atlassianTitle = document.querySelector('.default.heading');
-        
+
         if (!atlassianTitle) return null;
 
         // Look for the job details paragraph first
@@ -720,7 +725,7 @@ class SaveJobButton {
           // Create a wrapper div after the job details to ensure proper positioning
           const wrapperDiv = document.createElement('div');
           wrapperDiv.style.cssText = 'width: 100%; margin: 16px 0; clear: both;';
-          
+
           // Insert the wrapper after the job details paragraph
           if (jobDetails.parentElement) {
             jobDetails.parentElement.insertAdjacentElement('afterend', wrapperDiv);
@@ -739,7 +744,7 @@ class SaveJobButton {
         }
 
         // Final fallback to title's container
-        return atlassianTitle.parentElement as HTMLElement || null;
+        return (atlassianTitle.parentElement as HTMLElement) || null;
 
       case 'westpac':
         // Find the subtitle/location area and insert after it
@@ -748,7 +753,7 @@ class SaveJobButton {
           return subtitle.parentElement as HTMLElement;
         }
 
-        // Alternative: Find the job title and insert after it  
+        // Alternative: Find the job title and insert after it
         const westpacTitle = document.querySelector('.job-details__title');
         if (westpacTitle && westpacTitle.parentElement) {
           return westpacTitle.parentElement as HTMLElement;
@@ -756,7 +761,7 @@ class SaveJobButton {
 
         // Final fallback to main content area
         const mainContent = document.querySelector('.job-details');
-        return mainContent as HTMLElement || null;
+        return (mainContent as HTMLElement) || null;
 
       case 'canva':
         // Find the job meta area and insert after it
@@ -773,7 +778,7 @@ class SaveJobButton {
 
         // Final fallback to main content
         const canvaMain = document.querySelector('main#content');
-        return canvaMain as HTMLElement || null;
+        return (canvaMain as HTMLElement) || null;
 
       default:
         return null;
@@ -881,7 +886,7 @@ class SaveJobButton {
       // Determine IsRPRequired based on platform type
       let isRPRequired = false;
       const platform = this.currentJobData.platform;
-      
+
       // Job aggregator websites - always run PR detection
       const jobAggregatorSites = ['LinkedIn', 'Indeed', 'SEEK', 'Reed'];
       if (jobAggregatorSites.includes(platform)) {
@@ -890,8 +895,7 @@ class SaveJobButton {
       // Company-specific websites - use predefined company policies
       else if (platform === 'Atlassian' || platform === 'Canva' || platform === 'Westpac') {
         isRPRequired = true; // These companies require RP
-      }
-      else if (platform === 'Macquarie Group') {
+      } else if (platform === 'Macquarie Group') {
         isRPRequired = false; // Macquarie doesn't require RP
       }
       // Default fallback for any other platforms

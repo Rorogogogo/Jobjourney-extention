@@ -18,7 +18,7 @@ export class WestpacScraper extends BaseSingleJobScraper {
 
     // Extract job information based on the Oracle HCM structure
     const titleElement = document.querySelector('.job-details__title');
-    
+
     if (!titleElement) {
       console.warn('Westpac: Could not find job title');
       return undefined;
@@ -32,7 +32,7 @@ export class WestpacScraper extends BaseSingleJobScraper {
     if (!locationElement) {
       // Alternative: look in job meta for locations
       const metaItems = document.querySelectorAll('.job-meta__item');
-      metaItems.forEach((item) => {
+      metaItems.forEach(item => {
         const titleEl = item.querySelector('.job-meta__title');
         if (titleEl?.textContent?.trim() === 'Locations') {
           locationElement = item.querySelector('.job-meta__pin-item');
@@ -43,7 +43,7 @@ export class WestpacScraper extends BaseSingleJobScraper {
       // Another alternative: direct posting locations selector
       locationElement = document.querySelector('posting-locations span');
     }
-    
+
     // Extract job description from the main content
     const descriptionElement = document.querySelector('.job-details__description-content.basic-formatter');
     let description = '';
@@ -54,7 +54,7 @@ export class WestpacScraper extends BaseSingleJobScraper {
     // Extract job schedule (Full time, Part time, etc.)
     const scheduleElements = document.querySelectorAll('.job-meta__item');
     let jobSchedule = '';
-    scheduleElements.forEach((element) => {
+    scheduleElements.forEach(element => {
       const titleElement = element.querySelector('.job-meta__title');
       const valueElement = element.querySelector('.job-meta__subitem');
       if (titleElement?.textContent?.trim() === 'Job Schedule' && valueElement) {
@@ -91,6 +91,6 @@ export class WestpacScraper extends BaseSingleJobScraper {
 
     // Final fallback to main content area
     const mainContent = document.querySelector('.job-details');
-    return mainContent as HTMLElement || undefined;
+    return (mainContent as HTMLElement) || undefined;
   }
 }

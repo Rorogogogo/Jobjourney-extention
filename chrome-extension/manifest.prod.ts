@@ -10,7 +10,7 @@ import type { ManifestType } from '@extension/shared';
 const manifest = {
   manifest_version: 3,
   name: 'JobJourney Assistant',
-  version: '3.0.1',
+  version: '3.0.2',
   description: 'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
   permissions: [

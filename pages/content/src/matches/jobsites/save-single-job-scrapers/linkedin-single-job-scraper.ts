@@ -22,28 +22,28 @@ export class LinkedInScraper extends BaseScraper {
     const titleElement = this.querySelector([
       '.job-details-jobs-unified-top-card__job-title h1',
       '.t-24.job-details-jobs-unified-top-card__job-title',
-      'h1.job-title'
+      'h1.job-title',
     ]);
 
     const companyElement = this.querySelector([
       '.job-details-jobs-unified-top-card__company-name a',
       '.jobs-details-top-card__company-url',
-      '.job-details-jobs-unified-top-card__company-name'
+      '.job-details-jobs-unified-top-card__company-name',
     ]);
 
     const locationElement = document.querySelector(
-      '.job-details-jobs-unified-top-card__primary-description-container, .jobs-details-top-card__job-info'
+      '.job-details-jobs-unified-top-card__primary-description-container, .jobs-details-top-card__job-info',
     );
 
     const descriptionElement = document.querySelector(
-      '.jobs-description__content .jobs-box__html-content, .jobs-description-content__text, div#job-details'
+      '.jobs-description__content .jobs-box__html-content, .jobs-description-content__text, div#job-details',
     );
 
     // Extract company logo
     const companyLogoUrl = this.queryImageSrc([
       '.artdeco-entity-lockup__image img.evi-image',
       '.jobs-company img.evi-image',
-      '.job-details-jobs-unified-top-card__container--two-pane .evi-image'
+      '.job-details-jobs-unified-top-card__container--two-pane .evi-image',
     ]);
 
     if (!titleElement || !companyElement) return null;
@@ -70,7 +70,7 @@ export class LinkedInScraper extends BaseScraper {
   findInsertionPoint(): HTMLElement | null {
     // Find the title container and get its parent to insert below
     const linkedinTitle = document.querySelector(
-      '.job-details-jobs-unified-top-card__job-title, .t-24.job-details-jobs-unified-top-card__job-title, h1.job-title'
+      '.job-details-jobs-unified-top-card__job-title, .t-24.job-details-jobs-unified-top-card__job-title, h1.job-title',
     );
     return linkedinTitle?.parentElement?.parentElement || linkedinTitle?.parentElement || null;
   }

@@ -1,64 +1,8 @@
 // Indeed scraper from working version
 export {};
 
-// Helper functions for overlay
-function showScrapingOverlay(message: string, submessage?: string) {
-  // Remove existing overlay if any
-  const existingOverlay = document.getElementById('jobjourney-scraping-overlay');
-  if (existingOverlay) {
-    existingOverlay.remove();
-  }
-
-  const overlay = document.createElement('div');
-  overlay.id = 'jobjourney-scraping-overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 999999;
-    color: white;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    text-align: center;
-  `;
-
-  overlay.innerHTML = `
-    <div style="font-size: 36px; font-weight: bold; margin-bottom: 10px;">${message}</div>
-    <div style="
-      width: 60px;
-      height: 60px;
-      border: 6px solid rgba(255, 255, 255, 0.3);
-      border-top: 6px solid white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 30px 0;
-    "></div>
-    ${submessage ? `<div style="font-size: 24px; opacity: 0.8; margin-top: 10px;">${submessage}</div>` : ''}
-    <style>
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
-  `;
-
-  document.body.appendChild(overlay);
-  console.log('🔄 Scraping overlay shown:', message);
-}
-
-function hideScrapingOverlay() {
-  const overlay = document.getElementById('jobjourney-scraping-overlay');
-  if (overlay) {
-    overlay.remove();
-    console.log('✅ Scraping overlay hidden');
-  }
-}
+// Note: Overlay management removed to match LinkedIn/SEEK architecture
+// Only ScrapingService.ts should handle overlays to prevent duplication
 
 // **** NEW HELPER FUNCTION for Indeed Details Panel ****
 function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}): any {
@@ -184,7 +128,25 @@ function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}):
 
     // --- Other fields (less likely in panel, use basicInfo) ---
     const postedDate = basicInfo.postedDate || ''; // Usually not in the detail panel view
-    const companyLogoUrl = basicInfo.companyLogoUrl || null; // Use logo from card
+
+    // Try to extract company logo from panel, fallback to basicInfo
+    const logoSelectors = [
+      'img[data-testid="jobsearch-JobInfoHeader-logo-overlay-lower"]',
+      'img.jobsearch-JobInfoHeader-logo',
+      'img.jobsearch-JobInfoHeader-logo-overlay-lower',
+      'img.companyAvatar',
+      '[data-testid="companyAvatar"] img',
+    ];
+
+    let companyLogoUrl = basicInfo.companyLogoUrl || null;
+    for (const selector of logoSelectors) {
+      const logoElement = panelElement.querySelector(selector) as HTMLImageElement;
+      if (logoElement?.src) {
+        companyLogoUrl = logoElement.src;
+        break;
+      }
+    }
+
     const applicantCount = basicInfo.applicantCount || ''; // N/A for Indeed typically
 
     if (!title || !company) {
@@ -332,7 +294,7 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
   console.log('⏳ Waiting for user to complete robot check...');
 
   // Hide the scraping overlay to allow user interaction
-  hideScrapingOverlay();
+  // Overlay is managed by ScrapingService.ts
 
   // Also send message to background to hide overlay
   try {
@@ -478,7 +440,7 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
           }, 3000);
 
           // Show overlay again using helper function
-          showScrapingOverlay('Resuming job discovery...', 'Robot check completed');
+          console.log('🔄 Resuming job discovery after robot check...');
 
           // Also try to send message to background
           try {
@@ -536,7 +498,7 @@ const indeedScraper = {
     }
 
     // Show overlay after verification complete and before scraping starts
-    showScrapingOverlay('Discovering Indeed Jobs...', 'Processing job listings');
+    console.log('🔄 Starting Indeed job discovery...');
 
     // Add a delay to handle bot checking issues
     const initialDelay = 4000; // 4 seconds to handle bot detection
@@ -791,8 +753,23 @@ const indeedScraper = {
 
         const descriptionSnippet =
           descriptionSnippetNode?.textContent?.trim().replace(/…$/, '').replace(/\s+/g, ' ').trim() || '';
-        const companyLogoUrl =
-          (node.querySelector('img.companyAvatar, [data-testid="companyAvatar"] img') as HTMLImageElement)?.src || null; // Added testid selector
+        // Try multiple selectors for company logo, matching single job scraper approach
+        const logoSelectors = [
+          'img.companyAvatar',
+          '[data-testid="companyAvatar"] img',
+          'img[data-testid="jobsearch-JobInfoHeader-logo-overlay-lower"]',
+          'img.jobsearch-JobInfoHeader-logo',
+          'img.jobsearch-JobInfoHeader-logo-overlay-lower',
+        ];
+
+        let companyLogoUrl = null;
+        for (const selector of logoSelectors) {
+          const logoElement = node.querySelector(selector) as HTMLImageElement;
+          if (logoElement?.src) {
+            companyLogoUrl = logoElement.src;
+            break;
+          }
+        }
 
         // Attempt to find job URL from various places
         let jobUrl = '';

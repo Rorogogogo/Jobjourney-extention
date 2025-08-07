@@ -74,10 +74,11 @@ export class MessageHandlerModule {
       Logger.info(`📨 Received message: ${message.type}`, { sender: sender.tab?.url });
 
       switch (message.type) {
-        case 'GET_AUTH_STATUS':
+        case 'GET_AUTH_STATUS': {
           const authStatus = await this.authService.getAuthStatus();
           sendResponse({ success: true, data: authStatus });
           break;
+        }
 
         case 'START_JOB_SEARCH':
           if (this.onStartJobSearch) {
@@ -98,10 +99,11 @@ export class MessageHandlerModule {
           }
           break;
 
-        case 'OPEN_LOGIN_PAGE':
+        case 'OPEN_LOGIN_PAGE': {
           const tab = await this.authService.openLoginPage();
           sendResponse({ success: true, data: { tab } });
           break;
+        }
 
         case 'AUTH_DETECTED':
           if (this.onAuthDetected) {

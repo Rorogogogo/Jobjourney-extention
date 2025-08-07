@@ -1,12 +1,12 @@
 // Factory for creating platform-specific scrapers
-import { LinkedInScraper } from './save-single-job-scrapers/linkedin-single-job-scraper';
-import { IndeedScraper } from './save-single-job-scrapers/indeed-single-job-scraper';
-import { SeekScraper } from './save-single-job-scrapers/seek-single-job-scraper';
-import { ReedScraper } from './save-single-job-scrapers/reed-single-job-scraper';
-import { MacquarieScraper } from './save-single-job-scrapers/macquarie-single-job-scraper';
 import { AtlassianScraper } from './save-single-job-scrapers/atlassian-single-job-scraper';
-import { WestpacScraper } from './save-single-job-scrapers/westpac-single-job-scraper';
 import { CanvaScraper } from './save-single-job-scrapers/canva-single-job-scraper';
+import { IndeedScraper } from './save-single-job-scrapers/indeed-single-job-scraper';
+import { LinkedInScraper } from './save-single-job-scrapers/linkedin-single-job-scraper';
+import { MacquarieScraper } from './save-single-job-scrapers/macquarie-single-job-scraper';
+import { ReedScraper } from './save-single-job-scrapers/reed-single-job-scraper';
+import { SeekScraper } from './save-single-job-scrapers/seek-single-job-scraper';
+import { WestpacScraper } from './save-single-job-scrapers/westpac-single-job-scraper';
 import type { JobScraper } from './types';
 
 export class ScraperFactory {

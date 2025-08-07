@@ -7,11 +7,12 @@ interface JobData {
   title: string;
   company: string;
   location: string;
-  url: string;
+  jobUrl: string;
   description?: string;
   salary?: string;
   postedDate?: string;
   isRPRequired?: boolean;
+  companyLogoUrl?: string;
 }
 
 // Enhanced Job class from working version
@@ -72,6 +73,27 @@ export class Job {
 
     // Analyze description for PR requirement using utility function
     this.isRPRequired = detectPRRequirement(this.description);
+  }
+
+  // Custom JSON serialization to ensure proper field names
+  toJSON() {
+    return {
+      title: this.title,
+      company: this.company,
+      location: this.location,
+      jobUrl: this.jobUrl, // Ensure this is jobUrl not url
+      description: this.description,
+      salary: this.salary,
+      postedDate: this.postedDate,
+      companyLogoUrl: this.companyLogoUrl, // Ensure this is included
+      platform: this.platform,
+      jobType: this.jobType,
+      workplaceType: this.workplaceType,
+      applicantCount: this.applicantCount,
+      isRPRequired: this.isRPRequired,
+      extracted_at: this.postedDate || null,
+      id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    };
   }
 
   static createFromLinkedIn(data: any) {
@@ -327,11 +349,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
         return jobs;
@@ -406,11 +429,12 @@ export const scrapingFunctions = {
               title: job.title,
               company: job.company,
               location: job.location,
-              url: job.jobUrl,
+              jobUrl: job.jobUrl,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
               isRPRequired: job.isRPRequired,
+              companyLogoUrl: job.companyLogoUrl || undefined,
             });
             continue;
           }
@@ -458,11 +482,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
 
           console.log(`Successfully scraped LinkedIn job: ${job.title}`);
@@ -618,11 +643,12 @@ export const scrapingFunctions = {
           title: jobDetail.title,
           company: jobDetail.company,
           location: jobDetail.location,
-          url: jobDetail.jobUrl,
+          jobUrl: jobDetail.jobUrl,
           description: jobDetail.description,
           salary: jobDetail.salary,
           postedDate: jobDetail.postedDate,
           isRPRequired: jobDetail.isRPRequired,
+          companyLogoUrl: jobDetail.companyLogoUrl || undefined,
         });
       }
       return jobs;
@@ -713,11 +739,12 @@ export const scrapingFunctions = {
               title: jobDetail.title,
               company: jobDetail.company,
               location: jobDetail.location,
-              url: jobDetail.jobUrl,
+              jobUrl: jobDetail.jobUrl,
               description: jobDetail.description,
               salary: jobDetail.salary,
               postedDate: jobDetail.postedDate,
               isRPRequired: jobDetail.isRPRequired,
+              companyLogoUrl: jobDetail.companyLogoUrl || undefined,
             });
             console.log(`Successfully scraped detailed job: ${jobDetail.title}`);
           } else {
@@ -729,11 +756,12 @@ export const scrapingFunctions = {
               title: job.title,
               company: job.company,
               location: job.location,
-              url: job.jobUrl,
+              jobUrl: job.jobUrl,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
               isRPRequired: job.isRPRequired,
+              companyLogoUrl: job.companyLogoUrl || undefined,
             });
           }
         } else {
@@ -745,11 +773,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
 
@@ -835,11 +864,12 @@ export const scrapingFunctions = {
             title: jobDetail.title,
             company: jobDetail.company,
             location: jobDetail.location,
-            url: jobDetail.jobUrl,
+            jobUrl: jobDetail.jobUrl,
             description: jobDetail.description,
             salary: jobDetail.salary,
             postedDate: jobDetail.postedDate,
             isRPRequired: jobDetail.isRPRequired,
+            companyLogoUrl: jobDetail.companyLogoUrl || undefined,
           });
           console.log(`Scraped standalone job: ${jobDetail.title}`);
         }
@@ -956,11 +986,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
           continue;
         }
@@ -996,7 +1027,7 @@ export const scrapingFunctions = {
           title: job.title,
           company: job.company,
           location: job.location,
-          url: job.jobUrl,
+          jobUrl: job.jobUrl,
           description: job.description,
           salary: job.salary,
           postedDate: job.postedDate,
@@ -1017,11 +1048,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
         await new Promise(r => setTimeout(r, 1500));
@@ -1058,11 +1090,12 @@ export const scrapingFunctions = {
               title,
               company,
               location,
-              url,
+              jobUrl: url,
               salary,
               description: '',
               postedDate: '',
               isRPRequired: detectPRRequirement(''),
+              companyLogoUrl: undefined,
             });
           }
         } catch (error) {

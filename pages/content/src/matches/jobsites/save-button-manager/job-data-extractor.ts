@@ -214,24 +214,25 @@ export class JobDataExtractor {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.title.title--11');
-    
+
     // Company is always Macquarie Group for this domain
     const company = 'Macquarie Group';
 
     const locationElement = document.querySelector(
-      '.article__content__view__field.field--location .article__content__view__field__value'
+      '.article__content__view__field.field--location .article__content__view__field__value',
     );
 
     const employmentTypeElement = document.querySelector(
-      '.article__content__view__field.field--employmentterm .article__content__view__field__value'
+      '.article__content__view__field.field--employmentterm .article__content__view__field__value',
     );
 
     // Extract job description from all relevant sections
     const descriptionElements = document.querySelectorAll('.article__content__view__field__value');
     let description = '';
-    descriptionElements.forEach((element) => {
+    descriptionElements.forEach(element => {
       const text = element.textContent?.trim();
-      if (text && text.length > 50) { // Only include substantial content
+      if (text && text.length > 50) {
+        // Only include substantial content
         description += text + '\n\n';
       }
     });
@@ -263,7 +264,7 @@ export class JobDataExtractor {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.default.heading');
-    
+
     if (!titleElement) {
       console.warn('Atlassian: Could not find job title');
       return null;
@@ -276,7 +277,7 @@ export class JobDataExtractor {
     const highlightElement = document.querySelector('.job-posting-detail--highlight');
     let location = '';
     let department = '';
-    
+
     if (highlightElement) {
       const highlightText = highlightElement.textContent?.trim() || '';
       // Format: "Engineering | Sydney, Australia | Remote, Remote |"
@@ -319,7 +320,7 @@ export class JobDataExtractor {
 
     // Extract job information based on the Oracle HCM structure
     const titleElement = document.querySelector('.job-details__title');
-    
+
     if (!titleElement) {
       console.warn('Westpac: Could not find job title');
       return null;
@@ -333,7 +334,7 @@ export class JobDataExtractor {
     if (!locationElement) {
       // Alternative: look in job meta for locations
       const metaItems = document.querySelectorAll('.job-meta__item');
-      metaItems.forEach((item) => {
+      metaItems.forEach(item => {
         const titleEl = item.querySelector('.job-meta__title');
         if (titleEl?.textContent?.trim() === 'Locations') {
           locationElement = item.querySelector('.job-meta__pin-item');
@@ -344,7 +345,7 @@ export class JobDataExtractor {
       // Another alternative: direct posting locations selector
       locationElement = document.querySelector('posting-locations span');
     }
-    
+
     // Extract job description from the main content
     const descriptionElement = document.querySelector('.job-details__description-content.basic-formatter');
     let description = '';
@@ -355,7 +356,7 @@ export class JobDataExtractor {
     // Extract job schedule (Full time, Part time, etc.)
     const scheduleElements = document.querySelectorAll('.job-meta__item');
     let jobSchedule = '';
-    scheduleElements.forEach((element) => {
+    scheduleElements.forEach(element => {
       const titleElement = element.querySelector('.job-meta__title');
       const valueElement = element.querySelector('.job-meta__subitem');
       if (titleElement?.textContent?.trim() === 'Job Schedule' && valueElement) {
@@ -385,7 +386,7 @@ export class JobDataExtractor {
 
     // Extract job information based on the Canva structure
     const titleElement = document.querySelector('.hero-heading');
-    
+
     if (!titleElement) {
       console.warn('Canva: Could not find job title');
       return null;
@@ -397,7 +398,7 @@ export class JobDataExtractor {
     // Extract location from job meta list
     let location = '';
     const jobMetaItems = document.querySelectorAll('.job-meta li');
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Country') {
         const links = item.querySelectorAll('a');
@@ -410,7 +411,7 @@ export class JobDataExtractor {
 
     // Extract job schedule (Full-time, etc.)
     let jobSchedule = '';
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Schedule') {
         const span = item.querySelector('span');

@@ -1,13 +1,60 @@
 // Save button UI component
+import type { PRDetectionResult } from './types';
+
 export class ButtonComponent {
-  static createButton(): HTMLElement {
+  static createButton(prDetection?: PRDetectionResult): HTMLElement {
     const button = document.createElement('button');
     button.id = 'jobjourney-save-button';
 
     // Get JobJourney icon from extension resources
     const iconUrl = chrome.runtime.getURL('icon-16.png');
 
+    // Create PR badge HTML - show appropriate state
+    let prBadgeHtml = '';
+    if (prDetection) {
+      let badgeColor = '#10b981'; // Green by default (no PR required)
+      let badgeText = 'No PR Req';
+
+      // Check if this is the "detecting" state
+      if (prDetection.reasoning === 'Detecting PR requirements...') {
+        badgeColor = '#3b82f6'; // Blue for detecting state
+        badgeText = 'PR Detecting';
+      } else if (prDetection.isRPRequired) {
+        // PR is required - show warning colors
+        badgeColor =
+          prDetection.confidence === 'high' ? '#ef4444' : prDetection.confidence === 'medium' ? '#f59e0b' : '#6b7280';
+        badgeText =
+          prDetection.confidence === 'high'
+            ? 'PR Required'
+            : prDetection.confidence === 'medium'
+              ? 'PR Likely'
+              : 'PR Maybe';
+      } else if (prDetection.confidence === 'low' && prDetection.matchedPatterns.length === 0) {
+        // No clear indicators found
+        badgeColor = '#6b7280'; // Gray
+        badgeText = 'PR Unknown';
+      }
+
+      prBadgeHtml = `
+        <div style="
+          position: absolute;
+          top: -8px;
+          right: -8px;
+          background: ${badgeColor};
+          color: white;
+          padding: 2px 6px;
+          border-radius: 10px;
+          font-size: 10px;
+          font-weight: 700;
+          white-space: nowrap;
+          box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+          z-index: 10000;
+        ">${badgeText}</div>
+      `;
+    }
+
     button.innerHTML = `
+      ${prBadgeHtml}
       <div style="display: flex; align-items: center; gap: 8px;">
         <img src="${iconUrl}" width="16" height="16" style="flex-shrink: 0; margin-bottom: 0 !important; vertical-align: middle !important;" alt="JobJourney" />
         <span>Save in JJ</span>

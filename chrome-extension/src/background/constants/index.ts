@@ -374,12 +374,13 @@ export const buildSearchUrl = (
   }
 
   switch (platform) {
-    case 'linkedin':
+    case 'linkedin': {
       let linkedinUrl = `${baseUrl}?keywords=${encodedKeywords}`;
       if (location) linkedinUrl += `&location=${encodedLocation}`;
       return linkedinUrl;
+    }
 
-    case 'seek':
+    case 'seek': {
       // SEEK uses format: https://www.seek.com.au/job-title-jobs/in-All-Location
       // Convert keywords to URL-friendly format and add location
       const seekKeywords = keywords.toLowerCase().replace(/\s+/g, '-');
@@ -390,16 +391,19 @@ export const buildSearchUrl = (
         seekUrl += `/in-All-${seekLocation}`;
       }
       return seekUrl;
+    }
 
-    case 'indeed':
+    case 'indeed': {
       let indeedUrl = `${baseUrl}?q=${encodedKeywords}`;
       if (location) indeedUrl += `&l=${encodedLocation}`;
       return indeedUrl;
+    }
 
-    case 'reed':
+    case 'reed': {
       let reedUrl = `${baseUrl}/${encodedKeywords.replace(/\s+/g, '-')}-jobs`;
       if (location) reedUrl += `?location=${encodedLocation}`;
       return reedUrl;
+    }
 
     default:
       throw new Error(`Unknown platform: ${platform}`);

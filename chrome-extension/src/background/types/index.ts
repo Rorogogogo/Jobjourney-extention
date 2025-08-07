@@ -28,13 +28,14 @@ export interface JobData {
   title: string;
   company: string;
   location: string;
-  url: string;
+  jobUrl: string;
   platform: string;
   description?: string;
   salary?: string;
   postedDate?: string;
-  extracted_at: string;
+  extracted_at: string | null;
   isRPRequired?: boolean;
+  companyLogoUrl?: string | null;
 }
 
 export interface SearchConfig {
