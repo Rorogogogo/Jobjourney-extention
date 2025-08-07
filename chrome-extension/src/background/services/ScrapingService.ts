@@ -3,10 +3,10 @@ import { PLATFORMS, COUNTRIES, buildSearchUrl, MESSAGE_TYPES, SCRAPING_CONFIG, T
 import { getJobMarketUrl, getJobJourneyBaseUrl } from '../utils/environment';
 import { Logger } from '../utils/Logger';
 import { isPRRequired } from '../utils/prDetection';
+import type { SearchConfig, JobData, ScrapingProgress, Platform } from '../types';
 import type { ApiService } from './ApiService';
 import type { EventManager } from './EventManager';
 import type { StorageService } from './StorageService';
-import type { SearchConfig, JobData, ScrapingProgress, Platform } from '../types';
 
 export class ScrapingService {
   private initialized = false;
@@ -177,6 +177,7 @@ export class ScrapingService {
     if (session) {
       // Immediately set status to stopped to prevent any ongoing operations
       session.status = 'stopped';
+      session.endTime = Date.now();
       Logger.info(`⏹️ Stopped scraping session: ${sessionId}`);
 
       // Clear all timeouts first to prevent delayed operations from overriding 'stopped' status
@@ -234,14 +235,15 @@ export class ScrapingService {
         totalJobs: session.jobs.length,
       });
 
-      // Also send jobs to frontend for manually stopped sessions if they have jobs
+      // Also send jobs to backend and frontend for manually stopped sessions if they have jobs
       if (session.jobs.length > 0) {
-        Logger.info(`📋 Sending ${session.jobs.length} stopped session jobs to frontend`);
+        Logger.info(`📋 Sending ${session.jobs.length} stopped session jobs to backend and frontend`);
         Promise.resolve().then(async () => {
           try {
+            await this.submitJobsToApi(session);
             await this.sendJobsToFrontend(session);
           } catch (error) {
-            Logger.error('Failed to send stopped session jobs to frontend:', error);
+            Logger.error('Failed to send stopped session jobs to backend/frontend:', error);
           }
         });
       }
