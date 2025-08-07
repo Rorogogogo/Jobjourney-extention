@@ -971,24 +971,24 @@ export class ScrapingService {
   }
 
   /**
-   * Show scraping overlay in tab
+   * Show discovering overlay in tab
    */
   private async showScrapingOverlay(tabId: number, platformName: string): Promise<void> {
     try {
       await chrome.tabs.sendMessage(tabId, {
         type: MESSAGE_TYPES.SHOW_OVERLAY,
         data: {
-          message: `JobJourney is scraping ${platformName}...`,
+          message: `JobJourney is discovering ${platformName}...`,
           submessage: 'Please do not interact with this page',
         },
       });
     } catch (error) {
-      Logger.warning('Could not show scraping overlay:', error);
+      Logger.warning('Could not show discovering overlay:', error);
     }
   }
 
   /**
-   * Hide scraping overlay in tab
+   * Hide discovering overlay in tab
    */
   private async hideScrapingOverlay(tabId: number): Promise<void> {
     try {
@@ -996,7 +996,7 @@ export class ScrapingService {
         type: MESSAGE_TYPES.HIDE_OVERLAY,
       });
     } catch (error) {
-      Logger.warning('Could not hide scraping overlay:', error);
+      Logger.warning('Could not hide discovering overlay:', error);
     }
   }
 
@@ -1033,10 +1033,10 @@ export class ScrapingService {
       // Find existing JobJourney job-market tabs only
       const allTabs = await chrome.tabs.query({});
       const existingJobMarketTabs: chrome.tabs.Tab[] = [];
-      
+
       for (const tab of allTabs) {
         if (!tab.url) continue;
-        
+
         try {
           if (await this.isJobJourneyUrl(tab.url)) {
             const url = new URL(tab.url);
@@ -1146,7 +1146,7 @@ export class ScrapingService {
       const jobJourneyBaseUrl = await getJobJourneyBaseUrl();
       const jobJourneyUrl = new URL(jobJourneyBaseUrl);
       const targetUrl = new URL(url);
-      
+
       return (
         targetUrl.hostname.toLowerCase() === jobJourneyUrl.hostname.toLowerCase() &&
         targetUrl.port === jobJourneyUrl.port
@@ -1163,13 +1163,13 @@ export class ScrapingService {
     try {
       const tabs = await chrome.tabs.query({});
       const jobJourneyTabs: chrome.tabs.Tab[] = [];
-      
+
       for (const tab of tabs) {
-        if (tab.url && await this.isJobJourneyUrl(tab.url)) {
+        if (tab.url && (await this.isJobJourneyUrl(tab.url))) {
           jobJourneyTabs.push(tab);
         }
       }
-      
+
       return jobJourneyTabs;
     } catch (error) {
       Logger.error('Failed to find JobJourney tabs', error);

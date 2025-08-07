@@ -9,16 +9,16 @@ export class RPRequirementDetector {
     if (jobAggregatorSites.includes(platform)) {
       return detectPRRequirement(jobData.description || '');
     }
-    
+
     // Company-specific websites - use predefined company policies
     if (platform === 'atlassian' || platform === 'canva' || platform === 'westpac') {
       return true; // These companies require RP
     }
-    
+
     if (platform === 'macquarie') {
       return false; // Macquarie doesn't require RP
     }
-    
+
     // Default fallback for any other platforms
     return detectPRRequirement(jobData.description || '');
   }

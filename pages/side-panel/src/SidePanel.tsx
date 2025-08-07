@@ -74,11 +74,13 @@ const SidePanel = () => {
           'bg-gradient-to-br from-black to-gray-900',
         )}>
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-gray-700 px-4 py-2">
-          <div className="flex min-w-8 items-center justify-center">
+        <div className="flex items-center gap-4 border-b border-gray-700 px-4 py-2">
+          <div className="flex items-center justify-center">
             <span className="text-base font-bold leading-none tracking-wider text-white">JJ</span>
           </div>
-          <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} onAuthCheck={checkAuthStatus} />
+          <div className="flex-1">
+            <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} onAuthCheck={checkAuthStatus} />
+          </div>
         </div>
 
         {/* Main Content */}

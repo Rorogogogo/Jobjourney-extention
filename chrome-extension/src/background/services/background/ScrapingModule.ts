@@ -390,7 +390,6 @@ export class ScrapingModule {
 
       const platforms = Object.values(this.platformProgress);
       const totalJobsFound = platforms.reduce((sum, p) => sum + p.jobsFound, 0);
-      const activePlatforms = platforms.filter(p => p.status === 'active').length;
       const completedPlatforms = platforms.filter(p => p.status === 'completed').length;
 
       this.broadcastToSidebars?.({
@@ -418,7 +417,7 @@ export class ScrapingModule {
 
   async handleScrapingResult(data: any, sendResponse: (response?: any) => void): Promise<void> {
     try {
-      const { platform, jobs = [], error } = data;
+      const { platform, jobs = [] } = data;
 
       Logger.info(`📄 Received scraping result from ${platform}: ${jobs.length} jobs`);
 

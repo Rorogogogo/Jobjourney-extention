@@ -18,7 +18,7 @@ export class CanvaScraper extends BaseSingleJobScraper {
 
     // Extract job information based on the Canva structure
     const titleElement = document.querySelector('.hero-heading');
-    
+
     if (!titleElement) {
       console.warn('Canva: Could not find job title');
       return undefined;
@@ -30,7 +30,7 @@ export class CanvaScraper extends BaseSingleJobScraper {
     // Extract location from job meta list
     let location = '';
     const jobMetaItems = document.querySelectorAll('.job-meta li');
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Country') {
         const links = item.querySelectorAll('a');
@@ -43,7 +43,7 @@ export class CanvaScraper extends BaseSingleJobScraper {
 
     // Extract job schedule (Full-time, etc.)
     let jobSchedule = '';
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Schedule') {
         const span = item.querySelector('span');
@@ -89,6 +89,6 @@ export class CanvaScraper extends BaseSingleJobScraper {
 
     // Final fallback to main content
     const canvaMain = document.querySelector('main#content');
-    return canvaMain as HTMLElement || undefined;
+    return (canvaMain as HTMLElement) || undefined;
   }
 }

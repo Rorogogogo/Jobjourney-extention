@@ -77,8 +77,8 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
 
   return (
     <>
-      <div className="flex flex-1 items-center justify-end">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center justify-end">
+        <div className="flex items-center gap-2">
           {!isAuthenticated ? (
             <div className="flex gap-2">
               <button
@@ -97,7 +97,9 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
               ) : (
                 <span className="text-base">👤</span>
               )}
-              <span className="text-xs font-medium text-white">{authStatus.user?.firstName || 'User'}</span>
+              <span className="whitespace-nowrap text-xs font-medium text-white">
+                {authStatus.user?.firstName || 'User'}
+              </span>
               {authStatus.user?.isPro && (
                 <span className="rounded-full bg-gradient-to-r from-yellow-400 to-yellow-300 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-black">
                   PRO
@@ -107,13 +109,13 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
           )}
 
           <button
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
+            className="cursor-pointer whitespace-nowrap rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
             onClick={handleDashboard}>
             Dashboard
           </button>
 
           <button
-            className="flex cursor-pointer items-center gap-1 rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
+            className="flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
             onClick={handleGitHub}
             title="Star us on GitHub">
             <svg className="h-2.5 w-2.5" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg">
@@ -124,7 +126,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
                 fill="currentColor"
               />
             </svg>
-            ⭐ {githubStars !== null ? githubStars : 'Loading...'}
+            {githubStars !== null ? githubStars : 'Loading...'} ⭐
           </button>
         </div>
       </div>

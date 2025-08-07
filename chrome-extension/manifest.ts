@@ -3,24 +3,18 @@ import type { ManifestType } from '@extension/shared';
 /**
  * JobJourney Chrome Extension Manifest - PRODUCTION VERSION
  * Smart job search assistant that scrapes listings from multiple platforms
- * 
+ *
  * This version is ready for Chrome Web Store submission
  * NO localhost permissions or system.display permission
  */
 const manifest = {
   manifest_version: 3,
   name: 'JobJourney Assistant',
-  version: '3.0.1',
-  description: 'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
+  version: '3.0.4',
+  description:
+    'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
-  permissions: [
-    'tabs',
-    'storage', 
-    'sidePanel',
-    'scripting',
-    'activeTab',
-    'alarms'
-  ],
+  permissions: ['tabs', 'storage', 'sidePanel', 'scripting', 'activeTab', 'alarms'],
   host_permissions: [
     '*://*.linkedin.com/*',
     '*://*.seek.com.au/*',
@@ -30,10 +24,10 @@ const manifest = {
     '*://*.atlassian.com/*',
     '*://ebuu.fa.ap1.oraclecloud.com/*',
     '*://www.lifeatcanva.com/*',
-    '*://*.jobjourney.me/*'
+    '*://*.jobjourney.me/*',
   ],
   action: {
-    default_title: 'JobJourney Assistant'
+    default_title: 'JobJourney Assistant',
   },
   background: {
     service_worker: 'background.js',
@@ -46,18 +40,18 @@ const manifest = {
     {
       matches: [
         '*://*.linkedin.com/*',
-        '*://*.seek.com.au/*', 
+        '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
         '*://recruitment.macquarie.com/*',
         '*://*.atlassian.com/*',
         '*://ebuu.fa.ap1.oraclecloud.com/*',
         '*://www.lifeatcanva.com/*',
-        '*://*.jobjourney.me/*'
+        '*://*.jobjourney.me/*',
       ],
       js: ['content/jobsites.iife.js'],
-      run_at: 'document_idle'
-    }
+      run_at: 'document_idle',
+    },
   ],
   web_accessible_resources: [
     {
@@ -65,13 +59,13 @@ const manifest = {
       matches: [
         '*://*.linkedin.com/*',
         '*://*.seek.com.au/*',
-        '*://*.seek.co.nz/*', 
+        '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
         '*://recruitment.macquarie.com/*',
         '*://*.atlassian.com/*',
         '*://ebuu.fa.ap1.oraclecloud.com/*',
         '*://www.lifeatcanva.com/*',
-        '*://*.jobjourney.me/*'
+        '*://*.jobjourney.me/*',
       ],
     },
   ],

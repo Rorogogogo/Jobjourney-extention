@@ -26,6 +26,6 @@ export class ReedScraper extends BaseScraper {
 
   findInsertionPoint(): HTMLElement | null {
     const reedTitle = document.querySelector('h1.job-title, h1');
-    return reedTitle?.parentElement as HTMLElement || null;
+    return (reedTitle?.parentElement as HTMLElement) || null;
   }
 }

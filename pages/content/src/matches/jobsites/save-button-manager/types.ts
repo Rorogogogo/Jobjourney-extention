@@ -12,6 +12,13 @@ export interface JobData {
   companyLogoUrl?: string;
 }
 
+export interface PRDetectionResult {
+  isRPRequired: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  matchedPatterns: string[];
+  reasoning: string;
+}
+
 export interface SaveButtonManager {
   init(): Promise<void>;
   detectAndCreateButton(): void;

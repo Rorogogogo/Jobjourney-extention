@@ -200,7 +200,7 @@ export class ButtonManager {
 
   addClickHandler(handler: () => void) {
     if (this.button) {
-      this.button.addEventListener('click', (e) => {
+      this.button.addEventListener('click', e => {
         e.preventDefault();
         e.stopPropagation();
         handler();

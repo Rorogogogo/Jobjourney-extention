@@ -3,10 +3,10 @@
 import { initializeAuthMonitoring } from './authMonitoring';
 import { createJobJourneyIndicator } from './indicator';
 import { detectPRRequirement } from './prDetection';
+import { SaveButtonManager } from './save-button-manager';
 import { scrapingFunctions, Job, getCurrentPlatform } from './scrapingFunctions';
 
 // Import modular save job button functionality (needed on all job sites)
-import { SaveButtonManager } from './save-button-manager';
 
 // Initialize save button manager
 new SaveButtonManager();
@@ -99,11 +99,12 @@ interface JobData {
   title: string;
   company: string;
   location: string;
-  url: string;
+  jobUrl: string;
   description?: string;
   salary?: string;
   postedDate?: string;
   isRPRequired?: boolean;
+  companyLogoUrl?: string;
 }
 
 // Overlay functionality
@@ -113,6 +114,7 @@ function showDiscoverOverlay(message: string, submessage?: string) {
 
   const overlay = document.createElement('div');
   overlay.id = 'jobjourney-discover-overlay';
+  overlay.dataset.created = Date.now().toString();
   overlay.style.cssText = `
     position: fixed;
     top: 0;
@@ -185,6 +187,30 @@ function hideDiscoverOverlay() {
     console.log('✅ Discover overlay hidden');
   }
 }
+
+// Global cleanup on page unload to prevent overlay persistence
+window.addEventListener('beforeunload', () => {
+  hideDiscoverOverlay();
+});
+
+// Also cleanup when extension is stopped/reloaded
+window.addEventListener('unload', () => {
+  hideDiscoverOverlay();
+});
+
+// Periodic cleanup check for orphaned overlays (every 30 seconds)
+setInterval(() => {
+  const overlay = document.getElementById('jobjourney-discover-overlay');
+  if (overlay) {
+    // Check if overlay has been there for too long (more than 5 minutes)
+    const overlayAge = Date.now() - (parseInt(overlay.dataset.created || '0') || Date.now());
+    if (overlayAge > 300000) {
+      // 5 minutes
+      overlay.remove();
+      console.log('🧹 Cleaned up orphaned overlay');
+    }
+  }
+}, 30000);
 
 // Message listener for discover commands and overlay
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -276,11 +302,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
               isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'linkedin',
+              extracted_at: job.postedDate || null,
             }));
           } else if (platform === 'indeed' && (window as any).indeedScraper) {
             const result = await (window as any).indeedScraper.scrapeJobList();
@@ -292,11 +321,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
               isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'indeed',
+              extracted_at: job.postedDate || null,
             }));
           } else if (platform === 'seek' && (window as any).seekScraper) {
             const result = await (window as any).seekScraper.scrapeJobList();
@@ -308,11 +340,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
               isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'seek',
+              extracted_at: job.postedDate || null,
             }));
           } else {
             jobs = (scrapingFunctions[platform as keyof typeof scrapingFunctions] as () => JobData[])();
