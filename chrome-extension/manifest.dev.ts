@@ -13,7 +13,7 @@ const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const manifest = {
   manifest_version: 3,
   name: 'JobJourney Assistant (Dev)',
-  version: '3.0.4',
+  version: '3.0.6',
   description: 'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
   permissions: [

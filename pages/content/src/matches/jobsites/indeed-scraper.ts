@@ -345,7 +345,29 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
         }
+        .jj-close-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          line-height: 1;
+          transition: background 0.2s;
+        }
+        .jj-close-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
       </style>
+      <button class="jj-close-btn" onclick="this.parentElement.parentElement.remove();" title="Close for this page only">×</button>
       <div style="display: flex; align-items: center; margin-bottom: 12px;">
         <span style="font-size: 24px; margin-right: 12px;" class="pulse">${isCloudflareVerification ? '🛡️' : '🤖'}</span>
         <strong style="font-size: 16px;">${isCloudflareVerification ? 'Security Verification' : 'Robot Check Detected'}</strong>
@@ -359,6 +381,9 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
       </div>
       <div style="font-size: 12px; opacity: 0.9; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px;">
         💡 JobJourney will automatically resume once completed
+      </div>
+      <div style="font-size: 11px; opacity: 0.7; margin-top: 8px; text-align: center;">
+        Click × to dismiss for this page only
       </div>
     </div>
   `;
@@ -488,6 +513,7 @@ const indeedScraper = {
     const isFirstPage = !startParam || startParam === '0';
 
     // Only check for robot/Cloudflare verification on the first page
+    // Important: Verification only appears on first page, not on subsequent pages
     if (isFirstPage && detectRobotCheck()) {
       console.log('🤖 Robot check detected on first page, waiting for completion...');
       const completed = await waitForRobotCheckCompletion();
@@ -540,8 +566,9 @@ const indeedScraper = {
       let lastSeenTitle = '';
 
       while (attempts < maxAttempts) {
-        // Check for robot check during panel loading
-        if (detectRobotCheck()) {
+        // Only check for robot check during panel loading on the first page
+        // Verification doesn't appear on subsequent pages per user observation
+        if (isFirstPage && detectRobotCheck()) {
           console.log('🤖 Robot check detected while waiting for job panel...');
           const completed = await waitForRobotCheckCompletion();
           if (!completed) {
@@ -627,8 +654,9 @@ const indeedScraper = {
       let job = null;
 
       try {
-        // Check for robot check during scraping
-        if (detectRobotCheck()) {
+        // Only check for robot check during scraping on the first page
+        // Verification doesn't appear on subsequent pages per user observation
+        if (isFirstPage && detectRobotCheck()) {
           console.log('🤖 Robot check detected during scraping, pausing...');
           const completed = await waitForRobotCheckCompletion();
           if (!completed) {

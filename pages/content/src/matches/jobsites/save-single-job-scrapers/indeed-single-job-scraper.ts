@@ -38,7 +38,7 @@ export class IndeedScraper extends BaseScraper {
       title: this.extractText(titleElement),
       company: this.extractText(companyElement),
       location: this.extractText(locationElement),
-      jobUrl: this.cleanUrl(window.location.href),
+      jobUrl: window.location.href,
       description: this.extractText(descriptionElement),
       employmentTypes: this.extractText(jobTypeElement),
       platform: this.platform,
