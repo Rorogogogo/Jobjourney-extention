@@ -93,7 +93,14 @@ export function createJobJourneyIndicator() {
   // Also try to find and adjust any fixed headers that might exist
   const fixedElements = Array.from(document.querySelectorAll('*')).filter(el => {
     const computedStyle = window.getComputedStyle(el);
-    return computedStyle.position === 'fixed' && parseInt(computedStyle.top) <= 10; // Elements fixed to the top
+    const top = parseInt(computedStyle.top) || 0;
+    return (
+      computedStyle.position === 'fixed' &&
+      (top <= 36 || // Elements at the very top that would conflict
+        el.id === 'global-nav' || // LinkedIn header specifically
+        el.classList.contains('global-nav') ||
+        el.tagName === 'HEADER') // Generic headers
+    );
   });
 
   // Store original top values and adjust fixed elements
@@ -101,8 +108,16 @@ export function createJobJourneyIndicator() {
   fixedElements.forEach(el => {
     const computedStyle = window.getComputedStyle(el);
     const currentTop = parseInt(computedStyle.top) || 0;
-    originalFixedTops.set(el, (el as HTMLElement).style.top || computedStyle.top);
-    (el as HTMLElement).style.top = `${currentTop + 36}px`;
+    const originalTop = (el as HTMLElement).style.top || computedStyle.top;
+    originalFixedTops.set(el, originalTop);
+
+    // Calculate new top position
+    const newTop = currentTop + 36;
+    (el as HTMLElement).style.top = `${newTop}px`;
+
+    console.log(
+      `📍 Adjusted fixed element: ${el.tagName}${el.id ? '#' + el.id : ''}${el.className ? '.' + el.className.split(' ').slice(0, 2).join('.') : ''} from ${currentTop}px to ${newTop}px`,
+    );
   });
 
   // Store original values for cleanup

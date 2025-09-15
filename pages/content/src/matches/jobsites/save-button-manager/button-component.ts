@@ -31,7 +31,7 @@ export class ButtonComponent {
               : 'PR Maybe';
       } else if (prDetection.confidence === 'low' && prDetection.matchedPatterns.length === 0) {
         // No clear indicators found
-        badgeColor = '#6b7280'; // Gray
+        badgeColor = '#22c55e'; // Green
         badgeText = 'PR Unknown';
       }
 
