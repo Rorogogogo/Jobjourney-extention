@@ -8,6 +8,7 @@ export class PlatformDetector {
     if (hostname.includes('linkedin.com')) return 'linkedin';
     if (hostname.includes('seek.com')) return 'seek';
     if (hostname.includes('indeed.com')) return 'indeed';
+    if (hostname.includes('jora.com')) return 'jora';
     if (hostname.includes('reed.co.uk')) return 'reed';
     if (hostname === 'recruitment.macquarie.com') return 'macquarie';
     if (hostname.includes('atlassian.com')) return 'atlassian';

@@ -1,19 +1,16 @@
-import { readFileSync } from 'node:fs';
 import type { ManifestType } from '@extension/shared';
 
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
-
 /**
- * JobJourney Chrome Extension Manifest - DEVELOPMENT VERSION
+ * JobJourney Chrome Extension Manifest - PRODUCTION VERSION
  * Smart job search assistant that scrapes listings from multiple platforms
  *
- * This version includes localhost permissions for development
- * Use manifest.ts for production builds
+ * This version is ready for Chrome Web Store submission
+ * NO localhost permissions or system.display permission
  */
 const manifest = {
   manifest_version: 3,
-  name: 'JobJourney Assistant (Dev)',
-  version: '3.0.6',
+  name: 'JobJourney Assistant',
+  version: '3.0.7',
   description:
     'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
@@ -23,11 +20,11 @@ const manifest = {
     '*://*.seek.com.au/*',
     '*://*.seek.co.nz/*',
     '*://*.indeed.com/*',
+    '*://recruitment.macquarie.com/*',
+    '*://*.atlassian.com/*',
+    '*://ebuu.fa.ap1.oraclecloud.com/*',
+    '*://www.lifeatcanva.com/*',
     '*://*.jobjourney.me/*',
-    'http://localhost:5001/*',
-    'http://localhost:5014/*',
-    'http://localhost:5000/*',
-    'http://localhost:3000/*',
   ],
   action: {
     default_title: 'JobJourney Assistant',
@@ -46,11 +43,11 @@ const manifest = {
         '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
+        '*://recruitment.macquarie.com/*',
+        '*://*.atlassian.com/*',
+        '*://ebuu.fa.ap1.oraclecloud.com/*',
+        '*://www.lifeatcanva.com/*',
         '*://*.jobjourney.me/*',
-        'http://localhost:5001/*',
-        'http://localhost:5014/*',
-        'http://localhost:5000/*',
-        'http://localhost:3000/*',
       ],
       js: ['content/jobsites.iife.js'],
       run_at: 'document_idle',
@@ -64,11 +61,11 @@ const manifest = {
         '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
+        '*://recruitment.macquarie.com/*',
+        '*://*.atlassian.com/*',
+        '*://ebuu.fa.ap1.oraclecloud.com/*',
+        '*://www.lifeatcanva.com/*',
         '*://*.jobjourney.me/*',
-        'http://localhost:5001/*',
-        'http://localhost:5014/*',
-        'http://localhost:5000/*',
-        'http://localhost:3000/*',
       ],
     },
   ],

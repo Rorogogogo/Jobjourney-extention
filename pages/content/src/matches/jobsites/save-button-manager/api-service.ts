@@ -19,6 +19,7 @@ export class ApiService {
         EmploymentTypes: jobData.employmentTypes || '',
         WorkArrangement: jobData.workArrangement || '',
         CompanyLogoUrl: jobData.companyLogoUrl || null,
+        PlatformName: jobData.platform || platform,
         Status: 1, // Default to "Saved" status
         IsStarred: false,
         IsRPRequired: isRPRequired,

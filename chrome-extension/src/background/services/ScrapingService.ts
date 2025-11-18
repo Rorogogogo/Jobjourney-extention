@@ -645,11 +645,8 @@ export class ScrapingService {
         }
       };
 
-      // Use longer timeout for Indeed first page due to potential Cloudflare verification
-      const timeoutDuration =
-        platform.id === 'indeed' && pageNumber === 1
-          ? SCRAPING_CONFIG.TIMEOUT + 300000 // Add 5 more minutes for Indeed verification
-          : SCRAPING_CONFIG.TIMEOUT;
+      // Standard timeout for all platforms/pages
+      const timeoutDuration = SCRAPING_CONFIG.TIMEOUT;
 
       const timeout = setTimeout(() => {
         cleanup();
@@ -756,74 +753,11 @@ export class ScrapingService {
               },
             })
             .catch(error => {
-              // For Indeed, retry communication failures as they might be due to Cloudflare verification
-              if (platform.id === 'indeed' && pageNumber === 1) {
-                Logger.warning(
-                  `Communication failed with Indeed (likely verification), will retry in 10 seconds:`,
-                  error,
-                );
-
-                // Wait longer and retry multiple times for Indeed verification scenarios
-                let retryCount = 0;
-                const maxRetries = 3;
-                const retryInterval = 10000; // 10 seconds between retries
-
-                const attemptRetry = () => {
-                  retryCount++;
-                  Logger.info(
-                    `Retrying Indeed communication (attempt ${retryCount}/${maxRetries}) after verification delay...`,
-                  );
-
-                  chrome.tabs
-                    .get(tabId)
-                    .then(tab => {
-                      if (tab && !tab.discarded) {
-                        chrome.tabs
-                          .sendMessage(tabId, {
-                            type: 'START_SCRAPING',
-                            data: {
-                              platform: platform.id,
-                              config: session.config,
-                              maxJobsPerPlatform: SCRAPING_CONFIG.MAX_JOBS_PER_PLATFORM,
-                              pageNumber: pageNumber,
-                            },
-                          })
-                          .catch(retryError => {
-                            if (retryCount < maxRetries) {
-                              Logger.warning(
-                                `Indeed retry ${retryCount} failed, trying again in ${retryInterval / 1000}s:`,
-                                retryError,
-                              );
-                              setTimeout(attemptRetry, retryInterval);
-                            } else {
-                              clearTimeout(timeout);
-                              cleanup();
-                              Logger.error(`Indeed communication failed after ${maxRetries} retries:`, retryError);
-                              resolve({ success: false, jobCount: 0, nextUrl: null });
-                            }
-                          });
-                      } else {
-                        clearTimeout(timeout);
-                        cleanup();
-                        Logger.error(`Indeed tab no longer available after verification (retry ${retryCount})`);
-                        resolve({ success: false, jobCount: 0, nextUrl: null });
-                      }
-                    })
-                    .catch(tabError => {
-                      clearTimeout(timeout);
-                      cleanup();
-                      Logger.error(`Failed to get Indeed tab during retry ${retryCount}:`, tabError);
-                      resolve({ success: false, jobCount: 0, nextUrl: null });
-                    });
-                };
-
-                setTimeout(attemptRetry, retryInterval);
-              } else {
-                clearTimeout(timeout);
-                cleanup();
-                Logger.error(`Failed to communicate with ${platform.name} tab:`, error);
-                resolve({ success: false, jobCount: 0, nextUrl: null });
-              }
+              // Fail fast; no special verification retries
+              clearTimeout(timeout);
+              cleanup();
+              Logger.error(`Failed to communicate with ${platform.name} tab:`, error);
+              resolve({ success: false, jobCount: 0, nextUrl: null });
             });
         })
         .catch(tabError => {

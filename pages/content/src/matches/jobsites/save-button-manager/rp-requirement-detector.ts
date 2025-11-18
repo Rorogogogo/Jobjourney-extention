@@ -5,7 +5,7 @@ import type { Platform, JobData } from './types';
 export class RPRequirementDetector {
   static determineRPRequirement(jobData: JobData, platform: Platform): boolean {
     // Job aggregator websites - always run PR detection
-    const jobAggregatorSites: Platform[] = ['linkedin', 'indeed', 'seek', 'reed'];
+    const jobAggregatorSites: Platform[] = ['linkedin', 'indeed', 'seek', 'jora', 'reed'];
     if (jobAggregatorSites.includes(platform)) {
       return detectPRRequirement(jobData.description || '');
     }

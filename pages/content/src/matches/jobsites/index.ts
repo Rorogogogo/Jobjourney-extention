@@ -30,11 +30,14 @@ if (currentPlatform) {
     case 'linkedin':
       import('./linkedin-scraper');
       break;
-    case 'indeed':
-      import('./indeed-scraper');
-      break;
+    // case 'indeed':
+    //   import('./indeed-scraper');
+    //   break; // Temporarily disabled
     case 'seek':
       import('./seek-scraper');
+      break;
+    case 'jora':
+      import('./jora-scraper');
       break;
     // Note: Reed scraper not implemented yet
   }
@@ -282,10 +285,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
 
+    // Acknowledge immediately to avoid message-channel timeouts; results are sent separately
+    sendResponse({ success: true, status: 'started' });
+
+    // Run scraping asynchronously without relying on the response channel
     try {
       console.log(`🔧 Starting to scrape ${platform}...`);
 
-      // Add a small delay to ensure page is loaded
       setTimeout(async () => {
         try {
           // Handle async scrapers (Indeed, LinkedIn, SEEK)
@@ -349,6 +355,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               platform: 'seek',
               extracted_at: job.postedDate || null,
             }));
+          } else if (platform === 'jora' && (window as any).joraScraper) {
+            const result = await (window as any).joraScraper.scrapeJobList();
+            const rawJobs = result.jobs || [];
+            nextUrl = result.nextUrl || null;
+            jobs = rawJobs.map((job: any, index: number) => ({
+              id: `jora_${Date.now()}_${index}`,
+              title: job.title || '',
+              company: job.company || '',
+              location: job.location || '',
+              jobUrl: job.jobUrl || '',
+              description: job.description || '',
+              salary: job.salary || '',
+              postedDate: job.postedDate || '',
+              isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'jora',
+              extracted_at: job.postedDate || null,
+            }));
           } else {
             jobs = (scrapingFunctions[platform as keyof typeof scrapingFunctions] as () => JobData[])();
           }
@@ -359,11 +383,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: 'SCRAPING_RESULT',
             data: { jobs, platform, nextUrl },
           });
-
-          sendResponse({
-            success: true,
-            data: { jobs, platform, count: jobs.length },
-          });
         } catch (error) {
           console.error(`❌ Error during ${platform} scraping:`, error);
 
@@ -371,23 +390,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: 'SCRAPING_RESULT',
             data: { jobs: [], error: (error as Error).message, platform },
           });
-
-          sendResponse({
-            success: false,
-            error: (error as Error).message,
-          });
         }
       }, 1000);
-
-      return true; // Keep message channel open for async response
     } catch (error) {
       console.error('Error in scraping handler:', error);
-      sendResponse({
-        success: false,
-        error: (error as Error).message,
-      });
-      return false;
     }
+    return;
   }
   return false;
 });

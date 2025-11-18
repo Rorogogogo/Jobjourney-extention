@@ -155,7 +155,7 @@ export class Job {
       jobUrl: data.link || data.jobUrl,
       description: data.description,
       salary: data.salary,
-      postedDate: data.datePosted,
+      postedDate: data.postedDate || data.datePosted,
       companyLogoUrl: data.companyLogoUrl,
       platform: 'Jora',
       jobType: data.jobType || '',
@@ -798,6 +798,47 @@ export const scrapingFunctions = {
     return jobs;
   },
 
+  jora: (): JobData[] => {
+    const jobs: JobData[] = [];
+    const jobCards = document.querySelectorAll('.job-card[data-jd-payload]');
+
+    jobCards.forEach((card, index) => {
+      try {
+        const titleElement = card.querySelector('.job-title a.job-link, .job-title a');
+        const companyElement = card.querySelector('.job-company');
+        const locationElement = card.querySelector('.job-location');
+        const postedElement = card.querySelector('.job-listed-date');
+        const badgeElement = card.querySelector('.badges .badge .content');
+
+        const description = Array.from(card.querySelectorAll('.job-abstract li'))
+          .map(li => li.textContent?.trim())
+          .filter(Boolean)
+          .join('\n');
+
+        const jobUrl = titleElement?.getAttribute('href')
+          ? new URL(titleElement.getAttribute('href') || '', window.location.origin).href
+          : window.location.href;
+
+        jobs.push({
+          id: `jora_${Date.now()}_${index}`,
+          title: titleElement?.textContent?.trim() || '',
+          company: companyElement?.textContent?.trim() || '',
+          location: locationElement?.textContent?.trim() || '',
+          jobUrl,
+          description,
+          postedDate: postedElement?.textContent?.trim() || '',
+          salary: badgeElement?.textContent?.trim() || '',
+          isRPRequired: detectPRRequirement(description || ''),
+          platform: 'Jora',
+        });
+      } catch (error) {
+        console.warn('Failed to parse Jora job card', error);
+      }
+    });
+
+    return jobs;
+  },
+
   indeed: async (): Promise<JobData[]> => {
     console.group('Indeed - Job Scraping - Click & Scrape');
 
@@ -1117,6 +1158,7 @@ export const getCurrentPlatform = (): string | null => {
   if (hostname.includes('linkedin.com')) return 'linkedin';
   if (hostname.includes('seek.com')) return 'seek';
   if (hostname.includes('indeed.com')) return 'indeed';
+  if (hostname.includes('jora.com')) return 'jora';
   if (hostname.includes('reed.co.uk')) return 'reed';
   if (hostname === 'recruitment.macquarie.com') return 'macquarie';
   if (hostname.includes('atlassian.com')) return 'atlassian';

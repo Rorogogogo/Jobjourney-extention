@@ -16,6 +16,7 @@ export interface PlatformUrls {
   linkedin?: string;
   seek?: string;
   indeed?: string;
+  jora?: string;
   reed?: string;
 }
 
@@ -52,6 +53,14 @@ export const PLATFORMS: Record<string, Platform> = {
     icon: '📋',
     domains: ['indeed.com', 'au.indeed.com', 'uk.indeed.com', 'ca.indeed.com'],
     color: '#003a6b',
+    enabled: false, // Temporarily disabled
+  },
+  jora: {
+    id: 'jora',
+    name: 'Jora',
+    icon: '🧭',
+    domains: ['jora.com', 'au.jora.com', 'nz.jora.com'],
+    color: '#0e8136',
     enabled: true,
   },
   reed: {
@@ -70,7 +79,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'United States',
     code: 'US',
     icon: '🇺🇸',
-    platforms: ['linkedin', 'indeed'],
+    platforms: ['linkedin'],
     locations: [
       'New York, NY',
       'Los Angeles, CA',
@@ -132,7 +141,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'Australia',
     code: 'AU',
     icon: '🇦🇺',
-    platforms: ['linkedin', 'seek', 'indeed'],
+    platforms: ['linkedin', 'seek', 'jora'],
     locations: [
       'Sydney, NSW',
       'Melbourne, VIC',
@@ -179,13 +188,14 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       linkedin: 'https://www.linkedin.com/jobs/search/',
       seek: 'https://www.seek.com.au',
       indeed: 'https://au.indeed.com/jobs',
+      jora: 'https://au.jora.com/',
     },
   },
   UK: {
     name: 'United Kingdom',
     code: 'UK',
     icon: '🇬🇧',
-    platforms: ['linkedin', 'reed', 'indeed'],
+    platforms: ['linkedin', 'reed'],
     locations: [
       'London',
       'Manchester',
@@ -241,7 +251,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'Canada',
     code: 'CA',
     icon: '🇨🇦',
-    platforms: ['linkedin', 'indeed'],
+    platforms: ['linkedin'],
     locations: [
       'Toronto, ON',
       'Vancouver, BC',
@@ -397,6 +407,12 @@ export const buildSearchUrl = (
       let indeedUrl = `${baseUrl}?q=${encodedKeywords}`;
       if (location) indeedUrl += `&l=${encodedLocation}`;
       return indeedUrl;
+    }
+
+    case 'jora': {
+      let joraUrl = `${baseUrl}j?sp=search&trigger_source=serp&qa=y&q=${encodedKeywords}`;
+      if (location) joraUrl += `&l=${encodedLocation}`;
+      return joraUrl;
     }
 
     case 'reed': {

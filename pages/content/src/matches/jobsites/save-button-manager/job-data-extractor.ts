@@ -11,6 +11,8 @@ export class JobDataExtractor {
           return this.extractIndeedJobData();
         case 'seek':
           return this.extractSeekJobData();
+        case 'jora':
+          return this.extractJoraJobData();
         case 'reed':
           return this.extractReedJobData();
         case 'macquarie':
@@ -182,6 +184,66 @@ export class JobDataExtractor {
       employmentTypes: workTypeElement?.textContent?.trim() || '',
       platform: 'SEEK',
       companyLogoUrl: companyLogoUrl,
+    };
+  }
+
+  private static extractJoraJobData(): JobData | null {
+    const activeCard = document.querySelector('.job-card[data-active="true"]');
+    const panel = document.querySelector('.jdv-content:not([data-hidden="true"])');
+
+    if (!activeCard && !panel) {
+      return null;
+    }
+
+    const titleElement = panel?.querySelector('h1') || activeCard?.querySelector('.job-title a.job-link, .job-title a');
+    const companyElement =
+      panel?.querySelector('.job-view-company, .job-company') || activeCard?.querySelector('.job-company');
+    const locationElement =
+      panel?.querySelector('.job-view-location, .job-location') || activeCard?.querySelector('.job-location');
+    const descriptionElement =
+      panel?.querySelector(
+        '.job-description-container, .job-description, .job-view-body, [data-testid="job-description"]',
+      ) || panel;
+
+    const linkElement =
+      activeCard?.querySelector<HTMLAnchorElement>('.job-title a.job-link, .job-title a') ||
+      (titleElement as HTMLAnchorElement);
+
+    let jobUrl = window.location.href;
+    if (linkElement?.href) {
+      try {
+        jobUrl = new URL(linkElement.href, window.location.origin).href;
+      } catch (error) {
+        jobUrl = linkElement.href;
+      }
+    }
+
+    const badgeTexts = Array.from(panel?.querySelectorAll('.badge .content') || [])
+      .map(el => el.textContent?.trim() || '')
+      .filter(Boolean);
+
+    const jobTypeBadge = badgeTexts.find(text => /full time|part time|contract|permanent|casual/i.test(text));
+    const workArrangementBadge = badgeTexts.find(text => /hybrid|remote|on[- ]?site/i.test(text));
+
+    const rawDescription = descriptionElement?.textContent?.trim() || '';
+    const description = rawDescription
+      .replace(/\s+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    const companyLogoUrl =
+      (panel?.querySelector('.job-view-company-logo img, .company-logo img') as HTMLImageElement)?.src || undefined;
+
+    return {
+      title: titleElement?.textContent?.trim() || '',
+      company: companyElement?.textContent?.trim() || '',
+      location: locationElement?.textContent?.trim() || '',
+      jobUrl,
+      description,
+      employmentTypes: jobTypeBadge || '',
+      workArrangement: workArrangementBadge || '',
+      platform: 'Jora',
+      companyLogoUrl,
     };
   }
 

@@ -1,8 +1,8 @@
 // API Service for JobJourney Extension
 import { Logger } from '../utils/Logger';
+import type { ApiResponse, JobData } from '../types';
 import type { AuthService } from './AuthService';
 import type { ConfigService } from './ConfigService';
-import type { ApiResponse, JobData } from '../types';
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -361,7 +361,7 @@ export class ApiService {
       salary: '', // Not provided in the current data
       jobType: jobData.EmploymentTypes?.trim() || '',
       postedDate: '', // Not provided in the current data
-      platform: 'JobJourney Extension',
+      platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
       companyLogoUrl: jobData.CompanyLogoUrl || null,
       isRPRequired: jobData.IsRPRequired === true || jobData.IsRPRequired === 'true',
     };

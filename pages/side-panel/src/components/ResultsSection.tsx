@@ -1,5 +1,5 @@
-import { getJobMarketUrl } from '../utils/environment';
 import type React from 'react';
+import { getJobMarketUrl } from '../utils/environment';
 
 interface JobData {
   id: string;
@@ -29,12 +29,14 @@ const PLATFORM_ICONS: Record<string, string> = {
   linkedin: '💼',
   seek: '🔍',
   indeed: '📋',
+  jora: '🧭',
 };
 
 const PLATFORM_NAMES: Record<string, string> = {
   linkedin: 'LinkedIn',
   seek: 'SEEK',
   indeed: 'Indeed',
+  jora: 'Jora',
 };
 
 export const ResultsSection: React.FC<ResultsSectionProps> = ({ results, onSearchAgain }) => {

@@ -25,4 +25,13 @@ export interface SaveButtonManager {
   removeButton(): void;
 }
 
-export type Platform = 'linkedin' | 'indeed' | 'seek' | 'reed' | 'macquarie' | 'atlassian' | 'westpac' | 'canva';
+export type Platform =
+  | 'linkedin'
+  | 'indeed'
+  | 'seek'
+  | 'jora'
+  | 'reed'
+  | 'macquarie'
+  | 'atlassian'
+  | 'westpac'
+  | 'canva';

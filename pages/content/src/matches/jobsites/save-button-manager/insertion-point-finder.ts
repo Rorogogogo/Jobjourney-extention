@@ -60,6 +60,42 @@ export class InsertionPointFinder {
 
         return null;
 
+      case 'jora':
+        const joraPanel = document.querySelector('.jdv-content:not([data-hidden="true"])');
+        if (joraPanel) {
+          const actionsContainer = joraPanel.querySelector('.job-view-actions-container');
+          if (actionsContainer) {
+            const existingWrapper = actionsContainer.querySelector('#jobjourney-jora-save-wrapper');
+            if (existingWrapper) {
+              return existingWrapper as HTMLElement;
+            }
+
+            const wrapper = document.createElement('span');
+            wrapper.id = 'jobjourney-jora-save-wrapper';
+            wrapper.style.marginLeft = '12px';
+            wrapper.style.display = 'inline-flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.flexShrink = '0';
+
+            const anchor = actionsContainer.querySelector('.open-in-new-tab-button');
+            if (anchor) {
+              anchor.insertAdjacentElement('afterend', wrapper);
+            } else {
+              actionsContainer.appendChild(wrapper);
+            }
+
+            return wrapper;
+          }
+
+          const detailTitle = joraPanel.querySelector('.job-title');
+          if (detailTitle?.parentElement) {
+            return detailTitle.parentElement as HTMLElement;
+          }
+        }
+
+        const joraCard = document.querySelector('.job-card[data-active="true"] .job-title');
+        return (joraCard?.parentElement as HTMLElement) || null;
+
       case 'reed':
         const reedTitle = document.querySelector('h1.job-title, h1');
         return reedTitle?.parentElement || null;

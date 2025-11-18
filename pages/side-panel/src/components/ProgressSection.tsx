@@ -84,6 +84,8 @@ const PlatformCard: React.FC<{ platform: PlatformProgress }> = ({ platform }) =>
         return '🔍';
       case 'seek':
         return '🎯';
+      case 'jora':
+        return '🧭';
       case 'reed':
         return '📰';
       default:
