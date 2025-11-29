@@ -1,23 +1,130 @@
 // JobJourney Page Indicator Module
 // Creates and manages the indicator strip at the top of pages
 
-// Helper function to generate a unique selector for an element
-function getElementSelector(element: Element): string {
-  if (element.id) return `#${element.id}`;
-  if (element.className) {
-    const classes = element.className
-      .split(' ')
-      .filter(c => c.trim())
-      .slice(0, 3);
-    if (classes.length > 0) return `.${classes.join('.')}`;
+// JobJourney Page Indicator Module
+// Creates and manages the indicator strip at the top of pages
+
+const INDICATOR_HEIGHT = 36;
+const INDICATOR_ID = 'jobjourney-indicator';
+
+// Helper to check if an element is a fixed header
+function isFixedHeader(el: Element): boolean {
+  // Fast checks first
+  if (el.id === 'global-nav' || el.classList.contains('global-nav')) return true;
+  if (el.tagName === 'HEADER') {
+    const style = window.getComputedStyle(el);
+    return style.position === 'fixed' || style.position === 'sticky';
   }
-  return element.tagName.toLowerCase();
+
+  const computedStyle = window.getComputedStyle(el);
+  const position = computedStyle.position;
+  const top = parseInt(computedStyle.top) || 0;
+
+  // Check for fixed/sticky position
+  if (position !== 'fixed' && position !== 'sticky') {
+    return false;
+  }
+
+  // Check if it's at the top (allow small tolerance)
+  if (top > INDICATOR_HEIGHT + 5) {
+    return false;
+  }
+
+  // Heuristic: wide elements at the top are likely headers
+  // We check clientWidth to ensure it's a visible, full-width bar
+  return el.getAttribute('role') === 'banner' || (el.clientWidth > window.innerWidth * 0.8 && top <= 10);
+}
+
+// Adjust layout (body padding and fixed elements)
+function adjustLayout() {
+  // 1. Adjust Body Padding
+  // LinkedIn and other SPAs might reset this, so we enforce it.
+  if (document.body.style.paddingTop !== `${INDICATOR_HEIGHT}px`) {
+    // Only store original if we haven't touched it yet
+    if (!document.body.hasAttribute('data-jj-original-padding')) {
+      document.body.setAttribute('data-jj-original-padding', document.body.style.paddingTop || '');
+    }
+    document.body.style.paddingTop = `${INDICATOR_HEIGHT}px`;
+  }
+
+  // 2. Adjust Fixed Elements
+  // We query broadly to catch new elements inserted by SPA navigation
+  const candidates = document.querySelectorAll('header, .global-nav, #global-nav, [role="banner"], div');
+
+  candidates.forEach(el => {
+    // Optimization: skip elements deep in the tree if possible, but for now be safe
+    // Skip our own indicator and its children
+    if (el.id === INDICATOR_ID || el.closest(`#${INDICATOR_ID}`)) return;
+
+    // Skip hidden elements
+    if ((el as HTMLElement).style.display === 'none') return;
+
+    if (isFixedHeader(el)) {
+      const element = el as HTMLElement;
+
+      // Check if already adjusted
+      if (element.hasAttribute('data-jj-adjusted')) {
+        // Verify it's still correct (in case site overwrote style)
+        const currentTop = parseInt(element.style.top) || 0;
+        const originalTop = parseInt(element.getAttribute('data-jj-original-top') || '0');
+
+        // If the current top is NOT what we expect (original + height), re-apply
+        // We allow a small epsilon in case of sub-pixel rendering, but usually exact match is needed
+        if (Math.abs(currentTop - (originalTop + INDICATOR_HEIGHT)) > 1) {
+          element.style.setProperty('top', `${originalTop + INDICATOR_HEIGHT}px`, 'important');
+          // console.log('Re-adjusting header:', element);
+        }
+        return;
+      }
+
+      // First time adjustment for this element
+      const computedStyle = window.getComputedStyle(element);
+      const currentTop = parseInt(computedStyle.top) || 0;
+
+      // Store original
+      element.setAttribute('data-jj-original-top', currentTop.toString());
+      element.setAttribute('data-jj-adjusted', 'true');
+
+      // Apply new top
+      element.style.setProperty('top', `${currentTop + INDICATOR_HEIGHT}px`, 'important');
+
+      console.log(`📍 Adjusted fixed element: ${element.tagName}.${element.className}`);
+    }
+  });
+}
+
+// Restore original layout
+function restoreLayout() {
+  // 1. Restore Body Padding
+  const originalPadding = document.body.getAttribute('data-jj-original-padding');
+  if (originalPadding !== null) {
+    document.body.style.paddingTop = originalPadding;
+    document.body.removeAttribute('data-jj-original-padding');
+  } else {
+    document.body.style.paddingTop = '';
+  }
+
+  // 2. Restore Fixed Elements
+  const adjustedElements = document.querySelectorAll('[data-jj-adjusted="true"]');
+  adjustedElements.forEach(el => {
+    const element = el as HTMLElement;
+    const originalTop = element.getAttribute('data-jj-original-top');
+
+    if (originalTop !== null) {
+      element.style.top = `${originalTop}px`;
+    } else {
+      element.style.top = '';
+    }
+
+    element.removeAttribute('data-jj-original-top');
+    element.removeAttribute('data-jj-adjusted');
+  });
 }
 
 // Create and inject JobJourney indicator strip
 export function createJobJourneyIndicator() {
   // Check if indicator already exists
-  if (document.getElementById('jobjourney-indicator')) {
+  if (document.getElementById(INDICATOR_ID)) {
     return;
   }
 
@@ -29,7 +136,7 @@ export function createJobJourneyIndicator() {
   }
 
   const indicator = document.createElement('div');
-  indicator.id = 'jobjourney-indicator';
+  indicator.id = INDICATOR_ID;
   indicator.innerHTML = `
     <div style="
       position: fixed !important;
@@ -37,7 +144,7 @@ export function createJobJourneyIndicator() {
       left: 0 !important;
       right: 0 !important;
       width: 100% !important;
-      height: 36px !important;
+      height: ${INDICATOR_HEIGHT}px !important;
       background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%) !important;
       border-bottom: 3px solid #e9ecef !important;
       box-shadow: 0 2px 12px rgba(0,0,0,0.15) !important;
@@ -83,56 +190,34 @@ export function createJobJourneyIndicator() {
     </div>
   `;
 
-  // Store original values for cleanup
-  const originalBodyPaddingTop = document.body.style.paddingTop;
-  const originalBodyTransform = document.body.style.transform;
-
-  // Push down the entire body content using transform
-  document.body.style.paddingTop = `${36}px`;
-
-  // Also try to find and adjust any fixed headers that might exist
-  const fixedElements = Array.from(document.querySelectorAll('*')).filter(el => {
-    const computedStyle = window.getComputedStyle(el);
-    const top = parseInt(computedStyle.top) || 0;
-    return (
-      computedStyle.position === 'fixed' &&
-      (top <= 36 || // Elements at the very top that would conflict
-        el.id === 'global-nav' || // LinkedIn header specifically
-        el.classList.contains('global-nav') ||
-        el.tagName === 'HEADER') // Generic headers
-    );
-  });
-
-  // Store original top values and adjust fixed elements
-  const originalFixedTops: Map<Element, string> = new Map();
-  fixedElements.forEach(el => {
-    const computedStyle = window.getComputedStyle(el);
-    const currentTop = parseInt(computedStyle.top) || 0;
-    const originalTop = (el as HTMLElement).style.top || computedStyle.top;
-    originalFixedTops.set(el, originalTop);
-
-    // Calculate new top position
-    const newTop = currentTop + 36;
-    (el as HTMLElement).style.top = `${newTop}px`;
-
-    console.log(
-      `📍 Adjusted fixed element: ${el.tagName}${el.id ? '#' + el.id : ''}${el.className ? '.' + el.className.split(' ').slice(0, 2).join('.') : ''} from ${currentTop}px to ${newTop}px`,
-    );
-  });
-
-  // Store original values for cleanup
-  indicator.setAttribute('data-original-body-padding', originalBodyPaddingTop || '');
-  indicator.setAttribute('data-original-body-transform', originalBodyTransform || '');
-  indicator.setAttribute('data-fixed-elements-count', fixedElements.length.toString());
-
-  // Store fixed element data for cleanup
-  fixedElements.forEach((el, index) => {
-    indicator.setAttribute(`data-fixed-${index}-top`, originalFixedTops.get(el) || '');
-    indicator.setAttribute(`data-fixed-${index}-selector`, getElementSelector(el));
-  });
-
   // Insert the indicator at the beginning of the body
   document.body.insertBefore(indicator, document.body.firstChild);
+
+  // Initial layout adjustment
+  adjustLayout();
+
+  // Setup MutationObserver to handle SPA navigation and dynamic updates
+  let timeout: NodeJS.Timeout;
+  const observer = new MutationObserver(() => {
+    // Debounce updates slightly, but keep it snappy
+    clearTimeout(timeout);
+    timeout = setTimeout(() => {
+      adjustLayout();
+    }, 50);
+  });
+
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['style', 'class', 'id'],
+  });
+
+  // Polling fallback: ensure layout is correct every 1s
+  // This catches cases where MutationObserver might miss something or be suppressed
+  const intervalId = setInterval(() => {
+    adjustLayout();
+  }, 1000);
 
   // Add click handler to show extension panel (but not on close button)
   indicator.addEventListener('click', e => {
@@ -158,29 +243,12 @@ export function createJobJourneyIndicator() {
     closeBtn.addEventListener('click', e => {
       e.stopPropagation();
 
-      // Restore original spacing values
-      const originalBodyPadding = indicator.getAttribute('data-original-body-padding') || '';
-      const originalBodyTransform = indicator.getAttribute('data-original-body-transform') || '';
-      const fixedElementsCount = parseInt(indicator.getAttribute('data-fixed-elements-count') || '0');
+      // Disconnect observer and clear interval
+      observer.disconnect();
+      clearInterval(intervalId);
 
-      document.body.style.paddingTop = originalBodyPadding;
-      document.body.style.transform = originalBodyTransform;
-
-      // Restore fixed elements
-      for (let i = 0; i < fixedElementsCount; i++) {
-        const selector = indicator.getAttribute(`data-fixed-${i}-selector`);
-        const originalTop = indicator.getAttribute(`data-fixed-${i}-top`);
-        if (selector && originalTop) {
-          try {
-            const element = document.querySelector(selector) as HTMLElement;
-            if (element) {
-              element.style.top = originalTop;
-            }
-          } catch (e) {
-            console.warn('Could not restore fixed element:', selector);
-          }
-        }
-      }
+      // Restore layout
+      restoreLayout();
 
       // Remove the indicator
       indicator.remove();

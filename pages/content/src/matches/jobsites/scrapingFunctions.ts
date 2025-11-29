@@ -1,5 +1,13 @@
 // Scraping functions for different job platforms
 import { detectPRRequirement } from './prDetection';
+import {
+  analyzeJobDescription,
+  JobAnalysisResult,
+  WorkArrangementResult,
+  EmploymentTypeResult,
+  ExperienceLevelResult,
+  TechStackResult,
+} from './descriptionAnalysis';
 
 // Interface for job data (legacy compatibility)
 interface JobData {
@@ -13,6 +21,12 @@ interface JobData {
   postedDate?: string;
   isRPRequired?: boolean;
   companyLogoUrl?: string;
+  // New fields (optional for legacy)
+  detectedWorkArrangement?: WorkArrangementResult;
+  detectedEmploymentType?: EmploymentTypeResult;
+  detectedExperienceLevel?: ExperienceLevelResult;
+  techStack?: TechStackResult;
+  platform?: string;
 }
 
 // Enhanced Job class from working version
@@ -30,6 +44,9 @@ export class Job {
   public workplaceType: string;
   public applicantCount: string;
   public isRPRequired: boolean;
+
+  // New analysis fields
+  public analysis: JobAnalysisResult;
 
   constructor({
     title,
@@ -72,7 +89,11 @@ export class Job {
     this.applicantCount = applicantCount?.trim() || '';
 
     // Analyze description for PR requirement using utility function
-    this.isRPRequired = detectPRRequirement(this.description);
+    const prResult = detectPRRequirement(this.description);
+    this.isRPRequired = prResult.isRPRequired;
+
+    // Perform comprehensive analysis
+    this.analysis = analyzeJobDescription(this.description);
   }
 
   // Custom JSON serialization to ensure proper field names
@@ -91,6 +112,13 @@ export class Job {
       workplaceType: this.workplaceType,
       applicantCount: this.applicantCount,
       isRPRequired: this.isRPRequired,
+
+      // Include new analysis results
+      detectedWorkArrangement: this.analysis.workArrangement,
+      detectedEmploymentType: this.analysis.employmentType,
+      detectedExperienceLevel: this.analysis.experienceLevel,
+      techStack: this.analysis.techStack,
+
       extracted_at: this.postedDate || null,
       id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     };
@@ -180,7 +208,11 @@ function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}):
     const locationElement = panelElement.querySelector(
       'div[data-testid="jobsearch-JobInfoHeader-companyLocation"] div:first-child',
     );
-    const descriptionElement = panelElement.querySelector('#jobDescriptionText');
+    const descriptionElement =
+      panelElement.querySelector('#jobDescriptionText') ||
+      panelElement.querySelector('.jobsearch-JobComponent-description') ||
+      panelElement.querySelector('.jobsearch-embeddedBody') ||
+      panelElement.querySelector('.jobsearch-JobComponent-embeddedBody');
     const jobDetailsContainer = panelElement.querySelector('#jobDetailsSection');
 
     // Basic Info
@@ -828,7 +860,7 @@ export const scrapingFunctions = {
           description,
           postedDate: postedElement?.textContent?.trim() || '',
           salary: badgeElement?.textContent?.trim() || '',
-          isRPRequired: detectPRRequirement(description || ''),
+          isRPRequired: detectPRRequirement(description || '').isRPRequired,
           platform: 'Jora',
         });
       } catch (error) {
@@ -876,7 +908,13 @@ export const scrapingFunctions = {
       while (attempts < maxAttempts) {
         const detailsPanel =
           document.querySelector('div.fastviewjob') || document.querySelector('div.jobsearch-ViewJobLayout--embedded');
-        const descriptionLoaded = detailsPanel && detailsPanel.querySelector('#jobDescriptionText');
+
+        const descriptionLoaded =
+          detailsPanel &&
+          (detailsPanel.querySelector('#jobDescriptionText') ||
+            detailsPanel.querySelector('.jobsearch-JobComponent-description') ||
+            detailsPanel.querySelector('.jobsearch-embeddedBody') ||
+            detailsPanel.querySelector('.jobsearch-JobComponent-embeddedBody'));
 
         if (detailsPanel && descriptionLoaded && (descriptionLoaded.textContent?.trim().length || 0) > 10) {
           await new Promise(r => setTimeout(r, 500));
@@ -1135,7 +1173,7 @@ export const scrapingFunctions = {
               salary,
               description: '',
               postedDate: '',
-              isRPRequired: detectPRRequirement(''),
+              isRPRequired: detectPRRequirement('').isRPRequired,
               companyLogoUrl: undefined,
             });
           }

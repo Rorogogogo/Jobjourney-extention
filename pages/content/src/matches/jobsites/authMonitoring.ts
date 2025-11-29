@@ -103,10 +103,8 @@ export const initializeAuthMonitoring = () => {
       attributes: false,
     });
 
-    // Listen for extension context invalidation
-    window.addEventListener('beforeunload', () => {
-      (window as any).authMonitoringActive = false;
-    });
+    // Note: beforeunload listener removed to avoid Permissions Policy violations
+    // on sites like LinkedIn. Content scripts are automatically cleaned up on page unload.
 
     // Listen for extension storage bridge messages
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

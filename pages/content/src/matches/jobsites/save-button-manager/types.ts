@@ -1,4 +1,6 @@
 // Types for save button manager
+import { JobAnalysisResult } from '../descriptionAnalysis';
+
 export interface JobData {
   title: string;
   company: string;
@@ -10,6 +12,7 @@ export interface JobData {
   workArrangement?: string;
   platform: string;
   companyLogoUrl?: string;
+  analysis?: JobAnalysisResult;
 }
 
 export interface PRDetectionResult {

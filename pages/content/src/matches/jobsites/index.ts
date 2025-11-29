@@ -191,15 +191,8 @@ function hideDiscoverOverlay() {
   }
 }
 
-// Global cleanup on page unload to prevent overlay persistence
-window.addEventListener('beforeunload', () => {
-  hideDiscoverOverlay();
-});
-
-// Also cleanup when extension is stopped/reloaded
-window.addEventListener('unload', () => {
-  hideDiscoverOverlay();
-});
+// Note: beforeunload/unload listeners removed to avoid Permissions Policy violations
+// on sites like LinkedIn. The periodic cleanup interval below handles orphaned overlays.
 
 // Periodic cleanup check for orphaned overlays (every 30 seconds)
 setInterval(() => {

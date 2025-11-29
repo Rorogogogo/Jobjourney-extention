@@ -5,7 +5,6 @@ import { ButtonComponent } from './button-component';
 import { InsertionPointFinder } from './insertion-point-finder';
 import { JobDataExtractor } from './job-data-extractor';
 import { PlatformDetector } from './platform-detector';
-import { detectPRRequirement } from './pr-detection';
 import { ToastService } from './toast-service';
 import type { JobData, Platform, SaveButtonManager as ISaveButtonManager, PRDetectionResult } from './types';
 
@@ -121,19 +120,23 @@ export class SaveButtonManager implements ISaveButtonManager {
     // Update current job data
     this.currentJobData = jobData;
 
-    // Run PR detection if we have substantial job description content
-    if (jobData.description && jobData.description.length > 100) {
-      this.currentPRDetection = detectPRRequirement(jobData.description);
+    // Get PR detection from job analysis (already performed during extraction)
+    // If analysis exists and has PR detection, use it; otherwise create a default one
+    if (jobData.analysis?.prDetection) {
+      this.currentPRDetection = {
+        isRPRequired: jobData.analysis.prDetection.isPrRequired,
+        confidence: jobData.analysis.prDetection.confidence,
+        matchedPatterns: jobData.analysis.prDetection.matchedPatterns,
+        reasoning: jobData.analysis.prDetection.reasoning,
+      };
     } else {
-      // Show "detecting" state and start retry mechanism
+      // Fallback if no analysis available (shouldn't normally happen)
       this.currentPRDetection = {
         isRPRequired: false,
         confidence: 'low',
         matchedPatterns: [],
-        reasoning: 'Detecting PR requirements...',
+        reasoning: 'No analysis available',
       };
-      // Start retry mechanism
-      this.retryPRDetectionWithDelay(platform);
     }
 
     // Find insertion point based on platform
@@ -143,11 +146,15 @@ export class SaveButtonManager implements ISaveButtonManager {
       return;
     }
 
-    // Create button container div
+    // Create button container div (now includes icon)
     const buttonContainer = ButtonComponent.createButtonContainer();
 
-    // Create button with PR detection badge
-    this.button = ButtonComponent.createButton(this.currentPRDetection || undefined);
+    // Create badges (including PR status)
+    const badges = ButtonComponent.createBadges(this.currentJobData.analysis, this.currentPRDetection || undefined);
+    buttonContainer.appendChild(badges);
+
+    // Create button (no PR badge on it anymore)
+    this.button = ButtonComponent.createButton(undefined);
 
     // Add click handler
     this.button.addEventListener('click', e => {
@@ -243,62 +250,5 @@ export class SaveButtonManager implements ISaveButtonManager {
 
     // For other platforms, use full URL as identifier
     return url;
-  }
-
-  private retryPRDetectionWithDelay(platform: Platform, retryCount: number = 0): void {
-    if (retryCount >= 3) {
-      return;
-    }
-
-    setTimeout(
-      () => {
-        if (!this.currentJobData) return;
-
-        // Re-extract job data to get fresh description
-        const freshJobData = JobDataExtractor.extractJobData(platform);
-        if (!freshJobData) return;
-
-        // Check if description is now available and substantial
-        if (freshJobData.description && freshJobData.description.length > 100) {
-          // Update current job data
-          this.currentJobData = freshJobData;
-
-          // Re-run PR detection with fresh description
-          const newPRDetection = detectPRRequirement(freshJobData.description);
-
-          // Update badge with real detection result
-          this.currentPRDetection = newPRDetection;
-          this.updateButtonBadge();
-        } else {
-          // Try again with longer delay
-          this.retryPRDetectionWithDelay(platform, retryCount + 1);
-        }
-      },
-      1000 + retryCount * 1000,
-    ); // 1s, 2s, 3s delays
-  }
-
-  private updateButtonBadge(): void {
-    if (!this.button) return;
-
-    // Find insertion point to get platform info
-    const platform = PlatformDetector.getCurrentPlatform();
-    if (!platform) return;
-
-    // Create new button with updated badge
-    const newButton = ButtonComponent.createButton(this.currentPRDetection || undefined);
-
-    // Copy event listeners from old button
-    newButton.addEventListener('click', e => {
-      e.preventDefault();
-      e.stopPropagation();
-      this.handleSaveJob(platform);
-    });
-
-    // Replace the button content
-    if (this.button.parentElement) {
-      this.button.parentElement.replaceChild(newButton, this.button);
-      this.button = newButton;
-    }
   }
 }

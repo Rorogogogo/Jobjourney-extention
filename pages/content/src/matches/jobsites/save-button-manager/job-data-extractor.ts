@@ -1,31 +1,49 @@
 // Job data extraction for different platforms
+import { analyzeJobDescription } from '../descriptionAnalysis';
 import type { JobData, Platform } from './types';
 
 export class JobDataExtractor {
   static extractJobData(platform: Platform): JobData | null {
     try {
+      let jobData: JobData | null = null;
+
       switch (platform) {
         case 'linkedin':
-          return this.extractLinkedInJobData();
+          jobData = this.extractLinkedInJobData();
+          break;
         case 'indeed':
-          return this.extractIndeedJobData();
+          jobData = this.extractIndeedJobData();
+          break;
         case 'seek':
-          return this.extractSeekJobData();
+          jobData = this.extractSeekJobData();
+          break;
         case 'jora':
-          return this.extractJoraJobData();
+          jobData = this.extractJoraJobData();
+          break;
         case 'reed':
-          return this.extractReedJobData();
+          jobData = this.extractReedJobData();
+          break;
         case 'macquarie':
-          return this.extractMacquarieJobData();
+          jobData = this.extractMacquarieJobData();
+          break;
         case 'atlassian':
-          return this.extractAtlassianJobData();
+          jobData = this.extractAtlassianJobData();
+          break;
         case 'westpac':
-          return this.extractWestpacJobData();
+          jobData = this.extractWestpacJobData();
+          break;
         case 'canva':
-          return this.extractCanvaJobData();
+          jobData = this.extractCanvaJobData();
+          break;
         default:
           return null;
       }
+
+      if (jobData && jobData.description) {
+        jobData.analysis = analyzeJobDescription(jobData.description);
+      }
+
+      return jobData;
     } catch (error) {
       console.warn(`Error extracting ${platform} job data:`, error);
       return null;
@@ -37,11 +55,15 @@ export class JobDataExtractor {
     const url = window.location.href;
 
     // LinkedIn job detail pages have URLs like:
-    // https://www.linkedin.com/jobs/view/123456789/
-    // or with currentJobId parameter
-    // We should NOT show button on /jobs/collections/ pages
-    if (url.includes('/jobs/collections/') && !url.includes('currentJobId=')) {
-      console.log('LinkedIn: On job collections page without specific job selected');
+    // 1. https://www.linkedin.com/jobs/view/123456789/
+    // 2. https://www.linkedin.com/jobs/collections/...?currentJobId=123456789
+    // 3. https://www.linkedin.com/jobs/search-results/?currentJobId=123456789
+    // We should show button when there's a specific currentJobId parameter OR on /jobs/view/ pages
+    const hasCurrentJobId = url.includes('currentJobId=');
+    const isDirectJobView = url.includes('/jobs/view/');
+
+    if (!hasCurrentJobId && !isDirectJobView) {
+      console.log('LinkedIn: Not on a job detail page - no currentJobId or direct view');
       return null;
     }
 
