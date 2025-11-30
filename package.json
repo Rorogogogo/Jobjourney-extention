@@ -37,7 +37,8 @@
     "module-manager": "pnpm -F module-manager start",
     "manifest:dev": "node scripts/switch-manifest.js dev",
     "manifest:prod": "node scripts/switch-manifest.js prod",
-    "postinstall": "pnpm copy-env"
+    "postinstall": "pnpm copy-env",
+    "aggregate-errors": "node scripts/aggregate-test-errors.mjs"
   },
   "dependencies": {
     "react": "^19.1.0",

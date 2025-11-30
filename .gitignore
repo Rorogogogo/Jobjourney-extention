@@ -3,6 +3,9 @@
 
 # testing
 **/coverage
+**/test-results
+aggregated-test-errors.json
+*-errors.json
 
 # build
 **/dist

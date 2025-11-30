@@ -41,6 +41,14 @@ jobs:
       - name: Run E2E tests (${{ matrix.browser }})
         run: pnpm e2e${{ matrix.browser == 'firefox' && ':firefox' || '' }}
 
+      - name: Upload test results (for AI analysis)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.browser }}-${{ matrix.scenario }}
+          path: tests/e2e/test-results/*.json
+          retention-days: 30
+
       - name: Restore one random feature and re-run E2E tests
         run: |
           echo "ALL_SCENARIOS=$ALL_SCENARIOS"
