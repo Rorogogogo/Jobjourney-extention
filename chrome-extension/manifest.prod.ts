@@ -17,7 +17,7 @@ const manifest = {
   description:
     'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
-  permissions: ['tabs', 'storage', 'scripting', 'activeTab', 'alarms', 'sidePanel'],
+  permissions: ['tabs', 'storage', 'sidePanel', 'scripting', 'activeTab', 'alarms'],
   host_permissions: [
     '*://*.linkedin.com/*',
     '*://*.seek.com.au/*',
@@ -67,14 +67,9 @@ const manifest = {
     service_worker: 'background.js',
     type: 'module',
   },
-  chrome_url_overrides: {
-    newtab: 'new-tab/index.html',
-  },
-  devtools_page: 'devtools/index.html',
   side_panel: {
     default_path: 'side-panel/index.html',
   },
-  options_page: 'options/index.html',
 } satisfies ManifestType;
 
 export default manifest;
