@@ -2,7 +2,13 @@
 
 // Authentication monitoring for JobJourney domains
 export const initializeAuthMonitoring = () => {
-  if (window.location.hostname.includes('jobjourney.me') || window.location.hostname.includes('localhost')) {
+  const hostname = window.location.hostname.toLowerCase();
+  if (
+    hostname === 'jobjourney.me' ||
+    hostname.endsWith('.jobjourney.me') ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1'
+  ) {
     console.log('🔐 JobJourney domain detected - setting up event-driven auth monitoring');
 
     // Store monitoring state and last known auth state for change detection

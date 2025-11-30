@@ -130,7 +130,12 @@ export function createJobJourneyIndicator() {
 
   // Don't show indicator on JobJourney websites
   const hostname = window.location.hostname.toLowerCase();
-  if (hostname.includes('jobjourney.me') || hostname.includes('localhost')) {
+  if (
+    hostname === 'jobjourney.me' ||
+    hostname.endsWith('.jobjourney.me') ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1'
+  ) {
     console.log('🔒 Skipping indicator on JobJourney website');
     return;
   }

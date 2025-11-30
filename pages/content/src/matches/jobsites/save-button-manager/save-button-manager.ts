@@ -46,7 +46,8 @@ export class SaveButtonManager implements ISaveButtonManager {
     });
 
     // Check for URL changes more frequently for LinkedIn
-    const isLinkedIn = window.location.hostname.includes('linkedin.com');
+    const isLinkedIn =
+      window.location.hostname === 'linkedin.com' || window.location.hostname.endsWith('.linkedin.com');
     const urlCheckInterval = isLinkedIn ? 500 : 3000; // 500ms for LinkedIn, 3s for others
 
     setInterval(() => {
@@ -224,26 +225,32 @@ export class SaveButtonManager implements ISaveButtonManager {
     const url = window.location.href;
 
     // LinkedIn job ID extraction
-    if (url.includes('linkedin.com')) {
+    const hostname = window.location.hostname;
+    if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
       // Handle both direct job URLs and collections with currentJobId
       const jobIdMatch = url.match(/\/jobs\/view\/(\d+)/) || url.match(/currentJobId=(\d+)/);
       return jobIdMatch ? jobIdMatch[1] : '';
     }
 
     // Indeed job ID extraction
-    if (url.includes('indeed.com')) {
+    if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) {
       const jobIdMatch = url.match(/\/viewjob\?jk=([^&]+)/);
       return jobIdMatch ? jobIdMatch[1] : '';
     }
 
     // SEEK job ID extraction
-    if (url.includes('seek.com')) {
+    if (
+      hostname === 'seek.com.au' ||
+      hostname === 'seek.co.nz' ||
+      hostname.endsWith('.seek.com.au') ||
+      hostname.endsWith('.seek.co.nz')
+    ) {
       const jobIdMatch = url.match(/\/job\/(\d+)/);
       return jobIdMatch ? jobIdMatch[1] : '';
     }
 
     // Reed job ID extraction
-    if (url.includes('reed.co.uk')) {
+    if (hostname === 'reed.co.uk' || hostname.endsWith('.reed.co.uk')) {
       const jobIdMatch = url.match(/\/jobs\/([^\/]+)/);
       return jobIdMatch ? jobIdMatch[1] : '';
     }
