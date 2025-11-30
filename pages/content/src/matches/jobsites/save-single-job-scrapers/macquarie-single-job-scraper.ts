@@ -1,6 +1,6 @@
 // Macquarie Group job scraper
-import { BaseScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseScraper } from './base-single-job-scraper';
 
 export class MacquarieScraper extends BaseScraper {
   protected platform = 'Macquarie Group';
@@ -27,7 +27,7 @@ export class MacquarieScraper extends BaseScraper {
       '.article__content__view__field.field--employmentterm .article__content__view__field__value',
     );
 
-    const datePostedElement = document.querySelector(
+    const _datePostedElement = document.querySelector(
       '.article__content__view__field.field--date .article__content__view__field__value',
     );
 

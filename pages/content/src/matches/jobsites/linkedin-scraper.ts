@@ -2,6 +2,7 @@
 export {};
 
 // Helper function to clean up empty tags and those that only contain comments
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function cleanupEmptyTags(node: any) {
   if (!node) return;
 

@@ -6,7 +6,7 @@ import { InsertionPointFinder } from './insertion-point-finder';
 import { JobDataExtractor } from './job-data-extractor';
 import { PlatformDetector } from './platform-detector';
 import { ToastService } from './toast-service';
-import type { JobData, Platform, SaveButtonManager as ISaveButtonManager, PRDetectionResult } from './types';
+import type { JobData, Platform, ISaveButtonManager, PRDetectionResult } from './types';
 
 export class SaveButtonManager implements ISaveButtonManager {
   private button: HTMLElement | null = null;

@@ -1,12 +1,12 @@
+import { execSync } from 'node:child_process';
+import { readFileSync, writeFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { ManifestType } from '@extension/shared';
 import manifest from '../../../../chrome-extension/manifest.js';
 import { MANAGER_ACTION_PROMPT_CONFIG } from '../const.js';
 import { promptSelection } from '../helpers/utils.js';
 import { deleteFeature, recoverFeature } from '../processing/index.js';
-import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import type { CliActionType, ModuleNameType } from '../types.js';
-import type { ManifestType } from '@extension/shared';
 
 const manifestPath = resolve(import.meta.dirname, '..', '..', '..', '..', 'chrome-extension', 'manifest.ts');
 

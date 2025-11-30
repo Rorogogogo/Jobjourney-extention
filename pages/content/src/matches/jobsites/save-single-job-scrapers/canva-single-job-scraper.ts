@@ -1,5 +1,5 @@
-import { BaseSingleJobScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseSingleJobScraper } from './base-single-job-scraper';
 
 export class CanvaScraper extends BaseSingleJobScraper {
   protected platformName = 'Canva';

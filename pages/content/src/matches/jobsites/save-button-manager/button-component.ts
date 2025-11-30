@@ -414,7 +414,7 @@ export class ButtonComponent {
     return container;
   }
 
-  static createButton(prDetection?: PRDetectionResult): HTMLElement {
+  static createButton(_prDetection?: PRDetectionResult): HTMLElement {
     const button = document.createElement('button');
     button.id = 'jobjourney-save-button';
 

@@ -1,5 +1,5 @@
-import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 import React, { useState } from 'react';
+import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 
 interface AuthStatus {
   isAuthenticated: boolean;

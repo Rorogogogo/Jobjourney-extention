@@ -1,5 +1,5 @@
-import Toast from './Toast';
 import React, { useState, useCallback, useEffect } from 'react';
+import Toast from './Toast';
 import type { ToastData, ToastType } from './Toast';
 
 interface ToastManagerProps {

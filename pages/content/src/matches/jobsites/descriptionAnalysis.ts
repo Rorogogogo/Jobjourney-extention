@@ -180,8 +180,6 @@ export const detectWorkArrangement = (text: string): WorkArrangementResult => {
 };
 
 export const detectEmploymentType = (text: string): EmploymentTypeResult => {
-  const lowerText = text.toLowerCase();
-
   if (/\b(full-time|full time|permanent)\b/i.test(text)) {
     return { type: 'full-time', confidence: 'high', reasoning: 'Explicitly mentions full-time.' };
   }
@@ -202,7 +200,6 @@ export const detectEmploymentType = (text: string): EmploymentTypeResult => {
 };
 
 export const detectExperienceLevel = (text: string): ExperienceLevelResult => {
-  const lowerText = text.toLowerCase();
   let level: ExperienceLevelResult['level'] = 'unknown';
   let years: number | null = null;
   let confidence: ExperienceLevelResult['confidence'] = 'low';

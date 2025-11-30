@@ -22,7 +22,7 @@ export interface PRDetectionResult {
   reasoning: string;
 }
 
-export interface SaveButtonManager {
+export interface ISaveButtonManager {
   init(): Promise<void>;
   detectAndCreateButton(): void;
   removeButton(): void;

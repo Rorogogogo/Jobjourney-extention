@@ -1,6 +1,6 @@
 // SEEK job scraper
-import { BaseScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseScraper } from './base-single-job-scraper';
 
 export class SeekScraper extends BaseScraper {
   protected platform = 'SEEK';

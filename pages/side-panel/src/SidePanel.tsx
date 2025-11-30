@@ -1,3 +1,7 @@
+import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
+import { exampleThemeStorage } from '@extension/storage';
+import { cn, ErrorDisplay, LoadingSpinner } from '@extension/ui';
+import { useState, useEffect } from 'react';
 import { AuthSection } from './components/AuthSection';
 import { ErrorSection } from './components/ErrorSection';
 import { ProgressSection } from './components/ProgressSection';
@@ -5,10 +9,6 @@ import { ResultsSection } from './components/ResultsSection';
 import { SearchSection } from './components/SearchSection';
 import ToastManager from './components/ToastManager';
 import { useJobJourneyState } from './hooks/useJobJourneyState';
-import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
-import { exampleThemeStorage } from '@extension/storage';
-import { cn, ErrorDisplay, LoadingSpinner } from '@extension/ui';
-import { useState, useEffect } from 'react';
 
 type ViewType = 'search' | 'progress' | 'results' | 'error';
 

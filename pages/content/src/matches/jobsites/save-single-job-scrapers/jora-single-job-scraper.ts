@@ -29,7 +29,7 @@ export class JoraScraper extends BaseScraper {
     if (linkElement?.href) {
       try {
         jobUrl = new URL(linkElement.href, window.location.origin).href;
-      } catch (error) {
+      } catch {
         jobUrl = linkElement.href;
       }
     }

@@ -2,7 +2,6 @@
 // Import modularized functions
 import { initializeAuthMonitoring } from './authMonitoring';
 import { createJobJourneyIndicator } from './indicator';
-import { detectPRRequirement } from './prDetection';
 import { SaveButtonManager } from './save-button-manager';
 import { scrapingFunctions, Job, getCurrentPlatform } from './scrapingFunctions';
 

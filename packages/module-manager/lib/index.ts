@@ -1,5 +1,5 @@
-import { processCLIArgs, runModuleManager } from './base/index.js';
 import { colorfulLog, sleep } from '@extension/shared';
+import { processCLIArgs, runModuleManager } from './base/index.js';
 
 const cliOptions = processCLIArgs();
 

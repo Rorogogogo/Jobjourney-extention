@@ -1,6 +1,6 @@
 // LinkedIn job scraper
-import { BaseScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseScraper } from './base-single-job-scraper';
 
 export class LinkedInScraper extends BaseScraper {
   protected platform = 'LinkedIn';

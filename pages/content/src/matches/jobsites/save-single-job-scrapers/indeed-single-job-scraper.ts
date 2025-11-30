@@ -1,6 +1,6 @@
 // Indeed job scraper
-import { BaseScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseScraper } from './base-single-job-scraper';
 
 export class IndeedScraper extends BaseScraper {
   protected platform = 'Indeed';

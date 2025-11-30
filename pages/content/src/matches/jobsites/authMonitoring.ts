@@ -230,7 +230,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during message send');
           return;
         }
@@ -259,7 +259,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during message send');
           return;
         }
@@ -297,7 +297,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during auth clear');
         }
       } else if (isFirstCheck || isAuthPageInitialCheck) {
@@ -323,7 +323,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during initial auth sync');
         }
       } else {
@@ -504,7 +504,7 @@ const detectAuthenticationData = () => {
         userData = JSON.parse(value);
         console.log(`👤 Found user data in localStorage[${key}]:`, userData);
         break;
-      } catch (e) {
+      } catch {
         // Not JSON, treat as string
         userData = { email: value };
         console.log(`👤 Found user string in localStorage[${key}]:`, value);
