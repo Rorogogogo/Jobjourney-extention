@@ -14,16 +14,8 @@ type ViewType = 'search' | 'progress' | 'results' | 'error';
 const SidePanel = () => {
   const [currentView, setCurrentView] = useState<ViewType>('search');
 
-  const {
-    authStatus,
-    isAuthenticated,
-    searchProgress,
-    searchResults,
-    searchError,
-    startJobSearch,
-    stopJobSearch,
-    checkAuthStatus,
-  } = useJobJourneyState();
+  const { authStatus, isAuthenticated, searchProgress, searchResults, searchError, startJobSearch, stopJobSearch } =
+    useJobJourneyState();
 
   // Handle view transitions based on state
   useEffect(() => {
@@ -77,7 +69,7 @@ const SidePanel = () => {
             <span className="text-base font-bold leading-none tracking-wider text-white">JJ</span>
           </div>
           <div className="flex-1">
-            <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} onAuthCheck={checkAuthStatus} />
+            <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} />
           </div>
         </div>
 

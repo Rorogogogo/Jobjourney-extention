@@ -17,7 +17,6 @@ interface AuthStatus {
 interface AuthSectionProps {
   authStatus: AuthStatus;
   isAuthenticated: boolean;
-  onAuthCheck: () => void;
 }
 
 export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenticated }) => {
@@ -138,13 +137,20 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
           tabIndex={0}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
           onClick={() => setShowUserModal(false)}
-          onKeyDown={e => e.key === 'Escape' && setShowUserModal(false)}>
+          onKeyDown={e => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowUserModal(false);
+            }
+          }}>
           <div
             role="dialog"
             aria-modal="true"
             className="max-h-[90vh] w-[90%] max-w-md overflow-hidden rounded-xl border border-gray-700 bg-gray-800"
             onClick={e => e.stopPropagation()}
-            onKeyDown={e => e.stopPropagation()}>
+            onKeyDown={e => {
+              e.stopPropagation();
+            }}>
             <div className="flex items-center justify-between border-b border-gray-700 p-4">
               <h3 className="text-base font-semibold">User Information</h3>
               <button
