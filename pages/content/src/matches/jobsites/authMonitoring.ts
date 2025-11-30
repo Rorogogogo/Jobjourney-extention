@@ -1,14 +1,31 @@
 // Authentication monitoring for JobJourney domains
 
+// Extend Window interface to include custom properties
+declare global {
+  interface Window {
+    authMonitoringActive?: boolean;
+    lastAuthState?: boolean | null;
+    lastAuthData?: Record<string, unknown> | null;
+    isAuthPageInitialCheck?: boolean;
+    jobJourneyLogout?: () => void;
+  }
+}
+
 // Authentication monitoring for JobJourney domains
 export const initializeAuthMonitoring = () => {
-  if (window.location.hostname.includes('jobjourney.me') || window.location.hostname.includes('localhost')) {
+  const hostname = window.location.hostname.toLowerCase();
+  if (
+    hostname === 'jobjourney.me' ||
+    hostname.endsWith('.jobjourney.me') ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1'
+  ) {
     console.log('🔐 JobJourney domain detected - setting up event-driven auth monitoring');
 
     // Store monitoring state and last known auth state for change detection
-    (window as any).authMonitoringActive = true;
-    (window as any).lastAuthState = null;
-    (window as any).lastAuthData = null; // Track full auth data for comparison
+    window.authMonitoringActive = true;
+    window.lastAuthState = null;
+    window.lastAuthData = null; // Track full auth data for comparison
 
     // Check current auth status immediately (but not on auth/sign-in pages)
     const isAuthPage =
@@ -19,10 +36,10 @@ export const initializeAuthMonitoring = () => {
 
     // Always perform initial auth check, but with special handling for auth pages
     setTimeout(() => {
-      if ((window as any).authMonitoringActive) {
+      if (window.authMonitoringActive) {
         if (isAuthPage) {
           console.log('🔐 Auth page detected - performing silent initial auth sync');
-          (window as any).isAuthPageInitialCheck = true; // Flag for silent sync
+          window.isAuthPageInitialCheck = true; // Flag for silent sync
         }
         checkAndSyncAuthStatus();
       }
@@ -33,7 +50,7 @@ export const initializeAuthMonitoring = () => {
 
     // Set up localStorage event listener for immediate detection
     window.addEventListener('storage', e => {
-      if (e.key === 'auth' && (window as any).authMonitoringActive) {
+      if (e.key === 'auth' && window.authMonitoringActive) {
         console.log('🔍 localStorage auth change detected via storage event');
         setTimeout(() => checkAndSyncAuthStatus(), 50); // Small delay to ensure DOM updates
       }
@@ -45,7 +62,7 @@ export const initializeAuthMonitoring = () => {
     // Set up lightweight URL change detection (no heavy DOM watching)
     let lastUrl = window.location.href;
     const checkUrlChange = () => {
-      if (!(window as any).authMonitoringActive) return;
+      if (!window.authMonitoringActive) return;
 
       if (window.location.href !== lastUrl) {
         lastUrl = window.location.href;
@@ -60,7 +77,7 @@ export const initializeAuthMonitoring = () => {
 
     // Lightweight observer for auth-specific changes only
     const observer = new MutationObserver(mutations => {
-      if (!(window as any).authMonitoringActive) return;
+      if (!window.authMonitoringActive) return;
 
       // Only check if auth-related elements might have changed
       let shouldCheck = false;
@@ -103,10 +120,8 @@ export const initializeAuthMonitoring = () => {
       attributes: false,
     });
 
-    // Listen for extension context invalidation
-    window.addEventListener('beforeunload', () => {
-      (window as any).authMonitoringActive = false;
-    });
+    // Note: beforeunload listener removed to avoid Permissions Policy violations
+    // on sites like LinkedIn. Content scripts are automatically cleaned up on page unload.
 
     // Listen for extension storage bridge messages
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -155,21 +170,21 @@ export const initializeAuthMonitoring = () => {
 const checkAndSyncAuthStatus = () => {
   try {
     // Check if monitoring is still active and extension context is valid
-    if (!(window as any).authMonitoringActive) {
+    if (!window.authMonitoringActive) {
       console.log('🔄 Auth monitoring disabled, skipping check');
       return;
     }
 
     if (!chrome.runtime || !chrome.runtime.sendMessage) {
       console.log('🔄 Extension context invalidated, stopping auth monitoring');
-      (window as any).authMonitoringActive = false;
+      window.authMonitoringActive = false;
       return;
     }
 
     const authData = detectAuthenticationData();
     const currentAuthState = authData ? 'authenticated' : 'unauthenticated';
-    const lastAuthState = (window as any).lastAuthState;
-    const lastAuthData = (window as any).lastAuthData;
+    const lastAuthState = window.lastAuthState;
+    const lastAuthData = window.lastAuthData;
 
     // Compare both state and data to detect meaningful changes
     const authDataChanged = JSON.stringify(authData) !== JSON.stringify(lastAuthData);
@@ -183,9 +198,9 @@ const checkAndSyncAuthStatus = () => {
       window.location.search.includes('source=extension');
 
     // Check if this is an initial auth page check
-    const isAuthPageInitialCheck = (window as any).isAuthPageInitialCheck;
+    const isAuthPageInitialCheck = window.isAuthPageInitialCheck;
     if (isAuthPageInitialCheck) {
-      (window as any).isAuthPageInitialCheck = false; // Clear flag after first use
+      window.isAuthPageInitialCheck = false; // Clear flag after first use
     }
 
     const shouldSkipSignOutMessage =
@@ -232,7 +247,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during message send');
           return;
         }
@@ -261,7 +276,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during message send');
           return;
         }
@@ -270,8 +285,8 @@ const checkAndSyncAuthStatus = () => {
       }
 
       // Always update state tracking
-      (window as any).lastAuthState = currentAuthState;
-      (window as any).lastAuthData = authData;
+      window.lastAuthState = currentAuthState;
+      window.lastAuthData = authData;
     } else if (!authData && (stateChanged || authDataChanged || isInitialCheck) && !shouldSkipSignOutMessage) {
       // No authentication found - send to extension for consistency
       const wasAuthenticated = lastAuthState === 'authenticated';
@@ -299,7 +314,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during auth clear');
         }
       } else if (isFirstCheck || isAuthPageInitialCheck) {
@@ -325,7 +340,7 @@ const checkAndSyncAuthStatus = () => {
               }
             },
           );
-        } catch (contextError) {
+        } catch {
           console.log('🔄 Extension context invalidated during initial auth sync');
         }
       } else {
@@ -333,13 +348,13 @@ const checkAndSyncAuthStatus = () => {
       }
 
       // Update state tracking
-      (window as any).lastAuthState = currentAuthState;
-      (window as any).lastAuthData = authData;
+      window.lastAuthState = currentAuthState;
+      window.lastAuthData = authData;
     } else if (shouldSkipSignOutMessage) {
       console.log('🔐 Skipping sign-out message on auth page to prevent false toast');
       // Update state tracking without sending messages
-      (window as any).lastAuthState = currentAuthState;
-      (window as any).lastAuthData = authData;
+      window.lastAuthState = currentAuthState;
+      window.lastAuthData = authData;
     } else if (!authData) {
       // Still unauthenticated, no change
       console.log('🔍 Auth status unchanged - still unauthenticated');
@@ -370,10 +385,7 @@ const monitorLocalStorageChanges = () => {
     originalSetItem.apply(this, [key, value]);
 
     // Check if it's any auth-related key
-    if (
-      authKeys.some(authKey => key.toLowerCase().includes(authKey.toLowerCase())) &&
-      (window as any).authMonitoringActive
-    ) {
+    if (authKeys.some(authKey => key.toLowerCase().includes(authKey.toLowerCase())) && window.authMonitoringActive) {
       console.log('🔐 Auth-related localStorage WRITE detected:', key);
       setTimeout(() => checkAndSyncAuthStatus(), 10); // Ultra-fast detection
     }
@@ -383,10 +395,7 @@ const monitorLocalStorageChanges = () => {
   localStorage.removeItem = function (key: string) {
     originalRemoveItem.apply(this, [key]);
 
-    if (
-      authKeys.some(authKey => key.toLowerCase().includes(authKey.toLowerCase())) &&
-      (window as any).authMonitoringActive
-    ) {
+    if (authKeys.some(authKey => key.toLowerCase().includes(authKey.toLowerCase())) && window.authMonitoringActive) {
       console.log('🔓 Auth-related localStorage REMOVAL detected:', key);
       setTimeout(() => checkAndSyncAuthStatus(), 10); // Ultra-fast detection
     }
@@ -396,7 +405,7 @@ const monitorLocalStorageChanges = () => {
   localStorage.clear = function () {
     originalClear.apply(this);
 
-    if ((window as any).authMonitoringActive) {
+    if (window.authMonitoringActive) {
       console.log('🔓 localStorage CLEAR detected - checking auth status');
       setTimeout(() => checkAndSyncAuthStatus(), 10);
     }
@@ -506,7 +515,7 @@ const detectAuthenticationData = () => {
         userData = JSON.parse(value);
         console.log(`👤 Found user data in localStorage[${key}]:`, userData);
         break;
-      } catch (e) {
+      } catch {
         // Not JSON, treat as string
         userData = { email: value };
         console.log(`👤 Found user string in localStorage[${key}]:`, value);
@@ -546,9 +555,9 @@ function handleExtensionSignOutCommand(sendResponse: (response: any) => void): v
     // This is a backup approach in case the event listener isn't set up
     try {
       // Check if the logout function is available in global scope or React context
-      if ((window as any).jobJourneyLogout && typeof (window as any).jobJourneyLogout === 'function') {
+      if (window.jobJourneyLogout && typeof window.jobJourneyLogout === 'function') {
         console.log('🔓 Calling global logout function');
-        (window as any).jobJourneyLogout();
+        window.jobJourneyLogout();
       } else {
         // Try to find and click the logout button as a last resort
         const logoutButton = document.querySelector(

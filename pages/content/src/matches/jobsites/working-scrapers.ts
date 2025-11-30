@@ -25,6 +25,7 @@ class Job {
   public jobType: string;
   public workplaceType: string;
   public applicantCount: string;
+  public isRPRequired: boolean;
 
   constructor({
     title,
@@ -39,6 +40,7 @@ class Job {
     jobType = '',
     workplaceType = '',
     applicantCount = '',
+    isRPRequired = false,
   }: {
     title: string;
     company: string;
@@ -52,6 +54,7 @@ class Job {
     jobType?: string;
     workplaceType?: string;
     applicantCount?: string;
+    isRPRequired?: boolean;
   }) {
     this.title = title?.trim() || '';
     this.company = company?.trim() || '';
@@ -65,6 +68,28 @@ class Job {
     this.jobType = jobType?.trim() || '';
     this.workplaceType = workplaceType?.trim() || '';
     this.applicantCount = applicantCount?.trim() || '';
+    this.isRPRequired = isRPRequired || false;
+  }
+
+  // Custom JSON serialization to ensure proper field names
+  toJSON() {
+    return {
+      title: this.title,
+      company: this.company,
+      location: this.location,
+      jobUrl: this.jobUrl, // Ensure this is jobUrl not url
+      description: this.description,
+      salary: this.salary,
+      postedDate: this.postedDate,
+      companyLogoUrl: this.companyLogoUrl, // Ensure this is included
+      platform: this.platform,
+      jobType: this.jobType,
+      workplaceType: this.workplaceType,
+      applicantCount: this.applicantCount,
+      isRPRequired: this.isRPRequired,
+      extracted_at: this.postedDate || null,
+      id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    };
   }
 
   static createFromLinkedIn(data: any) {

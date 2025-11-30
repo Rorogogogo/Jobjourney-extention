@@ -60,6 +60,42 @@ export class InsertionPointFinder {
 
         return null;
 
+      case 'jora':
+        const joraPanel = document.querySelector('.jdv-content:not([data-hidden="true"])');
+        if (joraPanel) {
+          const actionsContainer = joraPanel.querySelector('.job-view-actions-container');
+          if (actionsContainer) {
+            const existingWrapper = actionsContainer.querySelector('#jobjourney-jora-save-wrapper');
+            if (existingWrapper) {
+              return existingWrapper as HTMLElement;
+            }
+
+            const wrapper = document.createElement('span');
+            wrapper.id = 'jobjourney-jora-save-wrapper';
+            wrapper.style.marginLeft = '12px';
+            wrapper.style.display = 'inline-flex';
+            wrapper.style.alignItems = 'center';
+            wrapper.style.flexShrink = '0';
+
+            const anchor = actionsContainer.querySelector('.open-in-new-tab-button');
+            if (anchor) {
+              anchor.insertAdjacentElement('afterend', wrapper);
+            } else {
+              actionsContainer.appendChild(wrapper);
+            }
+
+            return wrapper;
+          }
+
+          const detailTitle = joraPanel.querySelector('.job-title');
+          if (detailTitle?.parentElement) {
+            return detailTitle.parentElement as HTMLElement;
+          }
+        }
+
+        const joraCard = document.querySelector('.job-card[data-active="true"] .job-title');
+        return (joraCard?.parentElement as HTMLElement) || null;
+
       case 'reed':
         const reedTitle = document.querySelector('h1.job-title, h1');
         return reedTitle?.parentElement || null;
@@ -67,14 +103,14 @@ export class InsertionPointFinder {
       case 'macquarie':
         // Try to find a good insertion point near the job title
         const titleElement = document.querySelector('.title.title--11');
-        
+
         if (!titleElement) return null;
 
         // Look for the section header that contains the title
         const sectionHeader = titleElement.closest('.section__header__text');
         if (sectionHeader) {
           // Insert after the section header
-          return sectionHeader.parentElement as HTMLElement || null;
+          return (sectionHeader.parentElement as HTMLElement) || null;
         }
 
         // Fallback to title's parent container
@@ -93,12 +129,12 @@ export class InsertionPointFinder {
         }
 
         // Final fallback
-        return titleElement.parentElement as HTMLElement || null;
+        return (titleElement.parentElement as HTMLElement) || null;
 
       case 'atlassian':
         // Find the main content area where the title is located
         const atlassianTitle = document.querySelector('.default.heading');
-        
+
         if (!atlassianTitle) return null;
 
         // Find the container that holds both title and job details
@@ -110,7 +146,7 @@ export class InsertionPointFinder {
             // Create a wrapper div after the job details to ensure proper positioning
             const wrapperDiv = document.createElement('div');
             wrapperDiv.style.cssText = 'width: 100%; margin: 16px 0; clear: both;';
-            
+
             // Insert the wrapper after the job details paragraph
             if (jobDetails.parentElement) {
               jobDetails.parentElement.insertAdjacentElement('afterend', wrapperDiv);
@@ -130,7 +166,7 @@ export class InsertionPointFinder {
         }
 
         // Final fallback to title's container
-        return atlassianTitle.parentElement as HTMLElement || null;
+        return (atlassianTitle.parentElement as HTMLElement) || null;
 
       case 'westpac':
         // Find the subtitle/location area and insert after it
@@ -139,7 +175,7 @@ export class InsertionPointFinder {
           return subtitle.parentElement as HTMLElement;
         }
 
-        // Alternative: Find the job title and insert after it  
+        // Alternative: Find the job title and insert after it
         const westpacTitle = document.querySelector('.job-details__title');
         if (westpacTitle && westpacTitle.parentElement) {
           return westpacTitle.parentElement as HTMLElement;
@@ -147,7 +183,7 @@ export class InsertionPointFinder {
 
         // Final fallback to main content area
         const mainContent = document.querySelector('.job-details');
-        return mainContent as HTMLElement || null;
+        return (mainContent as HTMLElement) || null;
 
       case 'canva':
         // Find the job meta area and insert after it
@@ -164,7 +200,7 @@ export class InsertionPointFinder {
 
         // Final fallback to main content
         const canvaMain = document.querySelector('main#content');
-        return canvaMain as HTMLElement || null;
+        return (canvaMain as HTMLElement) || null;
 
       default:
         return null;

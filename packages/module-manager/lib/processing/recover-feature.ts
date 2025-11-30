@@ -1,12 +1,12 @@
-import { recoverModule } from './modules-handler.js';
-import { DEFAULT_CHOICES, RECOVER_CHOICE_QUESTION } from '../const.js';
-import { processSelection } from '../helpers/utils.js';
-import { archivePath } from 'lib/paths.js';
-import { rimraf } from 'rimraf';
 import { existsSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
-import type { ChoicesType, ModuleNameType } from '../types.ts';
+import { rimraf } from 'rimraf';
 import type { ManifestType } from '@extension/shared';
+import { archivePath } from 'lib/paths.js';
+import type { ChoicesType, ModuleNameType } from '../types.ts';
+import { processSelection } from '../helpers/utils.js';
+import { DEFAULT_CHOICES, RECOVER_CHOICE_QUESTION } from '../const.js';
+import { recoverModule } from './modules-handler.js';
 
 export const recoverFeature = async (manifestObject: ManifestType, moduleName?: ModuleNameType) => {
   const archiveFiles = existsSync(archivePath) ? readdirSync(archivePath) : [];

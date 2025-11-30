@@ -2,11 +2,10 @@
 // Import modularized functions
 import { initializeAuthMonitoring } from './authMonitoring';
 import { createJobJourneyIndicator } from './indicator';
-import { detectPRRequirement } from './prDetection';
+import { SaveButtonManager } from './save-button-manager';
 import { scrapingFunctions, Job, getCurrentPlatform } from './scrapingFunctions';
 
 // Import modular save job button functionality (needed on all job sites)
-import { SaveButtonManager } from './save-button-manager';
 
 // Initialize save button manager
 new SaveButtonManager();
@@ -30,11 +29,14 @@ if (currentPlatform) {
     case 'linkedin':
       import('./linkedin-scraper');
       break;
-    case 'indeed':
-      import('./indeed-scraper');
-      break;
+    // case 'indeed':
+    //   import('./indeed-scraper');
+    //   break; // Temporarily disabled
     case 'seek':
       import('./seek-scraper');
+      break;
+    case 'jora':
+      import('./jora-scraper');
       break;
     // Note: Reed scraper not implemented yet
   }
@@ -99,11 +101,12 @@ interface JobData {
   title: string;
   company: string;
   location: string;
-  url: string;
+  jobUrl: string;
   description?: string;
   salary?: string;
   postedDate?: string;
   isRPRequired?: boolean;
+  companyLogoUrl?: string;
 }
 
 // Overlay functionality
@@ -113,6 +116,7 @@ function showDiscoverOverlay(message: string, submessage?: string) {
 
   const overlay = document.createElement('div');
   overlay.id = 'jobjourney-discover-overlay';
+  overlay.dataset.created = Date.now().toString();
   overlay.style.cssText = `
     position: fixed;
     top: 0;
@@ -186,6 +190,23 @@ function hideDiscoverOverlay() {
   }
 }
 
+// Note: beforeunload/unload listeners removed to avoid Permissions Policy violations
+// on sites like LinkedIn. The periodic cleanup interval below handles orphaned overlays.
+
+// Periodic cleanup check for orphaned overlays (every 30 seconds)
+setInterval(() => {
+  const overlay = document.getElementById('jobjourney-discover-overlay');
+  if (overlay) {
+    // Check if overlay has been there for too long (more than 5 minutes)
+    const overlayAge = Date.now() - (parseInt(overlay.dataset.created || '0') || Date.now());
+    if (overlayAge > 300000) {
+      // 5 minutes
+      overlay.remove();
+      console.log('🧹 Cleaned up orphaned overlay');
+    }
+  }
+}, 30000);
+
 // Message listener for discover commands and overlay
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'SHOW_OVERLAY') {
@@ -256,10 +277,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       return;
     }
 
+    // Acknowledge immediately to avoid message-channel timeouts; results are sent separately
+    sendResponse({ success: true, status: 'started' });
+
+    // Run scraping asynchronously without relying on the response channel
     try {
       console.log(`🔧 Starting to scrape ${platform}...`);
 
-      // Add a small delay to ensure page is loaded
       setTimeout(async () => {
         try {
           // Handle async scrapers (Indeed, LinkedIn, SEEK)
@@ -276,11 +300,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
               isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'linkedin',
+              extracted_at: job.postedDate || null,
             }));
           } else if (platform === 'indeed' && (window as any).indeedScraper) {
             const result = await (window as any).indeedScraper.scrapeJobList();
@@ -292,11 +319,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
               isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'indeed',
+              extracted_at: job.postedDate || null,
             }));
           } else if (platform === 'seek' && (window as any).seekScraper) {
             const result = await (window as any).seekScraper.scrapeJobList();
@@ -308,11 +338,32 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
               isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'seek',
+              extracted_at: job.postedDate || null,
+            }));
+          } else if (platform === 'jora' && (window as any).joraScraper) {
+            const result = await (window as any).joraScraper.scrapeJobList();
+            const rawJobs = result.jobs || [];
+            nextUrl = result.nextUrl || null;
+            jobs = rawJobs.map((job: any, index: number) => ({
+              id: `jora_${Date.now()}_${index}`,
+              title: job.title || '',
+              company: job.company || '',
+              location: job.location || '',
+              jobUrl: job.jobUrl || '',
+              description: job.description || '',
+              salary: job.salary || '',
+              postedDate: job.postedDate || '',
+              isRPRequired: job.isRPRequired || false,
+              companyLogoUrl: job.companyLogoUrl || null,
+              platform: 'jora',
+              extracted_at: job.postedDate || null,
             }));
           } else {
             jobs = (scrapingFunctions[platform as keyof typeof scrapingFunctions] as () => JobData[])();
@@ -324,11 +375,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: 'SCRAPING_RESULT',
             data: { jobs, platform, nextUrl },
           });
-
-          sendResponse({
-            success: true,
-            data: { jobs, platform, count: jobs.length },
-          });
         } catch (error) {
           console.error(`❌ Error during ${platform} scraping:`, error);
 
@@ -336,23 +382,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             type: 'SCRAPING_RESULT',
             data: { jobs: [], error: (error as Error).message, platform },
           });
-
-          sendResponse({
-            success: false,
-            error: (error as Error).message,
-          });
         }
       }, 1000);
-
-      return true; // Keep message channel open for async response
     } catch (error) {
       console.error('Error in scraping handler:', error);
-      sendResponse({
-        success: false,
-        error: (error as Error).message,
-      });
-      return false;
     }
+    return;
   }
   return false;
 });

@@ -1,24 +1,25 @@
 // Main Save Button Manager
-import type { JobData, Platform, SaveButtonManager as ISaveButtonManager } from './types';
-import { PlatformDetector } from './platform-detector';
-import { JobDataExtractor } from './job-data-extractor';
-import { InsertionPointFinder } from './insertion-point-finder';
-import { ButtonComponent } from './button-component';
-import { AuthManager } from './auth-manager';
 import { ApiService } from './api-service';
+import { AuthManager } from './auth-manager';
+import { ButtonComponent } from './button-component';
+import { InsertionPointFinder } from './insertion-point-finder';
+import { JobDataExtractor } from './job-data-extractor';
+import { PlatformDetector } from './platform-detector';
 import { ToastService } from './toast-service';
+import type { JobData, Platform, ISaveButtonManager, PRDetectionResult } from './types';
 
 export class SaveButtonManager implements ISaveButtonManager {
   private button: HTMLElement | null = null;
   private currentJobData: JobData | null = null;
+  private currentPRDetection: PRDetectionResult | null = null;
+  private currentUrl: string = '';
+  private currentJobId: string = '';
 
   constructor() {
     this.init();
   }
 
   async init(): Promise<void> {
-    console.log('🔵 SaveButtonManager initialized for:', window.location.hostname);
-
     // Check authentication status
     await AuthManager.checkAuthStatus();
 
@@ -27,10 +28,14 @@ export class SaveButtonManager implements ISaveButtonManager {
   }
 
   private startJobDetailMonitoring() {
+    // Store initial URL and job ID
+    this.currentUrl = window.location.href;
+    this.currentJobId = this.extractJobId();
+
     // Initial check
     this.detectAndCreateButton();
 
-    // Monitor for changes (when user navigates to different jobs)
+    // Monitor for DOM changes (when user navigates to different jobs)
     const observer = new MutationObserver(() => {
       this.detectAndCreateButton();
     });
@@ -40,36 +45,47 @@ export class SaveButtonManager implements ISaveButtonManager {
       subtree: true,
     });
 
-    // Also check periodically for dynamic content
+    // Check for URL changes more frequently for LinkedIn
+    const isLinkedIn =
+      window.location.hostname === 'linkedin.com' || window.location.hostname.endsWith('.linkedin.com');
+    const urlCheckInterval = isLinkedIn ? 500 : 3000; // 500ms for LinkedIn, 3s for others
+
     setInterval(() => {
-      this.detectAndCreateButton();
-    }, 3000);
+      const newUrl = window.location.href;
+      const newJobId = this.extractJobId();
+
+      // If URL or job ID changed, force re-detection
+      if (newUrl !== this.currentUrl || newJobId !== this.currentJobId) {
+        this.currentUrl = newUrl;
+        this.currentJobId = newJobId;
+
+        // Force re-detection by clearing current data
+        this.currentJobData = null;
+        this.currentPRDetection = null;
+
+        this.detectAndCreateButton();
+      } else {
+        // Regular detection for dynamic content
+        this.detectAndCreateButton();
+      }
+    }, urlCheckInterval);
   }
 
   detectAndCreateButton(): void {
     // Always show the button, even when not authenticated
     const platform = PlatformDetector.getCurrentPlatform();
     if (!platform) {
-      console.log('SaveButtonManager: Platform not detected:', window.location.hostname);
       return;
     }
-
-    console.log('SaveButtonManager: Detected platform:', platform);
 
     const jobData = JobDataExtractor.extractJobData(platform);
     if (!jobData) {
-      console.log('SaveButtonManager: Could not extract job data for platform:', platform);
       return;
     }
 
-    console.log('SaveButtonManager: Extracted job data:', jobData);
-
     // Only create/update button if we have valid job data
     if (this.shouldCreateButton(jobData)) {
-      console.log('SaveButtonManager: Creating button for job:', jobData.title);
       this.createOrUpdateButton(jobData, platform);
-    } else {
-      console.log('SaveButtonManager: Button creation not needed (data unchanged)');
     }
   }
 
@@ -77,30 +93,22 @@ export class SaveButtonManager implements ISaveButtonManager {
     // Don't create button if we don't have essential data
     // Location is optional for some platforms like Westpac where it might be extracted differently
     if (!jobData.title || !jobData.company || !jobData.jobUrl) {
-      console.log('SaveButtonManager: Missing essential data', { 
-        title: jobData.title, 
-        company: jobData.company, 
-        jobUrl: jobData.jobUrl 
-      });
       return false;
     }
 
-    // Check if button already exists in DOM
+    // Check if button already exists in DOM and job data hasn't changed
     const existingButton = document.getElementById('jobjourney-button-container');
-    if (existingButton) {
-      console.log('SaveButtonManager: Button already exists in DOM');
-      return false;
-    }
-
-    // Don't create button if job data hasn't changed
-    if (
-      this.currentJobData &&
-      this.currentJobData.title === jobData.title &&
-      this.currentJobData.company === jobData.company &&
-      this.currentJobData.jobUrl === jobData.jobUrl
-    ) {
-      console.log('SaveButtonManager: Job data unchanged, skipping button creation');
-      return false;
+    if (existingButton && this.currentJobData) {
+      // Only skip if job data is exactly the same
+      if (
+        this.currentJobData.title === jobData.title &&
+        this.currentJobData.company === jobData.company &&
+        this.currentJobData.jobUrl === jobData.jobUrl &&
+        // Also check description length to detect when content loads
+        (this.currentJobData.description?.length || 0) === (jobData.description?.length || 0)
+      ) {
+        return false;
+      }
     }
 
     return true;
@@ -113,6 +121,25 @@ export class SaveButtonManager implements ISaveButtonManager {
     // Update current job data
     this.currentJobData = jobData;
 
+    // Get PR detection from job analysis (already performed during extraction)
+    // If analysis exists and has PR detection, use it; otherwise create a default one
+    if (jobData.analysis?.prDetection) {
+      this.currentPRDetection = {
+        isRPRequired: jobData.analysis.prDetection.isPrRequired,
+        confidence: jobData.analysis.prDetection.confidence,
+        matchedPatterns: jobData.analysis.prDetection.matchedPatterns,
+        reasoning: jobData.analysis.prDetection.reasoning,
+      };
+    } else {
+      // Fallback if no analysis available (shouldn't normally happen)
+      this.currentPRDetection = {
+        isRPRequired: false,
+        confidence: 'low',
+        matchedPatterns: [],
+        reasoning: 'No analysis available',
+      };
+    }
+
     // Find insertion point based on platform
     const insertionPoint = InsertionPointFinder.findInsertionPoint(platform);
     if (!insertionPoint) {
@@ -120,11 +147,15 @@ export class SaveButtonManager implements ISaveButtonManager {
       return;
     }
 
-    // Create button container div
+    // Create button container div (now includes icon)
     const buttonContainer = ButtonComponent.createButtonContainer();
 
-    // Create button
-    this.button = ButtonComponent.createButton();
+    // Create badges (including PR status)
+    const badges = ButtonComponent.createBadges(this.currentJobData.analysis, this.currentPRDetection || undefined);
+    buttonContainer.appendChild(badges);
+
+    // Create button (no PR badge on it anymore)
+    this.button = ButtonComponent.createButton(undefined);
 
     // Add click handler
     this.button.addEventListener('click', e => {
@@ -138,8 +169,6 @@ export class SaveButtonManager implements ISaveButtonManager {
 
     // Insert container below title
     insertionPoint.appendChild(buttonContainer);
-
-    console.log('✅ Save in JJ button created for:', jobData.title);
   }
 
   private async handleSaveJob(platform: Platform) {
@@ -190,5 +219,43 @@ export class SaveButtonManager implements ISaveButtonManager {
     }
 
     this.button = null;
+  }
+
+  private extractJobId(): string {
+    const url = window.location.href;
+
+    // LinkedIn job ID extraction
+    const hostname = window.location.hostname;
+    if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) {
+      // Handle both direct job URLs and collections with currentJobId
+      const jobIdMatch = url.match(/\/jobs\/view\/(\d+)/) || url.match(/currentJobId=(\d+)/);
+      return jobIdMatch ? jobIdMatch[1] : '';
+    }
+
+    // Indeed job ID extraction
+    if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) {
+      const jobIdMatch = url.match(/\/viewjob\?jk=([^&]+)/);
+      return jobIdMatch ? jobIdMatch[1] : '';
+    }
+
+    // SEEK job ID extraction
+    if (
+      hostname === 'seek.com.au' ||
+      hostname === 'seek.co.nz' ||
+      hostname.endsWith('.seek.com.au') ||
+      hostname.endsWith('.seek.co.nz')
+    ) {
+      const jobIdMatch = url.match(/\/job\/(\d+)/);
+      return jobIdMatch ? jobIdMatch[1] : '';
+    }
+
+    // Reed job ID extraction
+    if (hostname === 'reed.co.uk' || hostname.endsWith('.reed.co.uk')) {
+      const jobIdMatch = url.match(/\/jobs\/([^\/]+)/);
+      return jobIdMatch ? jobIdMatch[1] : '';
+    }
+
+    // For other platforms, use full URL as identifier
+    return url;
   }
 }

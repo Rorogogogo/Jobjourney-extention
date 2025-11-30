@@ -1,3 +1,6 @@
+import { withErrorBoundary, withSuspense } from '@extension/shared';
+import { cn, ErrorDisplay, LoadingSpinner } from '@extension/ui';
+import { useState, useEffect } from 'react';
 import { AuthSection } from './components/AuthSection';
 import { ErrorSection } from './components/ErrorSection';
 import { ProgressSection } from './components/ProgressSection';
@@ -5,27 +8,14 @@ import { ResultsSection } from './components/ResultsSection';
 import { SearchSection } from './components/SearchSection';
 import ToastManager from './components/ToastManager';
 import { useJobJourneyState } from './hooks/useJobJourneyState';
-import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
-import { exampleThemeStorage } from '@extension/storage';
-import { cn, ErrorDisplay, LoadingSpinner } from '@extension/ui';
-import { useState, useEffect } from 'react';
 
 type ViewType = 'search' | 'progress' | 'results' | 'error';
 
 const SidePanel = () => {
-  const { isLight } = useStorage(exampleThemeStorage);
   const [currentView, setCurrentView] = useState<ViewType>('search');
 
-  const {
-    authStatus,
-    isAuthenticated,
-    searchProgress,
-    searchResults,
-    searchError,
-    startJobSearch,
-    stopJobSearch,
-    checkAuthStatus,
-  } = useJobJourneyState();
+  const { authStatus, isAuthenticated, searchProgress, searchResults, searchError, startJobSearch, stopJobSearch } =
+    useJobJourneyState();
 
   // Handle view transitions based on state
   useEffect(() => {
@@ -40,11 +30,11 @@ const SidePanel = () => {
     }
   }, [searchProgress, searchResults, searchError]);
 
-  const handleStartSearch = async (searchConfig: any) => {
+  const handleStartSearch = async (searchConfig: Record<string, unknown>) => {
     try {
       setCurrentView('progress');
       await startJobSearch(searchConfig);
-    } catch (error) {
+    } catch {
       setCurrentView('error');
     }
   };
@@ -74,11 +64,13 @@ const SidePanel = () => {
           'bg-gradient-to-br from-black to-gray-900',
         )}>
         {/* Header */}
-        <div className="flex items-center justify-between gap-4 border-b border-gray-700 px-4 py-2">
-          <div className="flex min-w-8 items-center justify-center">
+        <div className="flex items-center gap-4 border-b border-gray-700 px-4 py-2">
+          <div className="flex items-center justify-center">
             <span className="text-base font-bold leading-none tracking-wider text-white">JJ</span>
           </div>
-          <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} onAuthCheck={checkAuthStatus} />
+          <div className="flex-1">
+            <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} />
+          </div>
         </div>
 
         {/* Main Content */}

@@ -2,6 +2,7 @@
 export {};
 
 // Helper function to clean up empty tags and those that only contain comments
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 function cleanupEmptyTags(node: any) {
   if (!node) return;
 
@@ -217,10 +218,24 @@ function scrapeCurrentJobDetail(): any {
     }
 
     // --- Company Logo ---
-    const logoElement = mainContainer.querySelector(
-      '.jobs-unified-top-card__company-logo img, .artdeco-entity-lockup__image img, .evi-image',
-    );
-    const companyLogoUrl = (logoElement as HTMLImageElement)?.src;
+    // Try multiple selectors to find company logo, matching single job scraper
+    const logoSelectors = [
+      '.artdeco-entity-lockup__image img.evi-image',
+      '.jobs-company img.evi-image',
+      '.job-details-jobs-unified-top-card__container--two-pane .evi-image',
+      '.jobs-unified-top-card__company-logo img',
+      '.artdeco-entity-lockup__image img',
+      'img.evi-image',
+    ];
+
+    let companyLogoUrl = '';
+    for (const selector of logoSelectors) {
+      const logoElement = mainContainer.querySelector(selector) as HTMLImageElement;
+      if (logoElement?.src) {
+        companyLogoUrl = logoElement.src;
+        break;
+      }
+    }
 
     // --- Job Type, Workplace Type, Salary from Pills/Specific Elements ---
     let workplaceType = '';
@@ -443,10 +458,24 @@ const scrapeJobDetailFromPanel = (): any => {
     }
 
     // --- Company Logo ---
-    const logoElement = panel.querySelector(
-      '.jobs-unified-top-card__company-logo img, .artdeco-entity-lockup__image img, .evi-image',
-    );
-    const companyLogoUrl = (logoElement as HTMLImageElement)?.src;
+    // Try multiple selectors to find company logo, matching single job scraper
+    const logoSelectors = [
+      '.artdeco-entity-lockup__image img.evi-image',
+      '.jobs-company img.evi-image',
+      '.job-details-jobs-unified-top-card__container--two-pane .evi-image',
+      '.jobs-unified-top-card__company-logo img',
+      '.artdeco-entity-lockup__image img',
+      'img.evi-image',
+    ];
+
+    let companyLogoUrl = '';
+    for (const selector of logoSelectors) {
+      const logoElement = panel.querySelector(selector) as HTMLImageElement;
+      if (logoElement?.src) {
+        companyLogoUrl = logoElement.src;
+        break;
+      }
+    }
 
     // --- Job Type, Workplace Type, Salary from Pills/Specific Elements ---
     let workplaceType = '';
@@ -543,7 +572,14 @@ const scrapeJobDetailFromPanel = (): any => {
 
 // LinkedIn scraper object - exact copy from working version
 const linkedInScraper = {
-  isMatch: (url: string) => url.includes('linkedin.com'),
+  isMatch: (url: string) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com');
+    } catch {
+      return false;
+    }
+  },
   scrapeJobList: async () => {
     // Add a 1-second delay at the beginning of scraping each page
     console.log('Waiting 1 second after page load before starting LinkedIn scrape...');

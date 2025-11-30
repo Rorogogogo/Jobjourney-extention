@@ -1,6 +1,6 @@
 import '@src/index.css';
-import NewTab from '@src/NewTab';
 import { createRoot } from 'react-dom/client';
+import NewTab from '@src/NewTab';
 
 const init = () => {
   const appContainer = document.querySelector('#app-container');

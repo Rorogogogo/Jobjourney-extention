@@ -1,5 +1,5 @@
-import { BaseSingleJobScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseSingleJobScraper } from './base-single-job-scraper';
 
 export class AtlassianScraper extends BaseSingleJobScraper {
   protected platformName = 'Atlassian';
@@ -18,7 +18,7 @@ export class AtlassianScraper extends BaseSingleJobScraper {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.default.heading');
-    
+
     if (!titleElement) {
       console.warn('Atlassian: Could not find job title');
       return undefined;
@@ -31,7 +31,7 @@ export class AtlassianScraper extends BaseSingleJobScraper {
     const highlightElement = document.querySelector('.job-posting-detail--highlight');
     let location = '';
     let department = '';
-    
+
     if (highlightElement) {
       const highlightText = highlightElement.textContent?.trim() || '';
       // Format: "Engineering | Sydney, Australia | Remote, Remote |"
@@ -69,7 +69,7 @@ export class AtlassianScraper extends BaseSingleJobScraper {
   findInsertionPoint(): HTMLElement | undefined {
     // Find the main content area where the title is located
     const atlassianTitle = document.querySelector('.default.heading');
-    
+
     if (!atlassianTitle) return undefined;
 
     // Find the container that holds both title and job details
@@ -81,7 +81,7 @@ export class AtlassianScraper extends BaseSingleJobScraper {
         // Create a wrapper div after the job details to ensure proper positioning
         const wrapperDiv = document.createElement('div');
         wrapperDiv.style.cssText = 'width: 100%; margin: 16px 0; clear: both;';
-        
+
         // Insert the wrapper after the job details paragraph
         if (jobDetails.parentElement) {
           jobDetails.parentElement.insertAdjacentElement('afterend', wrapperDiv);
@@ -101,6 +101,6 @@ export class AtlassianScraper extends BaseSingleJobScraper {
     }
 
     // Final fallback to title's container
-    return atlassianTitle.parentElement as HTMLElement || undefined;
+    return (atlassianTitle.parentElement as HTMLElement) || undefined;
   }
 }

@@ -1,6 +1,6 @@
-import { IS_FIREFOX } from '@extension/env';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { basename, resolve, sep } from 'node:path';
+import { IS_FIREFOX } from '@extension/env';
 import type { PluginOption } from 'vite';
 
 /**

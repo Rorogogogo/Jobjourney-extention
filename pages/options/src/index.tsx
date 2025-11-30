@@ -1,6 +1,6 @@
 import '@src/index.css';
-import Options from '@src/Options';
 import { createRoot } from 'react-dom/client';
+import Options from '@src/Options';
 
 const init = () => {
   const appContainer = document.querySelector('#app-container');

@@ -29,7 +29,7 @@ export const detectEnvironment = async (): Promise<'development' | 'production'>
     try {
       // Use CLI_CEB_DEV environment variable for reliable detection
       const isDevMode = process.env['CLI_CEB_DEV'] === 'true';
-      
+
       if (isDevMode) {
         // In development mode, only check port 5001 (JobJourney frontend)
         try {

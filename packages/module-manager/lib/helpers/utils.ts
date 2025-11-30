@@ -1,7 +1,9 @@
-import { DEFAULT_CHOICES_VALUES, EXIT_PROMPT_ERROR, MODULE_CONFIG } from '../const.js';
+import { readdirSync } from 'node:fs';
 import { colorfulLog } from '@extension/shared';
 import { select } from '@inquirer/prompts';
-import { readdirSync } from 'node:fs';
+import type { ConditionalPickDeep, Entries, ManifestType } from '@extension/shared';
+import type { Arguments } from 'yargs';
+import { DEFAULT_CHOICES_VALUES, EXIT_PROMPT_ERROR, MODULE_CONFIG } from '../const.js';
 import type { DELETE_CHOICE_QUESTION, RECOVER_CHOICE_QUESTION } from '../const.js';
 import type {
   ChoicesType,
@@ -10,8 +12,6 @@ import type {
   ModuleNameType,
   WritableModuleConfigValuesType,
 } from '../types.js';
-import type { ConditionalPickDeep, Entries, ManifestType } from '@extension/shared';
-import type { Arguments } from 'yargs';
 
 export const isFolderEmpty = (path: string) => !readdirSync(path).length;
 
@@ -71,7 +71,9 @@ export const processModuleConfig = (
     } else if (isRecovering) {
       Object.assign(manifestObject, { [key]: value });
     } else {
-      throw new Error(`Key ${key} not found in manifest.ts`);
+      // When deleting, skip keys that don't exist in the manifest
+      // This handles cases where features have already been removed or never existed
+      colorfulLog(`Key ${key} not found in manifest.ts, skipping...`, 'warning');
     }
   });
 };

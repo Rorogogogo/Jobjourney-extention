@@ -1,10 +1,10 @@
 // Refactored Save Job Button functionality for job detail pages
-export {};
-
-import { ScraperFactory } from './scraper-factory';
 import { ButtonManager } from './button-manager';
+import { ScraperFactory } from './scraper-factory';
 import { ToastManager } from './toast-manager';
 import type { JobData } from './types';
+
+export {};
 
 class SaveJobButton {
   private buttonManager = new ButtonManager();

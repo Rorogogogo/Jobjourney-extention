@@ -1,6 +1,6 @@
 // SEEK job scraper
-import { BaseScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseScraper } from './base-single-job-scraper';
 
 export class SeekScraper extends BaseScraper {
   protected platform = 'SEEK';
@@ -45,14 +45,14 @@ export class SeekScraper extends BaseScraper {
       '[data-testid="bx-logo-container"] [data-testid="bx-logo-image"] img.lkc6bp0',
       '[data-testid="bx-logo-image"] img.lkc6bp0',
       '[data-testid="bx-logo-container"] img',
-      'img.lkc6bp0'
+      'img.lkc6bp0',
     ]);
 
     return {
       title: this.extractText(titleElement),
       company: this.extractText(companyElement),
       location: this.extractText(locationElement),
-      jobUrl: this.cleanUrl(window.location.href),
+      jobUrl: window.location.href,
       description: this.extractText(descriptionElement),
       employmentTypes: this.extractText(workTypeElement),
       platform: this.platform,
@@ -93,7 +93,7 @@ export class SeekScraper extends BaseScraper {
       }
 
       // Fallback to direct parent
-      return seekTitle.parentElement as HTMLElement || null;
+      return (seekTitle.parentElement as HTMLElement) || null;
     }
 
     return null;

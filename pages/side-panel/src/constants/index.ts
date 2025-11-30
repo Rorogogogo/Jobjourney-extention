@@ -27,10 +27,17 @@ export const PLATFORMS: Record<string, Platform> = {
     icon: '🔍',
     enabled: true,
   },
-  indeed: {
-    id: 'indeed',
-    name: 'Indeed',
-    icon: '📋',
+  // Indeed temporarily disabled
+  // indeed: {
+  //   id: 'indeed',
+  //   name: 'Indeed',
+  //   icon: '📋',
+  //   enabled: false,
+  // },
+  jora: {
+    id: 'jora',
+    name: 'Jora',
+    icon: '🧭',
     enabled: true,
   },
   reed: {
@@ -46,7 +53,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'United States',
     code: 'US',
     icon: '🇺🇸',
-    platforms: ['linkedin', 'indeed'],
+    platforms: ['linkedin'],
     locations: [
       'New York, NY',
       'Los Angeles, CA',
@@ -104,7 +111,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'Australia',
     code: 'AU',
     icon: '🇦🇺',
-    platforms: ['linkedin', 'seek', 'indeed'],
+    platforms: ['linkedin', 'seek', 'jora'],
     locations: [
       'Sydney, NSW',
       'Melbourne, VIC',
@@ -152,7 +159,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'United Kingdom',
     code: 'UK',
     icon: '🇬🇧',
-    platforms: ['linkedin', 'reed', 'indeed'],
+    platforms: ['linkedin', 'reed'],
     locations: [
       'London',
       'Manchester',
@@ -203,7 +210,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'Canada',
     code: 'CA',
     icon: '🇨🇦',
-    platforms: ['linkedin', 'indeed'],
+    platforms: ['linkedin'],
     locations: [
       'Toronto, ON',
       'Vancouver, BC',

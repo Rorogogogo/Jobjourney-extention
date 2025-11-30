@@ -78,11 +78,12 @@ interface JobData {
   title: string;
   company: string;
   location: string;
-  url: string;
+  jobUrl: string;
   description?: string;
   salary?: string;
   postedDate?: string;
   isRPRequired?: boolean;
+  companyLogoUrl?: string;
 }
 
 // Advanced Indeed scraper helper function from working version
@@ -269,7 +270,7 @@ const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -348,7 +349,7 @@ const scrapingFunctions = {
               title: job.title,
               company: job.company,
               location: job.location,
-              url: job.jobUrl,
+              jobUrl: job.jobUrl,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
@@ -400,7 +401,7 @@ const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -560,7 +561,7 @@ const scrapingFunctions = {
           title: jobDetail.title,
           company: jobDetail.company,
           location: jobDetail.location,
-          url: jobDetail.jobUrl,
+          jobUrl: jobDetail.jobUrl,
           description: jobDetail.description,
           salary: jobDetail.salary,
           postedDate: jobDetail.postedDate,
@@ -655,7 +656,7 @@ const scrapingFunctions = {
               title: jobDetail.title,
               company: jobDetail.company,
               location: jobDetail.location,
-              url: jobDetail.jobUrl,
+              jobUrl: jobDetail.jobUrl,
               description: jobDetail.description,
               salary: jobDetail.salary,
               postedDate: jobDetail.postedDate,
@@ -671,7 +672,7 @@ const scrapingFunctions = {
               title: job.title,
               company: job.company,
               location: job.location,
-              url: job.jobUrl,
+              jobUrl: job.jobUrl,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
@@ -687,7 +688,7 @@ const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -777,7 +778,7 @@ const scrapingFunctions = {
             title: jobDetail.title,
             company: jobDetail.company,
             location: jobDetail.location,
-            url: jobDetail.jobUrl,
+            jobUrl: jobDetail.jobUrl,
             description: jobDetail.description,
             salary: jobDetail.salary,
             postedDate: jobDetail.postedDate,
@@ -898,7 +899,7 @@ const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -938,7 +939,7 @@ const scrapingFunctions = {
           title: job.title,
           company: job.company,
           location: job.location,
-          url: job.jobUrl,
+          jobUrl: job.jobUrl,
           description: job.description,
           salary: job.salary,
           postedDate: job.postedDate,
@@ -959,7 +960,7 @@ const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -1021,7 +1022,13 @@ const scrapingFunctions = {
 
 // Authentication monitoring for JobJourney domains
 const initializeAuthMonitoring = () => {
-  if (window.location.hostname.includes('jobjourney.me') || window.location.hostname.includes('localhost')) {
+  const hostname = window.location.hostname.toLowerCase();
+  if (
+    hostname === 'jobjourney.me' ||
+    hostname.endsWith('.jobjourney.me') ||
+    hostname === 'localhost' ||
+    hostname === '127.0.0.1'
+  ) {
     console.log('🔐 JobJourney domain detected - setting up event-driven auth monitoring');
 
     // Store monitoring state and last known auth state for change detection
@@ -1751,7 +1758,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
@@ -1767,7 +1774,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
@@ -1783,7 +1790,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               title: job.title || '',
               company: job.company || '',
               location: job.location || '',
-              url: job.jobUrl || '',
+              jobUrl: job.jobUrl || '',
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',

@@ -1,6 +1,6 @@
 import '@src/index.css';
-import Panel from '@src/Panel';
 import { createRoot } from 'react-dom/client';
+import Panel from '@src/Panel';
 
 const init = () => {
   const appContainer = document.querySelector('#app-container');

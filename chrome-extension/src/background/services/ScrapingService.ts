@@ -3,10 +3,10 @@ import { PLATFORMS, COUNTRIES, buildSearchUrl, MESSAGE_TYPES, SCRAPING_CONFIG, T
 import { getJobMarketUrl, getJobJourneyBaseUrl } from '../utils/environment';
 import { Logger } from '../utils/Logger';
 import { isPRRequired } from '../utils/prDetection';
+import type { SearchConfig, JobData, ScrapingProgress, Platform } from '../types';
 import type { ApiService } from './ApiService';
 import type { EventManager } from './EventManager';
 import type { StorageService } from './StorageService';
-import type { SearchConfig, JobData, ScrapingProgress, Platform } from '../types';
 
 export class ScrapingService {
   private initialized = false;
@@ -177,6 +177,7 @@ export class ScrapingService {
     if (session) {
       // Immediately set status to stopped to prevent any ongoing operations
       session.status = 'stopped';
+      session.endTime = Date.now();
       Logger.info(`⏹️ Stopped scraping session: ${sessionId}`);
 
       // Clear all timeouts first to prevent delayed operations from overriding 'stopped' status
@@ -234,14 +235,15 @@ export class ScrapingService {
         totalJobs: session.jobs.length,
       });
 
-      // Also send jobs to frontend for manually stopped sessions if they have jobs
+      // Also send jobs to backend and frontend for manually stopped sessions if they have jobs
       if (session.jobs.length > 0) {
-        Logger.info(`📋 Sending ${session.jobs.length} stopped session jobs to frontend`);
+        Logger.info(`📋 Sending ${session.jobs.length} stopped session jobs to backend and frontend`);
         Promise.resolve().then(async () => {
           try {
+            await this.submitJobsToApi(session);
             await this.sendJobsToFrontend(session);
           } catch (error) {
-            Logger.error('Failed to send stopped session jobs to frontend:', error);
+            Logger.error('Failed to send stopped session jobs to backend/frontend:', error);
           }
         });
       }
@@ -643,11 +645,8 @@ export class ScrapingService {
         }
       };
 
-      // Use longer timeout for Indeed first page due to potential Cloudflare verification
-      const timeoutDuration =
-        platform.id === 'indeed' && pageNumber === 1
-          ? SCRAPING_CONFIG.TIMEOUT + 300000 // Add 5 more minutes for Indeed verification
-          : SCRAPING_CONFIG.TIMEOUT;
+      // Standard timeout for all platforms/pages
+      const timeoutDuration = SCRAPING_CONFIG.TIMEOUT;
 
       const timeout = setTimeout(() => {
         cleanup();
@@ -754,74 +753,11 @@ export class ScrapingService {
               },
             })
             .catch(error => {
-              // For Indeed, retry communication failures as they might be due to Cloudflare verification
-              if (platform.id === 'indeed' && pageNumber === 1) {
-                Logger.warning(
-                  `Communication failed with Indeed (likely verification), will retry in 10 seconds:`,
-                  error,
-                );
-
-                // Wait longer and retry multiple times for Indeed verification scenarios
-                let retryCount = 0;
-                const maxRetries = 3;
-                const retryInterval = 10000; // 10 seconds between retries
-
-                const attemptRetry = () => {
-                  retryCount++;
-                  Logger.info(
-                    `Retrying Indeed communication (attempt ${retryCount}/${maxRetries}) after verification delay...`,
-                  );
-
-                  chrome.tabs
-                    .get(tabId)
-                    .then(tab => {
-                      if (tab && !tab.discarded) {
-                        chrome.tabs
-                          .sendMessage(tabId, {
-                            type: 'START_SCRAPING',
-                            data: {
-                              platform: platform.id,
-                              config: session.config,
-                              maxJobsPerPlatform: SCRAPING_CONFIG.MAX_JOBS_PER_PLATFORM,
-                              pageNumber: pageNumber,
-                            },
-                          })
-                          .catch(retryError => {
-                            if (retryCount < maxRetries) {
-                              Logger.warning(
-                                `Indeed retry ${retryCount} failed, trying again in ${retryInterval / 1000}s:`,
-                                retryError,
-                              );
-                              setTimeout(attemptRetry, retryInterval);
-                            } else {
-                              clearTimeout(timeout);
-                              cleanup();
-                              Logger.error(`Indeed communication failed after ${maxRetries} retries:`, retryError);
-                              resolve({ success: false, jobCount: 0, nextUrl: null });
-                            }
-                          });
-                      } else {
-                        clearTimeout(timeout);
-                        cleanup();
-                        Logger.error(`Indeed tab no longer available after verification (retry ${retryCount})`);
-                        resolve({ success: false, jobCount: 0, nextUrl: null });
-                      }
-                    })
-                    .catch(tabError => {
-                      clearTimeout(timeout);
-                      cleanup();
-                      Logger.error(`Failed to get Indeed tab during retry ${retryCount}:`, tabError);
-                      resolve({ success: false, jobCount: 0, nextUrl: null });
-                    });
-                };
-
-                setTimeout(attemptRetry, retryInterval);
-              } else {
-                clearTimeout(timeout);
-                cleanup();
-                Logger.error(`Failed to communicate with ${platform.name} tab:`, error);
-                resolve({ success: false, jobCount: 0, nextUrl: null });
-              }
+              // Fail fast; no special verification retries
+              clearTimeout(timeout);
+              cleanup();
+              Logger.error(`Failed to communicate with ${platform.name} tab:`, error);
+              resolve({ success: false, jobCount: 0, nextUrl: null });
             });
         })
         .catch(tabError => {
@@ -971,24 +907,24 @@ export class ScrapingService {
   }
 
   /**
-   * Show scraping overlay in tab
+   * Show discovering overlay in tab
    */
   private async showScrapingOverlay(tabId: number, platformName: string): Promise<void> {
     try {
       await chrome.tabs.sendMessage(tabId, {
         type: MESSAGE_TYPES.SHOW_OVERLAY,
         data: {
-          message: `JobJourney is scraping ${platformName}...`,
+          message: `JobJourney is discovering ${platformName}...`,
           submessage: 'Please do not interact with this page',
         },
       });
     } catch (error) {
-      Logger.warning('Could not show scraping overlay:', error);
+      Logger.warning('Could not show discovering overlay:', error);
     }
   }
 
   /**
-   * Hide scraping overlay in tab
+   * Hide discovering overlay in tab
    */
   private async hideScrapingOverlay(tabId: number): Promise<void> {
     try {
@@ -996,7 +932,7 @@ export class ScrapingService {
         type: MESSAGE_TYPES.HIDE_OVERLAY,
       });
     } catch (error) {
-      Logger.warning('Could not hide scraping overlay:', error);
+      Logger.warning('Could not hide discovering overlay:', error);
     }
   }
 
@@ -1033,10 +969,10 @@ export class ScrapingService {
       // Find existing JobJourney job-market tabs only
       const allTabs = await chrome.tabs.query({});
       const existingJobMarketTabs: chrome.tabs.Tab[] = [];
-      
+
       for (const tab of allTabs) {
         if (!tab.url) continue;
-        
+
         try {
           if (await this.isJobJourneyUrl(tab.url)) {
             const url = new URL(tab.url);
@@ -1146,7 +1082,7 @@ export class ScrapingService {
       const jobJourneyBaseUrl = await getJobJourneyBaseUrl();
       const jobJourneyUrl = new URL(jobJourneyBaseUrl);
       const targetUrl = new URL(url);
-      
+
       return (
         targetUrl.hostname.toLowerCase() === jobJourneyUrl.hostname.toLowerCase() &&
         targetUrl.port === jobJourneyUrl.port
@@ -1163,13 +1099,13 @@ export class ScrapingService {
     try {
       const tabs = await chrome.tabs.query({});
       const jobJourneyTabs: chrome.tabs.Tab[] = [];
-      
+
       for (const tab of tabs) {
-        if (tab.url && await this.isJobJourneyUrl(tab.url)) {
+        if (tab.url && (await this.isJobJourneyUrl(tab.url))) {
           jobJourneyTabs.push(tab);
         }
       }
-      
+
       return jobJourneyTabs;
     } catch (error) {
       Logger.error('Failed to find JobJourney tabs', error);

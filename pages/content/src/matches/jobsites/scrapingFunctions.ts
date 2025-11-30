@@ -1,5 +1,13 @@
 // Scraping functions for different job platforms
 import { detectPRRequirement } from './prDetection';
+import {
+  analyzeJobDescription,
+  JobAnalysisResult,
+  WorkArrangementResult,
+  EmploymentTypeResult,
+  ExperienceLevelResult,
+  TechStackResult,
+} from './descriptionAnalysis';
 
 // Interface for job data (legacy compatibility)
 interface JobData {
@@ -7,11 +15,18 @@ interface JobData {
   title: string;
   company: string;
   location: string;
-  url: string;
+  jobUrl: string;
   description?: string;
   salary?: string;
   postedDate?: string;
   isRPRequired?: boolean;
+  companyLogoUrl?: string;
+  // New fields (optional for legacy)
+  detectedWorkArrangement?: WorkArrangementResult;
+  detectedEmploymentType?: EmploymentTypeResult;
+  detectedExperienceLevel?: ExperienceLevelResult;
+  techStack?: TechStackResult;
+  platform?: string;
 }
 
 // Enhanced Job class from working version
@@ -29,6 +44,9 @@ export class Job {
   public workplaceType: string;
   public applicantCount: string;
   public isRPRequired: boolean;
+
+  // New analysis fields
+  public analysis: JobAnalysisResult;
 
   constructor({
     title,
@@ -71,7 +89,39 @@ export class Job {
     this.applicantCount = applicantCount?.trim() || '';
 
     // Analyze description for PR requirement using utility function
-    this.isRPRequired = detectPRRequirement(this.description);
+    const prResult = detectPRRequirement(this.description);
+    this.isRPRequired = prResult.isRPRequired;
+
+    // Perform comprehensive analysis
+    this.analysis = analyzeJobDescription(this.description);
+  }
+
+  // Custom JSON serialization to ensure proper field names
+  toJSON() {
+    return {
+      title: this.title,
+      company: this.company,
+      location: this.location,
+      jobUrl: this.jobUrl, // Ensure this is jobUrl not url
+      description: this.description,
+      salary: this.salary,
+      postedDate: this.postedDate,
+      companyLogoUrl: this.companyLogoUrl, // Ensure this is included
+      platform: this.platform,
+      jobType: this.jobType,
+      workplaceType: this.workplaceType,
+      applicantCount: this.applicantCount,
+      isRPRequired: this.isRPRequired,
+
+      // Include new analysis results
+      detectedWorkArrangement: this.analysis.workArrangement,
+      detectedEmploymentType: this.analysis.employmentType,
+      detectedExperienceLevel: this.analysis.experienceLevel,
+      techStack: this.analysis.techStack,
+
+      extracted_at: this.postedDate || null,
+      id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
+    };
   }
 
   static createFromLinkedIn(data: any) {
@@ -133,7 +183,7 @@ export class Job {
       jobUrl: data.link || data.jobUrl,
       description: data.description,
       salary: data.salary,
-      postedDate: data.datePosted,
+      postedDate: data.postedDate || data.datePosted,
       companyLogoUrl: data.companyLogoUrl,
       platform: 'Jora',
       jobType: data.jobType || '',
@@ -158,7 +208,11 @@ function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}):
     const locationElement = panelElement.querySelector(
       'div[data-testid="jobsearch-JobInfoHeader-companyLocation"] div:first-child',
     );
-    const descriptionElement = panelElement.querySelector('#jobDescriptionText');
+    const descriptionElement =
+      panelElement.querySelector('#jobDescriptionText') ||
+      panelElement.querySelector('.jobsearch-JobComponent-description') ||
+      panelElement.querySelector('.jobsearch-embeddedBody') ||
+      panelElement.querySelector('.jobsearch-JobComponent-embeddedBody');
     const jobDetailsContainer = panelElement.querySelector('#jobDetailsSection');
 
     // Basic Info
@@ -327,11 +381,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
         return jobs;
@@ -406,11 +461,12 @@ export const scrapingFunctions = {
               title: job.title,
               company: job.company,
               location: job.location,
-              url: job.jobUrl,
+              jobUrl: job.jobUrl,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
               isRPRequired: job.isRPRequired,
+              companyLogoUrl: job.companyLogoUrl || undefined,
             });
             continue;
           }
@@ -458,11 +514,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
 
           console.log(`Successfully scraped LinkedIn job: ${job.title}`);
@@ -618,11 +675,12 @@ export const scrapingFunctions = {
           title: jobDetail.title,
           company: jobDetail.company,
           location: jobDetail.location,
-          url: jobDetail.jobUrl,
+          jobUrl: jobDetail.jobUrl,
           description: jobDetail.description,
           salary: jobDetail.salary,
           postedDate: jobDetail.postedDate,
           isRPRequired: jobDetail.isRPRequired,
+          companyLogoUrl: jobDetail.companyLogoUrl || undefined,
         });
       }
       return jobs;
@@ -713,11 +771,12 @@ export const scrapingFunctions = {
               title: jobDetail.title,
               company: jobDetail.company,
               location: jobDetail.location,
-              url: jobDetail.jobUrl,
+              jobUrl: jobDetail.jobUrl,
               description: jobDetail.description,
               salary: jobDetail.salary,
               postedDate: jobDetail.postedDate,
               isRPRequired: jobDetail.isRPRequired,
+              companyLogoUrl: jobDetail.companyLogoUrl || undefined,
             });
             console.log(`Successfully scraped detailed job: ${jobDetail.title}`);
           } else {
@@ -729,11 +788,12 @@ export const scrapingFunctions = {
               title: job.title,
               company: job.company,
               location: job.location,
-              url: job.jobUrl,
+              jobUrl: job.jobUrl,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
               isRPRequired: job.isRPRequired,
+              companyLogoUrl: job.companyLogoUrl || undefined,
             });
           }
         } else {
@@ -745,11 +805,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
 
@@ -766,6 +827,47 @@ export const scrapingFunctions = {
     }
 
     console.log(`=== SEEK Scraping Complete: ${jobs.length} jobs found ===`);
+    return jobs;
+  },
+
+  jora: (): JobData[] => {
+    const jobs: JobData[] = [];
+    const jobCards = document.querySelectorAll('.job-card[data-jd-payload]');
+
+    jobCards.forEach((card, index) => {
+      try {
+        const titleElement = card.querySelector('.job-title a.job-link, .job-title a');
+        const companyElement = card.querySelector('.job-company');
+        const locationElement = card.querySelector('.job-location');
+        const postedElement = card.querySelector('.job-listed-date');
+        const badgeElement = card.querySelector('.badges .badge .content');
+
+        const description = Array.from(card.querySelectorAll('.job-abstract li'))
+          .map(li => li.textContent?.trim())
+          .filter(Boolean)
+          .join('\n');
+
+        const jobUrl = titleElement?.getAttribute('href')
+          ? new URL(titleElement.getAttribute('href') || '', window.location.origin).href
+          : window.location.href;
+
+        jobs.push({
+          id: `jora_${Date.now()}_${index}`,
+          title: titleElement?.textContent?.trim() || '',
+          company: companyElement?.textContent?.trim() || '',
+          location: locationElement?.textContent?.trim() || '',
+          jobUrl,
+          description,
+          postedDate: postedElement?.textContent?.trim() || '',
+          salary: badgeElement?.textContent?.trim() || '',
+          isRPRequired: detectPRRequirement(description || '').isRPRequired,
+          platform: 'Jora',
+        });
+      } catch (error) {
+        console.warn('Failed to parse Jora job card', error);
+      }
+    });
+
     return jobs;
   },
 
@@ -806,7 +908,13 @@ export const scrapingFunctions = {
       while (attempts < maxAttempts) {
         const detailsPanel =
           document.querySelector('div.fastviewjob') || document.querySelector('div.jobsearch-ViewJobLayout--embedded');
-        const descriptionLoaded = detailsPanel && detailsPanel.querySelector('#jobDescriptionText');
+
+        const descriptionLoaded =
+          detailsPanel &&
+          (detailsPanel.querySelector('#jobDescriptionText') ||
+            detailsPanel.querySelector('.jobsearch-JobComponent-description') ||
+            detailsPanel.querySelector('.jobsearch-embeddedBody') ||
+            detailsPanel.querySelector('.jobsearch-JobComponent-embeddedBody'));
 
         if (detailsPanel && descriptionLoaded && (descriptionLoaded.textContent?.trim().length || 0) > 10) {
           await new Promise(r => setTimeout(r, 500));
@@ -835,11 +943,12 @@ export const scrapingFunctions = {
             title: jobDetail.title,
             company: jobDetail.company,
             location: jobDetail.location,
-            url: jobDetail.jobUrl,
+            jobUrl: jobDetail.jobUrl,
             description: jobDetail.description,
             salary: jobDetail.salary,
             postedDate: jobDetail.postedDate,
             isRPRequired: jobDetail.isRPRequired,
+            companyLogoUrl: jobDetail.companyLogoUrl || undefined,
           });
           console.log(`Scraped standalone job: ${jobDetail.title}`);
         }
@@ -956,11 +1065,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
           continue;
         }
@@ -996,7 +1106,7 @@ export const scrapingFunctions = {
           title: job.title,
           company: job.company,
           location: job.location,
-          url: job.jobUrl,
+          jobUrl: job.jobUrl,
           description: job.description,
           salary: job.salary,
           postedDate: job.postedDate,
@@ -1017,11 +1127,12 @@ export const scrapingFunctions = {
             title: job.title,
             company: job.company,
             location: job.location,
-            url: job.jobUrl,
+            jobUrl: job.jobUrl,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
             isRPRequired: job.isRPRequired,
+            companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
         await new Promise(r => setTimeout(r, 1500));
@@ -1058,11 +1169,12 @@ export const scrapingFunctions = {
               title,
               company,
               location,
-              url,
+              jobUrl: url,
               salary,
               description: '',
               postedDate: '',
-              isRPRequired: detectPRRequirement(''),
+              isRPRequired: detectPRRequirement('').isRPRequired,
+              companyLogoUrl: undefined,
             });
           }
         } catch (error) {
@@ -1081,15 +1193,24 @@ export const scrapingFunctions = {
 export const getCurrentPlatform = (): string | null => {
   const hostname = window.location.hostname.toLowerCase();
 
-  if (hostname.includes('linkedin.com')) return 'linkedin';
-  if (hostname.includes('seek.com')) return 'seek';
-  if (hostname.includes('indeed.com')) return 'indeed';
-  if (hostname.includes('reed.co.uk')) return 'reed';
+  // Use exact hostname or subdomain matching to prevent injection attacks
+  if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) return 'linkedin';
+  if (
+    hostname === 'seek.com.au' ||
+    hostname.endsWith('.seek.com.au') ||
+    hostname === 'seek.co.nz' ||
+    hostname.endsWith('.seek.co.nz')
+  )
+    return 'seek';
+  if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';
+  if (hostname === 'jora.com' || hostname.endsWith('.jora.com')) return 'jora';
+  if (hostname === 'reed.co.uk' || hostname.endsWith('.reed.co.uk')) return 'reed';
   if (hostname === 'recruitment.macquarie.com') return 'macquarie';
-  if (hostname.includes('atlassian.com')) return 'atlassian';
-  if (hostname.includes('ebuu.fa.ap1.oraclecloud.com')) return 'westpac';
-  if (hostname.includes('lifeatcanva.com')) return 'canva';
-  if (hostname.includes('jobjourney.me') || hostname.includes('localhost')) return 'jobjourney';
+  if (hostname === 'atlassian.com' || hostname.endsWith('.atlassian.com')) return 'atlassian';
+  if (hostname === 'ebuu.fa.ap1.oraclecloud.com') return 'westpac';
+  if (hostname === 'lifeatcanva.com' || hostname === 'www.lifeatcanva.com') return 'canva';
+  if (hostname === 'jobjourney.me' || hostname.endsWith('.jobjourney.me') || hostname === 'localhost')
+    return 'jobjourney';
 
   return null;
 };

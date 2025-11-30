@@ -6,5 +6,13 @@
       "@src/*": ["src/*"]
     }
   },
-  "include": ["src", "utils", "vite.config.mts", "manifest.ts", "../node_modules/@types"]
+  "include": [
+    "src",
+    "utils",
+    "vite.config.mts",
+    "manifest.ts",
+    "manifest.dev.ts",
+    "manifest.prod.ts",
+    "../node_modules/@types"
+  ]
 }

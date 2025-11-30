@@ -1,10 +1,10 @@
-import { deleteModule } from './modules-handler.js';
+import { existsSync, readdirSync } from 'node:fs';
+import type { ManifestType } from '@extension/shared';
 import { DEFAULT_CHOICES, DELETE_CHOICE_QUESTION } from '../const.js';
 import { processSelection } from '../helpers/utils.js';
 import { pagesPath, testsPath } from '../paths.js';
-import { existsSync, readdirSync } from 'node:fs';
 import type { ChoicesType, ModuleNameType } from '../types.ts';
-import type { ManifestType } from '@extension/shared';
+import { deleteModule } from './modules-handler.js';
 
 export const deleteFeature = async (manifestObject: ManifestType, moduleName?: ModuleNameType) => {
   const pageFolders = readdirSync(pagesPath);

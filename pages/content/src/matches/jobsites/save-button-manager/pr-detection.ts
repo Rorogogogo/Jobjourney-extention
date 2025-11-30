@@ -2,15 +2,6 @@
  * Utility for detecting Permanent Residency (PR) requirements in job descriptions
  */
 
-export interface CitizenshipRequirementResult {
-  isPrRequired: boolean;
-  isCitizenRequired: boolean;
-  securityClearance: string | null; // e.g., "NV1", "NV2", "Baseline", "AGSVA"
-  confidence: 'high' | 'medium' | 'low';
-  matchedPatterns: string[];
-  reasoning: string;
-}
-
 // Common patterns that indicate PR requirement
 const PR_REQUIRED_PATTERNS = [
   // Direct PR mentions
@@ -54,36 +45,25 @@ const PR_NOT_REQUIRED_PATTERNS = [
   /\b(please\s+list.*citizen.*permanent\s+resident.*visa)\b/i,
 ];
 
-// Security Clearance Patterns
-const SECURITY_CLEARANCE_PATTERNS = [
-  { level: 'NV2', pattern: /\b(nv2|negative\s+vetting\s+(level\s+)?2)\b/i },
-  { level: 'NV1', pattern: /\b(nv1|negative\s+vetting\s+(level\s+)?1)\b/i },
-  { level: 'Baseline', pattern: /\b(baseline\s+clearance|baseline\s+security\s+clearance)\b/i },
-  { level: 'AGSVA', pattern: /\b(agsva|security\s+clearance|defence\s+clearance)\b/i }, // General clearance
-  { level: 'Defence', pattern: /\b(defence\s+experience|experience\s+in\s+defence)\b/i }, // Defence experience often implies clearance eligibility
-];
-
-// Citizenship Specific Patterns (Stronger than PR)
-const CITIZENSHIP_PATTERNS = [
-  /\b(must\s+be\s+(an\s+)?australian\s+citizen)\b/i,
-  /\b(australian\s+citizens\s+only)\b/i,
-  /\b(citizenship\s+is\s+required)\b/i,
-];
-
 // Keywords that add context but don't directly indicate PR requirement
 const CONTEXT_KEYWORDS = [/\b(work\s+permit|visa|immigration|sponsorship|authorization)\b/i];
 
 /**
- * Analyze job text to determine Citizenship and PR requirements, including security clearances.
+ * Analyze job text to determine if Permanent Residency is required
  * @param jobText - The job description text to analyze
- * @returns Object with detailed detection results
+ * @returns Object with detection results
  */
-export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequirementResult => {
+export const detectPRRequirement = (
+  jobText: string,
+): {
+  isRPRequired: boolean;
+  confidence: 'high' | 'medium' | 'low';
+  matchedPatterns: string[];
+  reasoning: string;
+} => {
   if (!jobText || typeof jobText !== 'string') {
     return {
-      isPrRequired: false,
-      isCitizenRequired: false,
-      securityClearance: null,
+      isRPRequired: false,
       confidence: 'low',
       matchedPatterns: [],
       reasoning: 'No job text provided',
@@ -94,42 +74,6 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
   const matchedPatterns: string[] = [];
   let prRequiredScore = 0;
   let prNotRequiredScore = 0;
-  let isCitizenRequired = false;
-  let securityClearance: string | null = null;
-
-  // Check for Security Clearances (implies Citizenship)
-  // Find ALL clearance matches and select the one that appears FIRST in the text
-  let earliestClearanceMatch: { level: string; matchText: string; index: number } | null = null;
-
-  for (const { level, pattern } of SECURITY_CLEARANCE_PATTERNS) {
-    const matches = text.match(pattern);
-    if (matches && matches.index !== undefined) {
-      // If this is the first match OR it appears earlier in the text than previous matches
-      if (!earliestClearanceMatch || matches.index < earliestClearanceMatch.index) {
-        earliestClearanceMatch = {
-          level,
-          matchText: matches[0],
-          index: matches.index,
-        };
-      }
-    }
-  }
-
-  // Apply the earliest clearance found
-  if (earliestClearanceMatch) {
-    securityClearance = earliestClearanceMatch.level;
-    isCitizenRequired = true; // Security clearance almost always requires citizenship
-    matchedPatterns.push(`SECURITY_CLEARANCE_${earliestClearanceMatch.level}: "${earliestClearanceMatch.matchText}"`);
-  }
-
-  // Check for Citizenship Specific Patterns
-  CITIZENSHIP_PATTERNS.forEach((pattern, index) => {
-    const matches = text.match(pattern);
-    if (matches) {
-      isCitizenRequired = true;
-      matchedPatterns.push(`CITIZENSHIP_REQUIRED_${index}: "${matches[0]}"`);
-    }
-  });
 
   // Check for PR required patterns
   PR_REQUIRED_PATTERNS.forEach((pattern, index) => {
@@ -157,14 +101,13 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
     }
   });
 
-  // Determine result based on scores and specific flags
-  // If citizenship is required, PR is implicitly required (or rather, stricter than PR)
-  const isRPRequired = isCitizenRequired || prRequiredScore > prNotRequiredScore;
+  // Determine result based on scores
+  const isRPRequired = prRequiredScore > prNotRequiredScore;
 
   // Determine confidence level
   let confidence: 'high' | 'medium' | 'low';
-  if (isCitizenRequired || prRequiredScore >= 4) {
-    confidence = 'high'; // Strong indicators
+  if (prRequiredScore >= 4) {
+    confidence = 'high'; // Multiple strong indicators
   } else if (prRequiredScore >= 2 || (prRequiredScore > 0 && hasWorkAuthContext)) {
     confidence = 'medium'; // Some indicators with context
   } else if (prRequiredScore > 0) {
@@ -175,9 +118,7 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
 
   // Generate reasoning
   let reasoning = '';
-  if (isCitizenRequired) {
-    reasoning = `Citizenship required${securityClearance ? ` with ${securityClearance} clearance` : ''}`;
-  } else if (isRPRequired) {
+  if (isRPRequired) {
     reasoning = `PR likely required - found ${prRequiredScore} positive indicators`;
     if (prNotRequiredScore > 0) {
       reasoning += ` and ${prNotRequiredScore} negative indicators`;
@@ -189,34 +130,10 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
   }
 
   return {
-    isPrRequired: isRPRequired,
-    isCitizenRequired,
-    securityClearance,
+    isRPRequired,
     confidence,
     matchedPatterns,
     reasoning,
-  };
-};
-
-/**
- * Analyze job text to determine if Permanent Residency is required
- * @param jobText - The job description text to analyze
- * @returns Object with detection results (Backward compatibility wrapper)
- */
-export const detectPRRequirement = (
-  jobText: string,
-): {
-  isRPRequired: boolean;
-  confidence: 'high' | 'medium' | 'low';
-  matchedPatterns: string[];
-  reasoning: string;
-} => {
-  const result = detectCitizenshipRequirements(jobText);
-  return {
-    isRPRequired: result.isPrRequired,
-    confidence: result.confidence,
-    matchedPatterns: result.matchedPatterns,
-    reasoning: result.reasoning,
   };
 };
 
@@ -236,15 +153,9 @@ export const isPRRequired = (jobText: string): boolean => {
  * @returns Formatted string with analysis results
  */
 export const getPRAnalysisSummary = (jobText: string): string => {
-  const result = detectCitizenshipRequirements(jobText);
+  const result = detectPRRequirement(jobText);
 
-  let summary = `PR Required: ${result.isPrRequired ? 'Yes' : 'No'} (${result.confidence} confidence)\n`;
-  if (result.isCitizenRequired) {
-    summary += `Citizenship Required: Yes\n`;
-  }
-  if (result.securityClearance) {
-    summary += `Security Clearance: ${result.securityClearance}\n`;
-  }
+  let summary = `PR Required: ${result.isRPRequired ? 'Yes' : 'No'} (${result.confidence} confidence)\n`;
   summary += `Reasoning: ${result.reasoning}\n`;
 
   if (result.matchedPatterns.length > 0) {

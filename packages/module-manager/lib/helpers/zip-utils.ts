@@ -1,9 +1,9 @@
+import { createWriteStream, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
 import { streamFileToZip } from '@extension/dev-utils';
 import fg from 'fast-glob';
 import { unzipSync, Zip } from 'fflate';
 import { rimraf } from 'rimraf';
-import { createWriteStream, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
-import { dirname, resolve } from 'node:path';
 import type { ModuleNameType } from '../types.js';
 
 const zipAndDeleteModuleTest = async (moduleName: ModuleNameType, archivePath: string, testsPath: string) => {

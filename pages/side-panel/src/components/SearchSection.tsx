@@ -1,7 +1,7 @@
-import { useToast } from './ToastManager';
-import { COUNTRIES, PLATFORMS } from '../constants';
 import { useState, useEffect } from 'react';
 import type React from 'react';
+import { COUNTRIES, PLATFORMS } from '../constants';
+import { useToast } from './ToastManager';
 
 interface SearchSectionProps {
   onStartSearch: (config: SearchConfig) => void;
@@ -33,7 +33,9 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
 
   const selectedCountryConfig = country ? COUNTRIES[country] : null;
   const availableLocations = selectedCountryConfig?.locations || [];
-  const availablePlatforms = selectedCountryConfig?.platforms || [];
+  const availablePlatforms = (selectedCountryConfig?.platforms || []).filter(
+    id => !(PLATFORMS[id] && PLATFORMS[id].enabled === false),
+  );
 
   // Check if form is valid for enabling the Discover Jobs button
   const isFormValid = () => {
@@ -52,7 +54,9 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
         const savedKeywords = localStorage.getItem(STORAGE_KEYS.KEYWORDS);
         const savedCountry = localStorage.getItem(STORAGE_KEYS.COUNTRY);
         const savedLocation = localStorage.getItem(STORAGE_KEYS.LOCATION);
-        const savedPlatforms = localStorage.getItem(STORAGE_KEYS.PLATFORMS);
+
+        // Clear any saved platform selection (especially Indeed) to align with disabled platforms
+        localStorage.removeItem(STORAGE_KEYS.PLATFORMS);
 
         if (savedKeywords) {
           setKeywords(savedKeywords);
@@ -64,17 +68,6 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
 
         if (savedLocation) {
           setLocation(savedLocation);
-        }
-
-        if (savedPlatforms) {
-          try {
-            const platformsData = JSON.parse(savedPlatforms);
-            if (typeof platformsData === 'object' && platformsData !== null) {
-              setPlatforms(platformsData);
-            }
-          } catch (e) {
-            console.warn('Failed to parse saved platforms:', e);
-          }
         }
 
         console.log('📱 Loaded saved search preferences');
@@ -143,8 +136,8 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
 
       const newPlatforms: Record<string, boolean> = {};
 
-      // For platforms available in this country, preserve user's selection
-      selectedCountryConfig.platforms.forEach(platformId => {
+      // For platforms available in this country, preserve user's selection (skip disabled)
+      availablePlatforms.forEach(platformId => {
         newPlatforms[platformId] = currentPlatforms[platformId] !== undefined ? currentPlatforms[platformId] : true;
       });
 

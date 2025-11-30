@@ -1,6 +1,6 @@
 // Macquarie Group job scraper
-import { BaseScraper } from './base-single-job-scraper';
 import type { JobData } from '../types';
+import { BaseScraper } from './base-single-job-scraper';
 
 export class MacquarieScraper extends BaseScraper {
   protected platform = 'Macquarie Group';
@@ -15,28 +15,29 @@ export class MacquarieScraper extends BaseScraper {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.title.title--11');
-    
+
     // Company is always Macquarie Group for this domain
     const company = 'Macquarie Group';
 
     const locationElement = document.querySelector(
-      '.article__content__view__field.field--location .article__content__view__field__value'
+      '.article__content__view__field.field--location .article__content__view__field__value',
     );
 
     const employmentTypeElement = document.querySelector(
-      '.article__content__view__field.field--employmentterm .article__content__view__field__value'
+      '.article__content__view__field.field--employmentterm .article__content__view__field__value',
     );
 
-    const datePostedElement = document.querySelector(
-      '.article__content__view__field.field--date .article__content__view__field__value'
+    const _datePostedElement = document.querySelector(
+      '.article__content__view__field.field--date .article__content__view__field__value',
     );
 
     // Extract job description from all relevant sections
     const descriptionElements = document.querySelectorAll('.article__content__view__field__value');
     let description = '';
-    descriptionElements.forEach((element) => {
+    descriptionElements.forEach(element => {
       const text = this.extractText(element);
-      if (text && text.length > 50) { // Only include substantial content
+      if (text && text.length > 50) {
+        // Only include substantial content
         description += text + '\n\n';
       }
     });
@@ -64,14 +65,14 @@ export class MacquarieScraper extends BaseScraper {
   findInsertionPoint(): HTMLElement | null {
     // Try to find a good insertion point near the job title
     const titleElement = document.querySelector('.title.title--11');
-    
+
     if (!titleElement) return null;
 
     // Look for the section header that contains the title
     const sectionHeader = titleElement.closest('.section__header__text');
     if (sectionHeader) {
       // Insert after the section header
-      return sectionHeader.parentElement as HTMLElement || null;
+      return (sectionHeader.parentElement as HTMLElement) || null;
     }
 
     // Fallback to title's parent container
@@ -90,6 +91,6 @@ export class MacquarieScraper extends BaseScraper {
     }
 
     // Final fallback
-    return titleElement.parentElement as HTMLElement || null;
+    return (titleElement.parentElement as HTMLElement) || null;
   }
 }

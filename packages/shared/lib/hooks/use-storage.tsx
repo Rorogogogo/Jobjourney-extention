@@ -2,7 +2,7 @@ import { useRef, useSyncExternalStore } from 'react';
 import type { BaseStorageType } from '@extension/storage';
 
 type WrappedPromise = ReturnType<typeof wrapPromise>;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 const storageMap: Map<BaseStorageType<any>, WrappedPromise> = new Map();
 
 const wrapPromise = <R,>(promise: Promise<R>) => {

@@ -1,64 +1,8 @@
 // Indeed scraper from working version
 export {};
 
-// Helper functions for overlay
-function showScrapingOverlay(message: string, submessage?: string) {
-  // Remove existing overlay if any
-  const existingOverlay = document.getElementById('jobjourney-scraping-overlay');
-  if (existingOverlay) {
-    existingOverlay.remove();
-  }
-
-  const overlay = document.createElement('div');
-  overlay.id = 'jobjourney-scraping-overlay';
-  overlay.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.8);
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 999999;
-    color: white;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    text-align: center;
-  `;
-
-  overlay.innerHTML = `
-    <div style="font-size: 36px; font-weight: bold; margin-bottom: 10px;">${message}</div>
-    <div style="
-      width: 60px;
-      height: 60px;
-      border: 6px solid rgba(255, 255, 255, 0.3);
-      border-top: 6px solid white;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-      margin: 30px 0;
-    "></div>
-    ${submessage ? `<div style="font-size: 24px; opacity: 0.8; margin-top: 10px;">${submessage}</div>` : ''}
-    <style>
-      @keyframes spin {
-        0% { transform: rotate(0deg); }
-        100% { transform: rotate(360deg); }
-      }
-    </style>
-  `;
-
-  document.body.appendChild(overlay);
-  console.log('🔄 Scraping overlay shown:', message);
-}
-
-function hideScrapingOverlay() {
-  const overlay = document.getElementById('jobjourney-scraping-overlay');
-  if (overlay) {
-    overlay.remove();
-    console.log('✅ Scraping overlay hidden');
-  }
-}
+// Note: Overlay management removed to match LinkedIn/SEEK architecture
+// Only ScrapingService.ts should handle overlays to prevent duplication
 
 // **** NEW HELPER FUNCTION for Indeed Details Panel ****
 function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}): any {
@@ -184,7 +128,25 @@ function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}):
 
     // --- Other fields (less likely in panel, use basicInfo) ---
     const postedDate = basicInfo.postedDate || ''; // Usually not in the detail panel view
-    const companyLogoUrl = basicInfo.companyLogoUrl || null; // Use logo from card
+
+    // Try to extract company logo from panel, fallback to basicInfo
+    const logoSelectors = [
+      'img[data-testid="jobsearch-JobInfoHeader-logo-overlay-lower"]',
+      'img.jobsearch-JobInfoHeader-logo',
+      'img.jobsearch-JobInfoHeader-logo-overlay-lower',
+      'img.companyAvatar',
+      '[data-testid="companyAvatar"] img',
+    ];
+
+    let companyLogoUrl = basicInfo.companyLogoUrl || null;
+    for (const selector of logoSelectors) {
+      const logoElement = panelElement.querySelector(selector) as HTMLImageElement;
+      if (logoElement?.src) {
+        companyLogoUrl = logoElement.src;
+        break;
+      }
+    }
+
     const applicantCount = basicInfo.applicantCount || ''; // N/A for Indeed typically
 
     if (!title || !company) {
@@ -236,9 +198,6 @@ function detectRobotCheck(): boolean {
     'iframe[src*="recaptcha"]',
     '.g-recaptcha',
     '[data-sitekey]', // reCAPTCHA
-    '.cf-browser-verification', // Cloudflare
-    '#challenge-form',
-    '.challenge-form',
     '.robot-check',
     // Indeed-specific selectors
     '[data-testid="blockedSearchPage"]',
@@ -249,15 +208,6 @@ function detectRobotCheck(): boolean {
     '[aria-label*="captcha"]',
     '.challenge-page',
     '#challenge-page',
-    // Cloudflare specific selectors
-    'main.error',
-    '#cf-chl-widget-oklj4_response',
-    '.cf-turnstile',
-    'input[name="cf-turnstile-response"]',
-    '#cf-challenge-form',
-    '.cloudflare-challenge',
-    '[data-ray]',
-    '.main-wrapper[role="main"]',
   ];
 
   // Check for robot check elements
@@ -266,20 +216,6 @@ function detectRobotCheck(): boolean {
       console.log(`🤖 Robot check detected with selector: ${selector}`);
       return true;
     }
-  }
-
-  // Check for Cloudflare specific text
-  const headingElement = document.querySelector('h1#heading');
-  if (headingElement && headingElement.textContent?.includes('Additional Verification Required')) {
-    console.log('🤖 Cloudflare verification detected: Additional Verification Required');
-    return true;
-  }
-
-  // Check for Ray ID in page (Cloudflare specific)
-  const paragraphElement = document.querySelector('p#paragraph');
-  if (paragraphElement && paragraphElement.textContent?.includes('Your Ray ID for this request is')) {
-    console.log('🤖 Cloudflare verification detected: Ray ID present');
-    return true;
   }
 
   // Check for robot check keywords in page content
@@ -303,11 +239,6 @@ function detectRobotCheck(): boolean {
     'access blocked',
     'we need to verify',
     'temporarily blocked',
-    // Cloudflare specific phrases
-    'additional verification required',
-    'cloudflare',
-    'enable javascript and cookies to continue',
-    'waiting for au.indeed.com to respond',
   ];
 
   for (const keyword of robotKeywords) {
@@ -319,7 +250,7 @@ function detectRobotCheck(): boolean {
 
   // Check URL for robot check indicators
   const url = window.location.href.toLowerCase();
-  if (url.includes('blocked') || url.includes('captcha') || url.includes('verify') || url.includes('__cf_chl_')) {
+  if (url.includes('blocked') || url.includes('captcha') || url.includes('verify')) {
     console.log(`🤖 Robot check detected in URL: ${url}`);
     return true;
   }
@@ -327,12 +258,101 @@ function detectRobotCheck(): boolean {
   return false;
 }
 
+// Lightly scroll the detail panel to mimic user reading and reduce bot detection
+async function mimicPanelScroll(panel: Element): Promise<void> {
+  try {
+    const root = panel as HTMLElement;
+    const selectors = [
+      '.jobsearch-JobComponent-description',
+      '#jobsearch-ViewJobButtons-container',
+      '#jobDescriptionText',
+      '#mosaic-vjJobDetails',
+      '.jobsearch-embeddedBody',
+      '.jobsearch-JobComponent',
+      '.jobsearch-RightPane',
+      '.jobsearch-ViewJobLayout--embedded',
+    ];
+
+    const candidates: HTMLElement[] = [];
+    const pushIf = (el: Element | null | undefined) => {
+      if (el && el instanceof HTMLElement && !candidates.includes(el)) {
+        candidates.push(el);
+      }
+    };
+
+    selectors.forEach(sel => {
+      pushIf(root.querySelector(sel));
+      pushIf(document.querySelector(sel));
+    });
+    pushIf(root);
+    pushIf(document.documentElement);
+
+    const scrollable =
+      candidates
+        .map(el => ({ el, gap: el.scrollHeight - el.clientHeight }))
+        .filter(x => x.gap > 40)
+        .sort((a, b) => b.gap - a.gap)[0]?.el || root;
+
+    const maxScroll = scrollable.scrollHeight - scrollable.clientHeight;
+    if (maxScroll <= 0) return;
+
+    const steps = 3 + Math.floor(Math.random() * 3); // 3-5 scroll steps
+    for (let i = 0; i < steps; i++) {
+      const target = Math.min(maxScroll, Math.random() * maxScroll);
+      scrollable.scrollTo({ top: target, behavior: 'smooth' });
+      await new Promise(r => setTimeout(r, 700 + Math.floor(Math.random() * 700)));
+    }
+
+    // Return near top for consistency
+    scrollable.scrollTo({ top: 0, behavior: 'smooth' });
+    await new Promise(r => setTimeout(r, 400));
+  } catch (error) {
+    console.warn('mimicPanelScroll failed:', error);
+  }
+}
+
+// Persist scraped jobs in localStorage with quota management
+function storeScrapedJobs(jobs: any[]): void {
+  try {
+    const existingJobsStr = localStorage.getItem('jobjourney_scraped_jobs') || '[]';
+    let existingJobs = [];
+
+    try {
+      existingJobs = JSON.parse(existingJobsStr);
+    } catch (parseError) {
+      console.warn('Failed to parse existing jobs, starting fresh:', parseError);
+      existingJobs = [];
+    }
+
+    const maxJobs = 1000;
+    const allJobs = [...existingJobs, ...jobs];
+    const trimmedJobs = allJobs.slice(-maxJobs);
+
+    localStorage.setItem('jobjourney_scraped_jobs', JSON.stringify(trimmedJobs));
+    localStorage.setItem('jobjourney_last_scrape', new Date().toISOString());
+    console.log(
+      `💾 Stored ${jobs.length} Indeed jobs in localStorage (total: ${trimmedJobs.length}, trimmed from ${allJobs.length})`,
+    );
+  } catch (error) {
+    console.error('Failed to store jobs in localStorage:', error);
+    try {
+      localStorage.removeItem('jobjourney_scraped_jobs');
+      localStorage.removeItem('jobjourney_last_scrape');
+      localStorage.setItem('jobjourney_scraped_jobs', JSON.stringify(jobs));
+      localStorage.setItem('jobjourney_last_scrape', new Date().toISOString());
+      console.log(`💾 Stored ${jobs.length} Indeed jobs in localStorage (quota recovery, preferences preserved)`);
+    } catch (secondError) {
+      console.error('Failed to store jobs even after clearing:', secondError);
+    }
+  }
+}
+
 // Helper function to wait for robot check completion
 async function waitForRobotCheckCompletion(): Promise<boolean> {
   console.log('⏳ Waiting for user to complete robot check...');
 
   // Hide the scraping overlay to allow user interaction
-  hideScrapingOverlay();
+  // Overlay is managed by ScrapingService.ts
 
   // Also send message to background to hide overlay
   try {
@@ -342,13 +362,6 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
   } catch (error) {
     console.warn('Failed to send hide overlay message:', error);
   }
-
-  // Detect if it's Cloudflare verification
-  const isCloudflareVerification =
-    document.querySelector('h1#heading')?.textContent?.includes('Additional Verification Required') ||
-    document.querySelector('input[name="cf-turnstile-response"]') ||
-    document.querySelector('main.error') ||
-    document.body.textContent?.toLowerCase().includes('cloudflare');
 
   // Show user notification
   const notification = document.createElement('div');
@@ -383,20 +396,41 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.7; }
         }
+        .jj-close-btn {
+          position: absolute;
+          top: 8px;
+          right: 8px;
+          background: rgba(255, 255, 255, 0.2);
+          border: none;
+          color: white;
+          width: 24px;
+          height: 24px;
+          border-radius: 50%;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 16px;
+          line-height: 1;
+          transition: background 0.2s;
+        }
+        .jj-close-btn:hover {
+          background: rgba(255, 255, 255, 0.3);
+        }
       </style>
+      <button class="jj-close-btn" onclick="this.parentElement.parentElement.remove();" title="Close for this page only">×</button>
       <div style="display: flex; align-items: center; margin-bottom: 12px;">
-        <span style="font-size: 24px; margin-right: 12px;" class="pulse">${isCloudflareVerification ? '🛡️' : '🤖'}</span>
-        <strong style="font-size: 16px;">${isCloudflareVerification ? 'Security Verification' : 'Robot Check Detected'}</strong>
+        <span style="font-size: 24px; margin-right: 12px;" class="pulse">🤖</span>
+        <strong style="font-size: 16px;">Robot Check Detected</strong>
       </div>
       <div style="margin-bottom: 12px; line-height: 1.4;">
-        ${
-          isCloudflareVerification
-            ? "Indeed is using Cloudflare to verify you're human. Please complete the verification to continue."
-            : 'Please complete the verification on this page to continue job discovery.'
-        }
+        Please complete the verification on this page to continue job discovery.
       </div>
       <div style="font-size: 12px; opacity: 0.9; background: rgba(255,255,255,0.1); padding: 8px; border-radius: 6px;">
         💡 JobJourney will automatically resume once completed
+      </div>
+      <div style="font-size: 11px; opacity: 0.7; margin-top: 8px; text-align: center;">
+        Click × to dismiss for this page only
       </div>
     </div>
   `;
@@ -407,12 +441,7 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
     // Wait longer before starting to check - give user time to see the notification
     setTimeout(() => {
       const checkInterval = setInterval(() => {
-        // More specific check for Cloudflare completion
-        const hasVerificationElements =
-          document.querySelector('h1#heading')?.textContent?.includes('Additional Verification Required') ||
-          document.querySelector('input[name="cf-turnstile-response"]') ||
-          document.querySelector('main.error') ||
-          document.body.textContent?.toLowerCase().includes('verify you are human');
+        const hasVerificationElements = detectRobotCheck();
 
         // Only resolve if we're sure the verification is really gone AND we can see job content
         const hasJobContent =
@@ -478,7 +507,7 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
           }, 3000);
 
           // Show overlay again using helper function
-          showScrapingOverlay('Resuming job discovery...', 'Robot check completed');
+          console.log('🔄 Resuming job discovery after robot check...');
 
           // Also try to send message to background
           try {
@@ -516,7 +545,8 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
 }
 
 const indeedScraper = {
-  isMatch: (url: string) => url.includes('indeed.com'),
+  // Temporarily disabled to avoid UI/verification issues; always return false
+  isMatch: (_url: string) => false,
   scrapeJobList: async () => {
     console.group('Indeed - Job Scraping - Click & Scrape');
 
@@ -525,7 +555,8 @@ const indeedScraper = {
     const startParam = urlParams.get('start');
     const isFirstPage = !startParam || startParam === '0';
 
-    // Only check for robot/Cloudflare verification on the first page
+    // Only check for robot verification on the first page
+    // Important: Verification only appears on first page, not on subsequent pages
     if (isFirstPage && detectRobotCheck()) {
       console.log('🤖 Robot check detected on first page, waiting for completion...');
       const completed = await waitForRobotCheckCompletion();
@@ -536,7 +567,7 @@ const indeedScraper = {
     }
 
     // Show overlay after verification complete and before scraping starts
-    showScrapingOverlay('Discovering Indeed Jobs...', 'Processing job listings');
+    console.log('🔄 Starting Indeed job discovery...');
 
     // Add a delay to handle bot checking issues
     const initialDelay = 4000; // 4 seconds to handle bot detection
@@ -553,18 +584,19 @@ const indeedScraper = {
     // const jobCardSelector = 'li div.cardOutline'
     // const jobCardSelector = 'div.jobsearch-SerpJobCard, div.result' // Alternative general selectors
 
-    let jobNodes = document.querySelectorAll(jobCardSelector);
+    let jobNodes = Array.from(document.querySelectorAll(jobCardSelector));
 
     // If the primary selector fails, try a broader one as fallback
     if (jobNodes.length === 0) {
       // console.warn("Primary selector '" + jobCardSelector + "' found 0 nodes. Trying fallback...")
       const fallbackSelector =
         'div.jobsearch-SerpJobCard, div.result, div.job_seen_beacon, li > div[class*="cardOutline"]';
-      jobNodes = document.querySelectorAll(fallbackSelector);
+      jobNodes = Array.from(document.querySelectorAll(fallbackSelector));
       console.log('Fallback selector found nodes:', jobNodes.length);
     }
 
     console.log('Found Indeed job nodes:', jobNodes.length);
+    const jobNodesToProcess = jobNodes.slice(0, Math.min(jobNodes.length, 25)); // sequential order
 
     // Check if we're already on a job details page
     const alreadyOnJobDetail =
@@ -578,8 +610,9 @@ const indeedScraper = {
       let lastSeenTitle = '';
 
       while (attempts < maxAttempts) {
-        // Check for robot check during panel loading
-        if (detectRobotCheck()) {
+        // Only check for robot check during panel loading on the first page
+        // Verification doesn't appear on subsequent pages per user observation
+        if (isFirstPage && detectRobotCheck()) {
           console.log('🤖 Robot check detected while waiting for job panel...');
           const completed = await waitForRobotCheckCompletion();
           if (!completed) {
@@ -594,6 +627,7 @@ const indeedScraper = {
 
         // Look for the main container and the description text
         const detailsPanel =
+          document.querySelector('.jobsearch-JobComponent') ||
           document.querySelector('div.fastviewjob') ||
           document.querySelector('div.jobsearch-ViewJobLayout--embedded') ||
           document.querySelector('.jobsearch-InfoHeaderContainer');
@@ -653,20 +687,24 @@ const indeedScraper = {
       // Still check for next page even on detail view
       const nextPageLink = document.querySelector('a[data-testid="pagination-page-next"]');
       nextUrl = nextPageLink ? (nextPageLink as HTMLAnchorElement).href : null;
+      if (jobs.length) {
+        storeScrapedJobs(jobs);
+      }
       console.groupEnd();
       return { jobs, nextUrl };
     }
 
     // Process job cards using the click and scrape method
-    for (let i = 0; i < Math.min(jobNodes.length, 25); i++) {
+    for (let i = 0; i < jobNodesToProcess.length; i++) {
       // Limit to 25 to avoid issues
-      const node = jobNodes[i];
+      const node = jobNodesToProcess[i];
       let basicInfo: any = {};
       let job = null;
 
       try {
-        // Check for robot check during scraping
-        if (detectRobotCheck()) {
+        // Only check for robot check during scraping on the first page
+        // Verification doesn't appear on subsequent pages per user observation
+        if (isFirstPage && detectRobotCheck()) {
           console.log('🤖 Robot check detected during scraping, pausing...');
           const completed = await waitForRobotCheckCompletion();
           if (!completed) {
@@ -686,7 +724,7 @@ const indeedScraper = {
             data: {
               platform: 'indeed',
               current: i + 1,
-              total: Math.min(jobNodes.length, 25),
+              total: jobNodesToProcess.length,
               jobsFound: jobs.length,
             },
           });
@@ -791,8 +829,23 @@ const indeedScraper = {
 
         const descriptionSnippet =
           descriptionSnippetNode?.textContent?.trim().replace(/…$/, '').replace(/\s+/g, ' ').trim() || '';
-        const companyLogoUrl =
-          (node.querySelector('img.companyAvatar, [data-testid="companyAvatar"] img') as HTMLImageElement)?.src || null; // Added testid selector
+        // Try multiple selectors for company logo, matching single job scraper approach
+        const logoSelectors = [
+          'img.companyAvatar',
+          '[data-testid="companyAvatar"] img',
+          'img[data-testid="jobsearch-JobInfoHeader-logo-overlay-lower"]',
+          'img.jobsearch-JobInfoHeader-logo',
+          'img.jobsearch-JobInfoHeader-logo-overlay-lower',
+        ];
+
+        let companyLogoUrl = null;
+        for (const selector of logoSelectors) {
+          const logoElement = node.querySelector(selector) as HTMLImageElement;
+          if (logoElement?.src) {
+            companyLogoUrl = logoElement.src;
+            break;
+          }
+        }
 
         // Attempt to find job URL from various places
         let jobUrl = '';
@@ -836,13 +889,14 @@ const indeedScraper = {
 
         console.log(`Basic info for card ${i + 1}: ${basicInfo.title} at ${basicInfo.company}`);
 
-        // --- 2. Click Card to Load Details ---
+        // --- 2. Scroll & Click Card to Load Details ---
+        // Prefer internal card/title links that keep us on the SERP; avoid generic anchors that may navigate away
         const clickableElement =
           node.querySelector('h2 a[data-jk], a.jcs-JobTitle[data-jk]') || // Specific title links
           node.querySelector('a[id^="sj_"]') || // Specific ID links
-          node.closest('a') || // The whole card might be a link
-          titleNode || // Fallback to title node itself
-          node; // Absolute fallback to the node
+          (node.closest('[data-jk]') as HTMLElement) || // Card container with data-jk
+          (titleNode as HTMLElement) || // Fallback to title node itself
+          (node as HTMLElement); // Absolute fallback to the node
 
         if (!clickableElement) {
           console.warn(`Could not find clickable element for card ${i + 1}. Using basic info.`);
@@ -856,13 +910,32 @@ const indeedScraper = {
           (clickableElement as Element).tagName,
           (clickableElement as Element).className,
         );
-        (clickableElement as HTMLElement).click();
+
+        if (clickableElement instanceof HTMLAnchorElement) {
+          clickableElement.removeAttribute('target');
+          clickableElement.rel = 'noopener';
+        }
+
+        // Scroll near the card before clicking to mimic real interaction
+        const rect = (clickableElement as HTMLElement).getBoundingClientRect();
+        const scrollTarget = Math.max(0, rect.top + window.scrollY - 200 + Math.random() * 120);
+        window.scrollTo({ top: scrollTarget, behavior: 'smooth' });
+        await new Promise(r => setTimeout(r, 400 + Math.floor(Math.random() * 400)));
+
+        // Dispatch a synthetic click to load the side panel without opening a new page
+        const clickEvent = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          view: window,
+        });
+        (clickableElement as HTMLElement).dispatchEvent(clickEvent);
 
         // --- 3. Wait for and Scrape Details Panel ---
         const panelElement = await waitForJobDetailsPanel(basicInfo.title);
 
         if (panelElement) {
           console.log(`Panel loaded for job ${i + 1}. Scraping details...`);
+          await mimicPanelScroll(panelElement);
           const jobDetail = scrapeIndeedJobDetailPanel(panelElement, basicInfo); // Pass basicInfo as fallback
 
           if (jobDetail && jobDetail.title) {
@@ -880,9 +953,10 @@ const indeedScraper = {
 
         jobs.push(job);
 
-        // --- 4. Delay ---
-        const baseDelay = 400; // 400ms between job clicks
-        const totalDelay = baseDelay;
+        // --- 4. Delay with jitter to reduce request burstiness ---
+        const baseDelay = 2000; // minimum delay between job clicks
+        const randomJitter = Math.floor(Math.random() * 2000); // add up to 2000ms extra
+        const totalDelay = baseDelay + randomJitter;
         console.log(`Waiting ${totalDelay}ms before next Indeed job click...`);
         await new Promise(r => setTimeout(r, totalDelay));
       } catch (error) {
@@ -898,48 +972,43 @@ const indeedScraper = {
       }
     }
 
-    // Get next page URL (check after loop)
-    const nextPageLink = document.querySelector('a[data-testid="pagination-page-next"]');
-    nextUrl = nextPageLink ? (nextPageLink as HTMLAnchorElement).href : null;
+    // Get next page URL (check after loop) with fallbacks
+    const getNextPageUrl = () => {
+      // Primary selectors for next pagination link
+      const nextPageLink =
+        document.querySelector('a[data-testid="pagination-page-next"]') ||
+        document.querySelector('nav[aria-label*="pagination"] a[aria-label*="Next" i]') ||
+        document.querySelector('a[aria-label*="Next" i]');
+
+      if (nextPageLink) {
+        const isDisabled = (nextPageLink as HTMLElement).getAttribute('aria-disabled') === 'true';
+        const href = (nextPageLink as HTMLAnchorElement).href;
+        if (!isDisabled && href) {
+          return href.startsWith('http') ? href : new URL(href, window.location.href).href;
+        }
+      }
+
+      // Fallback: derive next page via start param when pagination UI is not link-based
+      const paginationContainer = document.querySelector('nav[aria-label*="pagination"], nav[role="navigation"]');
+      if (!paginationContainer || jobNodes.length === 0) {
+        return null;
+      }
+
+      const currentUrl = new URL(window.location.href);
+      const currentStart = parseInt(currentUrl.searchParams.get('start') || '0', 10);
+      // Guess page size from cards on page (Indeed commonly serves 10-15 per page)
+      const pageSizeGuess = Math.max(10, Math.min(25, jobNodes.length));
+      currentUrl.searchParams.set('start', (currentStart + pageSizeGuess).toString());
+      return currentUrl.toString();
+    };
+
+    nextUrl = getNextPageUrl();
 
     console.log(`Scraped ${jobs.length} jobs from Indeed page`);
     console.log('Next Indeed page URL:', nextUrl);
 
-    // Store jobs in localStorage with quota management
-    try {
-      // First, try to clear old data if it exists
-      const existingJobsStr = localStorage.getItem('jobjourney_scraped_jobs') || '[]';
-      let existingJobs = [];
-
-      try {
-        existingJobs = JSON.parse(existingJobsStr);
-      } catch (parseError) {
-        console.warn('Failed to parse existing jobs, starting fresh:', parseError);
-        existingJobs = [];
-      }
-
-      // Limit total jobs to prevent quota issues (keep only last 1000 jobs)
-      const maxJobs = 1000;
-      const allJobs = [...existingJobs, ...jobs];
-      const trimmedJobs = allJobs.slice(-maxJobs); // Keep only the most recent jobs
-
-      localStorage.setItem('jobjourney_scraped_jobs', JSON.stringify(trimmedJobs));
-      localStorage.setItem('jobjourney_last_scrape', new Date().toISOString());
-      console.log(
-        `💾 Stored ${jobs.length} Indeed jobs in localStorage (total: ${trimmedJobs.length}, trimmed from ${allJobs.length})`,
-      );
-    } catch (error) {
-      console.error('Failed to store jobs in localStorage:', error);
-      // Try to clear only job data and store current page jobs (preserve user preferences)
-      try {
-        localStorage.removeItem('jobjourney_scraped_jobs');
-        localStorage.removeItem('jobjourney_last_scrape');
-        localStorage.setItem('jobjourney_scraped_jobs', JSON.stringify(jobs));
-        localStorage.setItem('jobjourney_last_scrape', new Date().toISOString());
-        console.log(`💾 Stored ${jobs.length} Indeed jobs in localStorage (quota recovery, preferences preserved)`);
-      } catch (secondError) {
-        console.error('Failed to store jobs even after clearing:', secondError);
-      }
+    if (jobs.length) {
+      storeScrapedJobs(jobs);
     }
 
     console.groupEnd();

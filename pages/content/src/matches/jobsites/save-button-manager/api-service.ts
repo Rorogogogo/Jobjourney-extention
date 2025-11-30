@@ -1,6 +1,6 @@
 // API service for saving jobs
-import type { JobData, Platform } from './types';
 import { RPRequirementDetector } from './rp-requirement-detector';
+import type { JobData, Platform } from './types';
 
 export class ApiService {
   static async saveJob(jobData: JobData, platform: Platform): Promise<{ success: boolean; error?: string }> {
@@ -19,6 +19,7 @@ export class ApiService {
         EmploymentTypes: jobData.employmentTypes || '',
         WorkArrangement: jobData.workArrangement || '',
         CompanyLogoUrl: jobData.companyLogoUrl || null,
+        PlatformName: jobData.platform || platform,
         Status: 1, // Default to "Saved" status
         IsStarred: false,
         IsRPRequired: isRPRequired,

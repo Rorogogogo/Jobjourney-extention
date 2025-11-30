@@ -1,29 +1,49 @@
 // Job data extraction for different platforms
+import { analyzeJobDescription } from '../descriptionAnalysis';
 import type { JobData, Platform } from './types';
 
 export class JobDataExtractor {
   static extractJobData(platform: Platform): JobData | null {
     try {
+      let jobData: JobData | null = null;
+
       switch (platform) {
         case 'linkedin':
-          return this.extractLinkedInJobData();
+          jobData = this.extractLinkedInJobData();
+          break;
         case 'indeed':
-          return this.extractIndeedJobData();
+          jobData = this.extractIndeedJobData();
+          break;
         case 'seek':
-          return this.extractSeekJobData();
+          jobData = this.extractSeekJobData();
+          break;
+        case 'jora':
+          jobData = this.extractJoraJobData();
+          break;
         case 'reed':
-          return this.extractReedJobData();
+          jobData = this.extractReedJobData();
+          break;
         case 'macquarie':
-          return this.extractMacquarieJobData();
+          jobData = this.extractMacquarieJobData();
+          break;
         case 'atlassian':
-          return this.extractAtlassianJobData();
+          jobData = this.extractAtlassianJobData();
+          break;
         case 'westpac':
-          return this.extractWestpacJobData();
+          jobData = this.extractWestpacJobData();
+          break;
         case 'canva':
-          return this.extractCanvaJobData();
+          jobData = this.extractCanvaJobData();
+          break;
         default:
           return null;
       }
+
+      if (jobData && jobData.description) {
+        jobData.analysis = analyzeJobDescription(jobData.description);
+      }
+
+      return jobData;
     } catch (error) {
       console.warn(`Error extracting ${platform} job data:`, error);
       return null;
@@ -35,11 +55,15 @@ export class JobDataExtractor {
     const url = window.location.href;
 
     // LinkedIn job detail pages have URLs like:
-    // https://www.linkedin.com/jobs/view/123456789/
-    // or with currentJobId parameter
-    // We should NOT show button on /jobs/collections/ pages
-    if (url.includes('/jobs/collections/') && !url.includes('currentJobId=')) {
-      console.log('LinkedIn: On job collections page without specific job selected');
+    // 1. https://www.linkedin.com/jobs/view/123456789/
+    // 2. https://www.linkedin.com/jobs/collections/...?currentJobId=123456789
+    // 3. https://www.linkedin.com/jobs/search-results/?currentJobId=123456789
+    // We should show button when there's a specific currentJobId parameter OR on /jobs/view/ pages
+    const hasCurrentJobId = url.includes('currentJobId=');
+    const isDirectJobView = url.includes('/jobs/view/');
+
+    if (!hasCurrentJobId && !isDirectJobView) {
+      console.log('LinkedIn: Not on a job detail page - no currentJobId or direct view');
       return null;
     }
 
@@ -112,7 +136,7 @@ export class JobDataExtractor {
       title: titleElement.textContent?.trim() || '',
       company: companyElement.textContent?.trim() || '',
       location: locationElement?.textContent?.trim() || '',
-      jobUrl: window.location.href.split('?')[0],
+      jobUrl: window.location.href,
       description: descriptionElement?.textContent?.trim() || '',
       employmentTypes: jobTypeElement?.textContent?.trim() || '',
       platform: 'Indeed',
@@ -177,11 +201,71 @@ export class JobDataExtractor {
       title: titleElement.textContent?.trim() || '',
       company: companyElement.textContent?.trim() || '',
       location: locationElement?.textContent?.trim() || '',
-      jobUrl: window.location.href.split('?')[0],
+      jobUrl: window.location.href,
       description: descriptionElement?.textContent?.trim() || '',
       employmentTypes: workTypeElement?.textContent?.trim() || '',
       platform: 'SEEK',
       companyLogoUrl: companyLogoUrl,
+    };
+  }
+
+  private static extractJoraJobData(): JobData | null {
+    const activeCard = document.querySelector('.job-card[data-active="true"]');
+    const panel = document.querySelector('.jdv-content:not([data-hidden="true"])');
+
+    if (!activeCard && !panel) {
+      return null;
+    }
+
+    const titleElement = panel?.querySelector('h1') || activeCard?.querySelector('.job-title a.job-link, .job-title a');
+    const companyElement =
+      panel?.querySelector('.job-view-company, .job-company') || activeCard?.querySelector('.job-company');
+    const locationElement =
+      panel?.querySelector('.job-view-location, .job-location') || activeCard?.querySelector('.job-location');
+    const descriptionElement =
+      panel?.querySelector(
+        '.job-description-container, .job-description, .job-view-body, [data-testid="job-description"]',
+      ) || panel;
+
+    const linkElement =
+      activeCard?.querySelector<HTMLAnchorElement>('.job-title a.job-link, .job-title a') ||
+      (titleElement as HTMLAnchorElement);
+
+    let jobUrl = window.location.href;
+    if (linkElement?.href) {
+      try {
+        jobUrl = new URL(linkElement.href, window.location.origin).href;
+      } catch {
+        jobUrl = linkElement.href;
+      }
+    }
+
+    const badgeTexts = Array.from(panel?.querySelectorAll('.badge .content') || [])
+      .map(el => el.textContent?.trim() || '')
+      .filter(Boolean);
+
+    const jobTypeBadge = badgeTexts.find(text => /full time|part time|contract|permanent|casual/i.test(text));
+    const workArrangementBadge = badgeTexts.find(text => /hybrid|remote|on[- ]?site/i.test(text));
+
+    const rawDescription = descriptionElement?.textContent?.trim() || '';
+    const description = rawDescription
+      .replace(/\s+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+
+    const companyLogoUrl =
+      (panel?.querySelector('.job-view-company-logo img, .company-logo img') as HTMLImageElement)?.src || undefined;
+
+    return {
+      title: titleElement?.textContent?.trim() || '',
+      company: companyElement?.textContent?.trim() || '',
+      location: locationElement?.textContent?.trim() || '',
+      jobUrl,
+      description,
+      employmentTypes: jobTypeBadge || '',
+      workArrangement: workArrangementBadge || '',
+      platform: 'Jora',
+      companyLogoUrl,
     };
   }
 
@@ -214,24 +298,25 @@ export class JobDataExtractor {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.title.title--11');
-    
+
     // Company is always Macquarie Group for this domain
     const company = 'Macquarie Group';
 
     const locationElement = document.querySelector(
-      '.article__content__view__field.field--location .article__content__view__field__value'
+      '.article__content__view__field.field--location .article__content__view__field__value',
     );
 
     const employmentTypeElement = document.querySelector(
-      '.article__content__view__field.field--employmentterm .article__content__view__field__value'
+      '.article__content__view__field.field--employmentterm .article__content__view__field__value',
     );
 
     // Extract job description from all relevant sections
     const descriptionElements = document.querySelectorAll('.article__content__view__field__value');
     let description = '';
-    descriptionElements.forEach((element) => {
+    descriptionElements.forEach(element => {
       const text = element.textContent?.trim();
-      if (text && text.length > 50) { // Only include substantial content
+      if (text && text.length > 50) {
+        // Only include substantial content
         description += text + '\n\n';
       }
     });
@@ -245,7 +330,7 @@ export class JobDataExtractor {
       title: titleElement.textContent?.trim() || '',
       company,
       location: locationElement?.textContent?.trim() || '',
-      jobUrl: window.location.href.split('?')[0],
+      jobUrl: window.location.href,
       description: description.trim(),
       employmentTypes: employmentTypeElement?.textContent?.trim() || '',
       platform: 'Macquarie Group',
@@ -263,7 +348,7 @@ export class JobDataExtractor {
 
     // Extract job information based on the provided HTML structure
     const titleElement = document.querySelector('.default.heading');
-    
+
     if (!titleElement) {
       console.warn('Atlassian: Could not find job title');
       return null;
@@ -276,7 +361,7 @@ export class JobDataExtractor {
     const highlightElement = document.querySelector('.job-posting-detail--highlight');
     let location = '';
     let department = '';
-    
+
     if (highlightElement) {
       const highlightText = highlightElement.textContent?.trim() || '';
       // Format: "Engineering | Sydney, Australia | Remote, Remote |"
@@ -319,7 +404,7 @@ export class JobDataExtractor {
 
     // Extract job information based on the Oracle HCM structure
     const titleElement = document.querySelector('.job-details__title');
-    
+
     if (!titleElement) {
       console.warn('Westpac: Could not find job title');
       return null;
@@ -333,7 +418,7 @@ export class JobDataExtractor {
     if (!locationElement) {
       // Alternative: look in job meta for locations
       const metaItems = document.querySelectorAll('.job-meta__item');
-      metaItems.forEach((item) => {
+      metaItems.forEach(item => {
         const titleEl = item.querySelector('.job-meta__title');
         if (titleEl?.textContent?.trim() === 'Locations') {
           locationElement = item.querySelector('.job-meta__pin-item');
@@ -344,7 +429,7 @@ export class JobDataExtractor {
       // Another alternative: direct posting locations selector
       locationElement = document.querySelector('posting-locations span');
     }
-    
+
     // Extract job description from the main content
     const descriptionElement = document.querySelector('.job-details__description-content.basic-formatter');
     let description = '';
@@ -355,7 +440,7 @@ export class JobDataExtractor {
     // Extract job schedule (Full time, Part time, etc.)
     const scheduleElements = document.querySelectorAll('.job-meta__item');
     let jobSchedule = '';
-    scheduleElements.forEach((element) => {
+    scheduleElements.forEach(element => {
       const titleElement = element.querySelector('.job-meta__title');
       const valueElement = element.querySelector('.job-meta__subitem');
       if (titleElement?.textContent?.trim() === 'Job Schedule' && valueElement) {
@@ -385,7 +470,7 @@ export class JobDataExtractor {
 
     // Extract job information based on the Canva structure
     const titleElement = document.querySelector('.hero-heading');
-    
+
     if (!titleElement) {
       console.warn('Canva: Could not find job title');
       return null;
@@ -397,7 +482,7 @@ export class JobDataExtractor {
     // Extract location from job meta list
     let location = '';
     const jobMetaItems = document.querySelectorAll('.job-meta li');
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Country') {
         const links = item.querySelectorAll('a');
@@ -410,7 +495,7 @@ export class JobDataExtractor {
 
     // Extract job schedule (Full-time, etc.)
     let jobSchedule = '';
-    jobMetaItems.forEach((item) => {
+    jobMetaItems.forEach(item => {
       const label = item.querySelector('p');
       if (label?.textContent?.trim() === 'Schedule') {
         const span = item.querySelector('span');

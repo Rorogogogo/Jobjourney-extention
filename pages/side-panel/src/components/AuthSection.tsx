@@ -1,5 +1,5 @@
+import React, { useState, useEffect } from 'react';
 import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
-import React, { useState } from 'react';
 
 interface AuthStatus {
   isAuthenticated: boolean;
@@ -17,15 +17,14 @@ interface AuthStatus {
 interface AuthSectionProps {
   authStatus: AuthStatus;
   isAuthenticated: boolean;
-  onAuthCheck: () => void;
 }
 
-export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenticated, onAuthCheck }) => {
+export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenticated }) => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [githubStars, setGithubStars] = useState<number | null>(null);
 
   // Load GitHub stars
-  React.useEffect(() => {
+  useEffect(() => {
     fetch('https://api.github.com/repos/Rorogogogo/Jobjourney-extention')
       .then(res => res.json())
       .then(data => setGithubStars(data.stargazers_count))
@@ -77,8 +76,8 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
 
   return (
     <>
-      <div className="flex flex-1 items-center justify-end">
-        <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center justify-end">
+        <div className="flex items-center gap-2">
           {!isAuthenticated ? (
             <div className="flex gap-2">
               <button
@@ -88,8 +87,8 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
               </button>
             </div>
           ) : (
-            <div
-              className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 transition-all duration-300 hover:bg-white/10"
+            <button
+              className="flex cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 transition-all duration-300 hover:bg-white/10"
               title="Click for user details"
               onClick={() => setShowUserModal(true)}>
               {authStatus.user?.avatar ? (
@@ -97,23 +96,25 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
               ) : (
                 <span className="text-base">👤</span>
               )}
-              <span className="text-xs font-medium text-white">{authStatus.user?.firstName || 'User'}</span>
+              <span className="whitespace-nowrap text-xs font-medium text-white">
+                {authStatus.user?.firstName || 'User'}
+              </span>
               {authStatus.user?.isPro && (
                 <span className="rounded-full bg-gradient-to-r from-yellow-400 to-yellow-300 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-black">
                   PRO
                 </span>
               )}
-            </div>
+            </button>
           )}
 
           <button
-            className="cursor-pointer rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
+            className="cursor-pointer whitespace-nowrap rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
             onClick={handleDashboard}>
             Dashboard
           </button>
 
           <button
-            className="flex cursor-pointer items-center gap-1 rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
+            className="flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
             onClick={handleGitHub}
             title="Star us on GitHub">
             <svg className="h-2.5 w-2.5" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg">
@@ -124,7 +125,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
                 fill="currentColor"
               />
             </svg>
-            ⭐ {githubStars !== null ? githubStars : 'Loading...'}
+            {githubStars !== null ? githubStars : 'Loading...'} ⭐
           </button>
         </div>
       </div>
@@ -132,11 +133,24 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
       {/* User Info Modal */}
       {showUserModal && (
         <div
+          role="button"
+          tabIndex={0}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={() => setShowUserModal(false)}>
+          onClick={() => setShowUserModal(false)}
+          onKeyDown={e => {
+            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setShowUserModal(false);
+            }
+          }}>
           <div
+            role="dialog"
+            aria-modal="true"
             className="max-h-[90vh] w-[90%] max-w-md overflow-hidden rounded-xl border border-gray-700 bg-gray-800"
-            onClick={e => e.stopPropagation()}>
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => {
+              e.stopPropagation();
+            }}>
             <div className="flex items-center justify-between border-b border-gray-700 p-4">
               <h3 className="text-base font-semibold">User Information</h3>
               <button
