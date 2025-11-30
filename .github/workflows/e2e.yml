@@ -23,11 +23,3 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile --prefer-offline
       - run: pnpm ${{ matrix.browser == 'chrome' && 'e2e' || 'e2e:firefox' }}
-      
-      - name: Upload test results (for AI analysis)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results-${{ matrix.browser }}
-          path: tests/e2e/test-results/*.json
-          retention-days: 30
