@@ -1,21 +1,31 @@
-# JobJourney Browser Extension
-
 <div align="center">
 
-<picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/99cb6303-64e4-4bed-bf3f-35735353e6de" />
-    <source media="(prefers-color-scheme: light)" srcset="https://github.com/user-attachments/assets/a5dbf71c-c509-4c4f-80f4-be88a1943b0a" />
-    <img alt="JobJourney Logo" src="https://github.com/user-attachments/assets/99cb6303-64e4-4bed-bf3f-35735353e6de" />
-</picture>
+<img alt="JobJourney Logo" src="chrome-extension/public/icon-128.png" width="128" />
 
-![](https://img.shields.io/badge/React-61DAFB?style=flat-square&logo=react&logoColor=black)
-![](https://img.shields.io/badge/Typescript-3178C6?style=flat-square&logo=typescript&logoColor=white)
-![](https://badges.aleen42.com/src/vitejs.svg)
-![](https://img.shields.io/badge/License-MIT-green.svg)
+# JobJourney Assistant
+### The Ultimate AI-Powered Job Search Companion
 
-**Enhance your job search workflow with the JobJourney Browser Extension.**
+[![Star on GitHub](https://img.shields.io/github/stars/Rorogogogo/Jobjourney-extention.svg?style=social)](https://github.com/Rorogogogo/Jobjourney-extention/stargazers)
+[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v3.0.4-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/jobjourney-assistant/YOUR_EXTENSION_ID)
 
-This powerful tool integrates directly with your browser and the [JobJourney platform](https://jobjourney.me) to streamline the process of finding and tracking job opportunities by automatically gathering listing details from popular job boards.
+![](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
+![](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=flat-square&logo=typescript&logoColor=white)
+![](https://img.shields.io/badge/Vite-5.0-646CFF?style=flat-square&logo=vite&logoColor=white)
+![](https://img.shields.io/badge/Tailwind_CSS-3.0-38B2AC?style=flat-square&logo=tailwind-css&logoColor=white)
+
+<br/>
+
+**Supercharge your job hunt with intelligent automation.**
+JobJourney Assistant seamlessly integrates with your browser to scrape, track, and organize job listings from LinkedIn, Indeed, SEEK, and more—all in one place.
+
+<br/>
+
+<img src="chrome-extension/public/Global_dasboard.png" alt="JobJourney Global Dashboard" width="100%" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
+
+<br/>
+
+[**Explore JobJourney Platform »**](https://jobjourney.me) · [Report Bug](https://github.com/Rorogogogo/Jobjourney-extention/issues) · [Request Feature](https://github.com/Rorogogogo/Jobjourney-extention/issues)
 
 </div>
 
@@ -31,35 +41,29 @@ This extension utilizes web scraping techniques to collect publicly available in
 
 By using this extension, you acknowledge and agree to these terms and responsibilities.
 
-## 🚀 Core Features
+## ✨ Key Features
 
-### Multi-Platform Scraping
-Automatically gathers job listing details from:
-- **LinkedIn** (linkedin.com/jobs)
-- **Indeed** (various regional sites)
-- **SEEK** (AU & NZ)
+### 🌐 Multi-Platform Intelligence
+Automatically detects and extracts job data from major platforms:
+- **LinkedIn** (Global)
+- **Indeed** (Global)
+- **SEEK** (Australia & New Zealand)
 - **Reed** (UK)
+- **JobJourney** (Native Integration)
 
-### Rich Data Extraction
-Captures key information including:
-- Job Title & Company Name
-- Location (including Remote/Hybrid when available)
-- Salary Information (when available)
-- Job Type (Full-time, Contract, etc.)
-- Posted Date & Company Logo
-- Job Description & Direct Link to Original Posting
+### 📊 Smart Data Extraction
+Instantly captures critical details with high precision:
+- 🏢 **Company & Role**: Job Title, Company Name, Logo
+- 📍 **Location**: City, State, Remote/Hybrid status
+- 💰 **Compensation**: Salary ranges (when available)
+- 📝 **Details**: Full job description, posted date, job type
+- 🔗 **Source**: Direct links to original postings
 
-### Side Panel Interface
-Provides a convenient panel within your browser to:
-- Initiate targeted job searches across selected platforms and locations
-- View scraped job results directly in the panel
-- Monitor scraping progress with real-time updates
-
-### JobJourney Integration
-- Authentication sync between extension and JobJourney web app
-- Centralized job application tracking
-- Sign-out functionality across all tabs
-- Event-driven authentication monitoring with toast notifications
+### 🚀 Seamless Workflow
+- **Side Panel Power**: Search and view results without leaving your current tab
+- **One-Click Save**: Add jobs to your JobJourney dashboard instantly
+- **Real-Time Sync**: Authentication and data syncs automatically with the web app
+- **Smart Notifications**: Get alerted when important actions occur
 
 ## 📦 Installation
 
@@ -214,6 +218,16 @@ For questions, bug reports, or feature requests:
 - Built with ❤️ for job seekers and tech enthusiasts
 - Thanks to all contributors and the open-source community
 - Based on the Chrome Extension Boilerplate with React + Vite + TypeScript
+
+---
+
+## 🌟 Support the Project
+
+If you find JobJourney Assistant helpful, please consider giving it a **Star**! ⭐️
+
+It helps more job seekers find this tool and motivates us to keep improving.
+
+[**Star this repository**](https://github.com/Rorogogogo/Jobjourney-extention/stargazers)
 
 ---
 
