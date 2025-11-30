@@ -1,12 +1,14 @@
 name: Lint Check
 
-on: [ pull_request_target ]
+on: [ pull_request ]
 
 jobs:
   eslint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
