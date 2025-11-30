@@ -39,14 +39,21 @@ export class ScraperFactory {
   static detectPlatform(): string | null {
     const hostname = window.location.hostname.toLowerCase();
 
-    if (hostname.includes('linkedin.com')) return 'linkedin';
-    if (hostname.includes('seek.com')) return 'seek';
-    if (hostname.includes('indeed.com')) return 'indeed';
-    if (hostname.includes('jora.com')) return 'jora';
-    if (hostname.includes('reed.co.uk')) return 'reed';
+    // Use exact hostname or subdomain matching to prevent injection attacks
+    if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) return 'linkedin';
+    if (
+      hostname === 'seek.com.au' ||
+      hostname.endsWith('.seek.com.au') ||
+      hostname === 'seek.co.nz' ||
+      hostname.endsWith('.seek.co.nz')
+    )
+      return 'seek';
+    if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';
+    if (hostname === 'jora.com' || hostname.endsWith('.jora.com')) return 'jora';
+    if (hostname === 'reed.co.uk' || hostname.endsWith('.reed.co.uk')) return 'reed';
     if (hostname === 'recruitment.macquarie.com') return 'macquarie';
-    if (hostname.includes('atlassian.com')) return 'atlassian';
-    if (hostname.includes('lifeatcanva.com')) return 'canva';
+    if (hostname === 'atlassian.com' || hostname.endsWith('.atlassian.com')) return 'atlassian';
+    if (hostname === 'lifeatcanva.com' || hostname === 'www.lifeatcanva.com') return 'canva';
 
     return null;
   }
