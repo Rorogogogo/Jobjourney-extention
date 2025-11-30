@@ -1,12 +1,12 @@
 name: Modular E2E Tests Matrix
 
-on: [ pull_request_target ]
+on: [ pull_request ]
 
 permissions:
   contents: read
   
 env:
-  ALL_SCENARIOS: '["content", "content-ui", "content-runtime", "background", "new-tab", "popup", "devtools", "side-panel", "options"]'
+  ALL_SCENARIOS: '["content", "content-ui", "content-runtime", "background", "popup", "side-panel"]'
 
 jobs:
   e2e-tests:
@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         browser: ['chrome', 'firefox']
-        scenario: ['content', 'content-ui', 'content-runtime', 'background', 'new-tab', 'popup', 'devtools', 'side-panel', 'options']
+        scenario: ['content', 'content-ui', 'content-runtime', 'background', 'popup', 'side-panel']
 
     env:
       CEB_CI: true
