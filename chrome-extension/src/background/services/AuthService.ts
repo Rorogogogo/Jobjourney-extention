@@ -1,11 +1,11 @@
 // Authentication Service for JobJourney Extension
-import { STORAGE_KEYS } from './StorageService';
 import { getJobJourneyBaseUrl, getJobMarketUrl, getAuthUrl } from '../utils/environment';
 import { Logger } from '../utils/Logger';
+import type { AuthStatus } from '../types';
+import { STORAGE_KEYS } from './StorageService';
 import type { ConfigService } from './ConfigService';
 import type { EventManager } from './EventManager';
 import type { StorageService } from './StorageService';
-import type { AuthStatus } from '../types';
 
 export class AuthService {
   private isAuthenticated = false;

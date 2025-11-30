@@ -1,4 +1,7 @@
+import { readFileSync } from 'node:fs';
 import type { ManifestType } from '@extension/shared';
+
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 /**
  * JobJourney Chrome Extension Manifest - PRODUCTION VERSION
@@ -10,11 +13,11 @@ import type { ManifestType } from '@extension/shared';
 const manifest = {
   manifest_version: 3,
   name: 'JobJourney Assistant',
-  version: '3.0.8',
+  version: packageJson.version,
   description:
     'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
-  permissions: ['tabs', 'storage', 'sidePanel', 'scripting', 'activeTab', 'alarms'],
+  permissions: ['tabs', 'storage', 'scripting', 'activeTab', 'alarms', 'sidePanel'],
   host_permissions: [
     '*://*.linkedin.com/*',
     '*://*.seek.com.au/*',
@@ -29,28 +32,22 @@ const manifest = {
   action: {
     default_title: 'JobJourney Assistant',
   },
-  background: {
-    service_worker: 'background.js',
-    type: 'module',
-  },
-  side_panel: {
-    default_path: 'side-panel/index.html',
-  },
   content_scripts: [
     {
-      matches: [
-        '*://*.linkedin.com/*',
-        '*://*.seek.com.au/*',
-        '*://*.seek.co.nz/*',
-        '*://*.indeed.com/*',
-        '*://recruitment.macquarie.com/*',
-        '*://*.atlassian.com/*',
-        '*://ebuu.fa.ap1.oraclecloud.com/*',
-        '*://www.lifeatcanva.com/*',
-        '*://*.jobjourney.me/*',
-      ],
-      js: ['content/jobsites.iife.js'],
-      run_at: 'document_idle',
+      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+      js: ['content/all.iife.js'],
+    },
+    {
+      matches: ['https://example.com/*'],
+      js: ['content/example.iife.js'],
+    },
+    {
+      matches: ['http://*/*', 'https://*/*', '<all_urls>'],
+      js: ['content-ui/all.iife.js'],
+    },
+    {
+      matches: ['https://example.com/*'],
+      js: ['content-ui/example.iife.js'],
     },
   ],
   web_accessible_resources: [
@@ -74,6 +71,18 @@ const manifest = {
     '48': 'icon-48.png',
     '128': 'icon-128.png',
   },
+  background: {
+    service_worker: 'background.js',
+    type: 'module',
+  },
+  chrome_url_overrides: {
+    newtab: 'new-tab/index.html',
+  },
+  devtools_page: 'devtools/index.html',
+  side_panel: {
+    default_path: 'side-panel/index.html',
+  },
+  options_page: 'options/index.html',
 } satisfies ManifestType;
 
 export default manifest;

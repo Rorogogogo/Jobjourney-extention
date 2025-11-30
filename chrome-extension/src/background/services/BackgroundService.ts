@@ -1,4 +1,6 @@
 // Background Service Worker - Main Entry Point
+import { Logger } from '../utils/Logger';
+import type { ScrapingSession, ChromeMessage } from '../types';
 import { ApiService } from './ApiService';
 import { AuthService } from './AuthService';
 
@@ -14,8 +16,6 @@ import { ConfigService } from './ConfigService';
 import { EventManager } from './EventManager';
 import { ScrapingService } from './ScrapingService';
 import { StorageService } from './StorageService';
-import { Logger } from '../utils/Logger';
-import type { ScrapingSession, ChromeMessage } from '../types';
 
 export class BackgroundService {
   private initialized = false;
