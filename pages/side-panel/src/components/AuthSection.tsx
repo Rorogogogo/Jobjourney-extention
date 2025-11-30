@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 
 interface AuthStatus {
@@ -20,12 +20,12 @@ interface AuthSectionProps {
   onAuthCheck: () => void;
 }
 
-export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenticated, onAuthCheck }) => {
+export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenticated }) => {
   const [showUserModal, setShowUserModal] = useState(false);
   const [githubStars, setGithubStars] = useState<number | null>(null);
 
   // Load GitHub stars
-  React.useEffect(() => {
+  useEffect(() => {
     fetch('https://api.github.com/repos/Rorogogogo/Jobjourney-extention')
       .then(res => res.json())
       .then(data => setGithubStars(data.stargazers_count))
@@ -88,8 +88,8 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
               </button>
             </div>
           ) : (
-            <div
-              className="flex cursor-pointer items-center gap-1.5 rounded-md px-2 py-1 transition-all duration-300 hover:bg-white/10"
+            <button
+              className="flex cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 transition-all duration-300 hover:bg-white/10"
               title="Click for user details"
               onClick={() => setShowUserModal(true)}>
               {authStatus.user?.avatar ? (
@@ -105,7 +105,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
                   PRO
                 </span>
               )}
-            </div>
+            </button>
           )}
 
           <button
@@ -134,11 +134,17 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
       {/* User Info Modal */}
       {showUserModal && (
         <div
+          role="button"
+          tabIndex={0}
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={() => setShowUserModal(false)}>
+          onClick={() => setShowUserModal(false)}
+          onKeyDown={e => e.key === 'Escape' && setShowUserModal(false)}>
           <div
+            role="dialog"
+            aria-modal="true"
             className="max-h-[90vh] w-[90%] max-w-md overflow-hidden rounded-xl border border-gray-700 bg-gray-800"
-            onClick={e => e.stopPropagation()}>
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-gray-700 p-4">
               <h3 className="text-base font-semibold">User Information</h3>
               <button

@@ -1,5 +1,4 @@
-import { useStorage, withErrorBoundary, withSuspense } from '@extension/shared';
-import { exampleThemeStorage } from '@extension/storage';
+import { withErrorBoundary, withSuspense } from '@extension/shared';
 import { cn, ErrorDisplay, LoadingSpinner } from '@extension/ui';
 import { useState, useEffect } from 'react';
 import { AuthSection } from './components/AuthSection';
@@ -13,7 +12,6 @@ import { useJobJourneyState } from './hooks/useJobJourneyState';
 type ViewType = 'search' | 'progress' | 'results' | 'error';
 
 const SidePanel = () => {
-  const { isLight } = useStorage(exampleThemeStorage);
   const [currentView, setCurrentView] = useState<ViewType>('search');
 
   const {
@@ -40,11 +38,11 @@ const SidePanel = () => {
     }
   }, [searchProgress, searchResults, searchError]);
 
-  const handleStartSearch = async (searchConfig: any) => {
+  const handleStartSearch = async (searchConfig: Record<string, unknown>) => {
     try {
       setCurrentView('progress');
       await startJobSearch(searchConfig);
-    } catch (error) {
+    } catch {
       setCurrentView('error');
     }
   };
