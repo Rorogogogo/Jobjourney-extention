@@ -161,7 +161,14 @@ const buildJobUrl = (anchor: HTMLAnchorElement | null): string => {
 };
 
 const joraScraper = {
-  isMatch: (url: string) => url.includes('jora.com'),
+  isMatch: (url: string) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return hostname === 'jora.com' || hostname.endsWith('.jora.com');
+    } catch {
+      return false;
+    }
+  },
   scrapeJobList: async () => {
     const jobs: any[] = [];
     const jobCards = Array.from(document.querySelectorAll('.job-card[data-jd-payload]'));

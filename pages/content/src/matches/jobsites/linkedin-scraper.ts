@@ -571,7 +571,14 @@ const scrapeJobDetailFromPanel = (): any => {
 
 // LinkedIn scraper object - exact copy from working version
 const linkedInScraper = {
-  isMatch: (url: string) => url.includes('linkedin.com'),
+  isMatch: (url: string) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com');
+    } catch {
+      return false;
+    }
+  },
   scrapeJobList: async () => {
     // Add a 1-second delay at the beginning of scraping each page
     console.log('Waiting 1 second after page load before starting LinkedIn scrape...');

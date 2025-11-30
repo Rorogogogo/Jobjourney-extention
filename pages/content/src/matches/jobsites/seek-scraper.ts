@@ -126,7 +126,19 @@ async function scrapeSeekJobDetailPanel(basicInfo: any = {}): Promise<any> {
 
 // SEEK scraper object
 const seekScraper = {
-  isMatch: (url: string) => url.includes('seek.com.au') || url.includes('seek.co.nz'),
+  isMatch: (url: string) => {
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      return (
+        hostname === 'seek.com.au' ||
+        hostname.endsWith('.seek.com.au') ||
+        hostname === 'seek.co.nz' ||
+        hostname.endsWith('.seek.co.nz')
+      );
+    } catch {
+      return false;
+    }
+  },
   scrapeJobList: async () => {
     const jobs: any[] = [];
     console.log('=== SEEK Scraping Started ===');
