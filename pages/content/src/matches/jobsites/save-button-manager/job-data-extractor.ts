@@ -1,5 +1,6 @@
 // Job data extraction for different platforms
 import { analyzeJobDescription } from '../descriptionAnalysis';
+import { AppliedStatusDetector } from './applied-status-detector';
 import type { JobData, Platform } from './types';
 
 export class JobDataExtractor {
@@ -41,6 +42,15 @@ export class JobDataExtractor {
 
       if (jobData && jobData.description) {
         jobData.analysis = analyzeJobDescription(jobData.description);
+      }
+
+      // Detect applied status for supported platforms
+      if (jobData && ['linkedin', 'seek', 'jora'].includes(platform)) {
+        const appliedStatus = AppliedStatusDetector.detectAppliedStatus(platform);
+        if (appliedStatus.isApplied) {
+          jobData.isAlreadyApplied = true;
+          jobData.appliedDateUtc = appliedStatus.appliedDateUtc;
+        }
       }
 
       return jobData;

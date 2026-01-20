@@ -1,6 +1,50 @@
 // LinkedIn scraper from working version
 export {};
 
+// Helper function to parse relative time strings to UTC ISO date
+function parseRelativeTimeToUtc(text: string): string | null {
+  const lowerText = text.toLowerCase();
+  const now = new Date();
+
+  const patterns = [
+    { regex: /(\d+)\s*minute/i, unit: 'minutes' },
+    { regex: /(\d+)\s*hour/i, unit: 'hours' },
+    { regex: /(\d+)\s*day/i, unit: 'days' },
+    { regex: /(\d+)\s*week/i, unit: 'weeks' },
+    { regex: /(\d+)\s*month/i, unit: 'months' },
+  ];
+
+  for (const { regex, unit } of patterns) {
+    const match = lowerText.match(regex);
+    if (match) {
+      const value = parseInt(match[1], 10);
+      const date = new Date(now);
+
+      switch (unit) {
+        case 'minutes':
+          date.setMinutes(date.getMinutes() - value);
+          break;
+        case 'hours':
+          date.setHours(date.getHours() - value);
+          break;
+        case 'days':
+          date.setDate(date.getDate() - value);
+          break;
+        case 'weeks':
+          date.setDate(date.getDate() - value * 7);
+          break;
+        case 'months':
+          date.setMonth(date.getMonth() - value);
+          break;
+      }
+
+      return date.toISOString();
+    }
+  }
+
+  return null;
+}
+
 // Helper function to clean up empty tags and those that only contain comments
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 function cleanupEmptyTags(node: any) {
@@ -547,6 +591,31 @@ const scrapeJobDetailFromPanel = (): any => {
       return null;
     }
 
+    // --- Detect Already Applied Status ---
+    let isAlreadyApplied = false;
+    let appliedDateUtc: string | null = null;
+
+    // Check for "Applied X ago" message in the apply section
+    const appliedFeedback = panel.querySelector('.artdeco-inline-feedback--success .artdeco-inline-feedback__message');
+    if (appliedFeedback) {
+      const appliedText = appliedFeedback.textContent?.trim() || '';
+      if (appliedText.toLowerCase().includes('applied')) {
+        isAlreadyApplied = true;
+        // Parse relative time (e.g., "Applied 1 minute ago", "Applied 2 hours ago")
+        appliedDateUtc = parseRelativeTimeToUtc(appliedText);
+        console.log('LinkedIn: Detected already applied:', appliedText, '-> Date:', appliedDateUtc);
+      }
+    }
+
+    // Secondary check: "See application" link
+    if (!isAlreadyApplied) {
+      const seeApplicationLink = panel.querySelector('a[href*="/jobs/tracker/applied/"]');
+      if (seeApplicationLink) {
+        isAlreadyApplied = true;
+        console.log('LinkedIn: Detected applied via "See application" link');
+      }
+    }
+
     // Use the Job class static factory method
     const job = (window as any).Job.createFromLinkedIn({
       title,
@@ -560,6 +629,8 @@ const scrapeJobDetailFromPanel = (): any => {
       jobType,
       workplaceType,
       applicantCount,
+      isAlreadyApplied,
+      appliedDateUtc,
     });
 
     console.log('Scraped LinkedIn job detail from panel:', job);

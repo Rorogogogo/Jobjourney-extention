@@ -63,12 +63,42 @@ export class SaveButtonManager implements ISaveButtonManager {
         this.currentJobData = null;
         this.currentPRDetection = null;
 
-        this.detectAndCreateButton();
+        // For SPA navigation, the DOM might not be ready yet
+        // Use retry mechanism to wait for content to load
+        this.detectWithRetry(isLinkedIn ? 10 : 5, 300);
       } else {
         // Regular detection for dynamic content
         this.detectAndCreateButton();
       }
     }, urlCheckInterval);
+  }
+
+  /**
+   * Retry detection with exponential backoff for SPA navigation
+   * This handles cases where DOM content isn't immediately available
+   */
+  private detectWithRetry(maxRetries: number, delayMs: number, attempt: number = 0): void {
+    const platform = PlatformDetector.getCurrentPlatform();
+    if (!platform) {
+      return;
+    }
+
+    const jobData = JobDataExtractor.extractJobData(platform);
+
+    if (jobData) {
+      // Success - create button
+      if (this.shouldCreateButton(jobData)) {
+        this.createOrUpdateButton(jobData, platform);
+      }
+      return;
+    }
+
+    // No job data found, retry if we have attempts left
+    if (attempt < maxRetries) {
+      setTimeout(() => {
+        this.detectWithRetry(maxRetries, delayMs, attempt + 1);
+      }, delayMs);
+    }
   }
 
   detectAndCreateButton(): void {
@@ -150,8 +180,15 @@ export class SaveButtonManager implements ISaveButtonManager {
     // Create button container div (now includes icon)
     const buttonContainer = ButtonComponent.createButtonContainer();
 
-    // Create badges (including PR status)
-    const badges = ButtonComponent.createBadges(this.currentJobData.analysis, this.currentPRDetection || undefined);
+    // Create badges (including PR status and applied status)
+    const appliedStatus = this.currentJobData.isAlreadyApplied
+      ? { isApplied: true, appliedDateUtc: this.currentJobData.appliedDateUtc }
+      : undefined;
+    const badges = ButtonComponent.createBadges(
+      this.currentJobData.analysis,
+      this.currentPRDetection || undefined,
+      appliedStatus,
+    );
     buttonContainer.appendChild(badges);
 
     // Create button (no PR badge on it anymore)

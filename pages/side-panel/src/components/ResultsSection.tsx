@@ -11,6 +11,9 @@ interface JobData {
   description?: string;
   salary?: string;
   postedDate?: string;
+  // Already applied detection
+  isAlreadyApplied?: boolean;
+  appliedDateUtc?: string | null;
 }
 
 interface SearchResults {

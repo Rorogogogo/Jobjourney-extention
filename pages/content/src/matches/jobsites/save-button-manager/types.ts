@@ -13,6 +13,16 @@ export interface JobData {
   platform: string;
   companyLogoUrl?: string;
   analysis?: JobAnalysisResult;
+  // Already applied detection
+  isAlreadyApplied?: boolean;
+  appliedDateUtc?: string; // ISO date string
+}
+
+export interface AppliedStatusResult {
+  isApplied: boolean;
+  appliedDateUtc?: string;
+  detectionSource: 'explicit' | 'inferred';
+  rawText?: string;
 }
 
 export interface PRDetectionResult {

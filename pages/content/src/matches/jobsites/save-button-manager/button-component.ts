@@ -170,7 +170,11 @@ export class ButtonComponent {
     }, 2500);
   }
 
-  static createBadges(analysis?: import('./types').JobData['analysis'], prDetection?: PRDetectionResult): HTMLElement {
+  static createBadges(
+    analysis?: import('./types').JobData['analysis'],
+    prDetection?: PRDetectionResult,
+    appliedStatus?: { isApplied: boolean; appliedDateUtc?: string },
+  ): HTMLElement {
     const container = document.createElement('div');
     container.style.cssText = `
       display: flex;
@@ -199,7 +203,38 @@ export class ButtonComponent {
       return badge;
     };
 
-    // 1. PR Status Badge (First for visibility)
+    // 0. Already Applied Badge (First for visibility)
+    if (appliedStatus?.isApplied) {
+      const color = '#15803d'; // green-700
+      const bg = '#f0fdf4'; // green-50
+      const border = '#bbf7d0'; // green-200
+
+      let text = 'Already Applied';
+      if (appliedStatus.appliedDateUtc) {
+        const date = new Date(appliedStatus.appliedDateUtc);
+        const now = new Date();
+        const diffMs = now.getTime() - date.getTime();
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+          const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+          if (diffHours === 0) {
+            const diffMinutes = Math.floor(diffMs / (1000 * 60));
+            text = diffMinutes <= 1 ? 'Applied just now' : `Applied ${diffMinutes}m ago`;
+          } else {
+            text = `Applied ${diffHours}h ago`;
+          }
+        } else if (diffDays < 7) {
+          text = `Applied ${diffDays}d ago`;
+        } else {
+          text = `Applied ${Math.floor(diffDays / 7)}w ago`;
+        }
+      }
+
+      container.appendChild(createBadge(text, color, bg, border));
+    }
+
+    // 1. PR Status Badge
     if (prDetection) {
       let color = '#15803d'; // emerald-700
       let bg = '#f0fdf4'; // emerald-50

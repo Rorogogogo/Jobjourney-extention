@@ -10,6 +10,9 @@ export interface JobData {
   workArrangement?: string;
   platform: string;
   companyLogoUrl?: string;
+  // Already applied detection
+  isAlreadyApplied?: boolean;
+  appliedDateUtc?: string | null;
 }
 
 export interface JobScraper {

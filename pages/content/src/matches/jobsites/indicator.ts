@@ -6,6 +6,33 @@
 
 const INDICATOR_HEIGHT = 36;
 const INDICATOR_ID = 'jobjourney-indicator';
+const INDICATOR_HIDDEN_KEY = 'jobjourney-indicator-hidden-until';
+const HIDE_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+// Check if the indicator should be hidden (user closed it within last 24 hours)
+async function isIndicatorHidden(): Promise<boolean> {
+  try {
+    const result = await chrome.storage.local.get(INDICATOR_HIDDEN_KEY);
+    const hiddenUntil = result[INDICATOR_HIDDEN_KEY];
+    if (hiddenUntil && Date.now() < hiddenUntil) {
+      return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+// Mark the indicator as hidden for 24 hours
+async function hideIndicatorFor24Hours(): Promise<void> {
+  try {
+    const hiddenUntil = Date.now() + HIDE_DURATION_MS;
+    await chrome.storage.local.set({ [INDICATOR_HIDDEN_KEY]: hiddenUntil });
+    console.log('🔒 JobJourney indicator hidden for 24 hours');
+  } catch (error) {
+    console.error('Failed to save indicator hidden state:', error);
+  }
+}
 
 // Helper to check if an element is a fixed header
 function isFixedHeader(el: Element): boolean {
@@ -122,7 +149,7 @@ function restoreLayout() {
 }
 
 // Create and inject JobJourney indicator strip
-export function createJobJourneyIndicator() {
+export async function createJobJourneyIndicator() {
   // Check if indicator already exists
   if (document.getElementById(INDICATOR_ID)) {
     return;
@@ -137,6 +164,12 @@ export function createJobJourneyIndicator() {
     hostname === '127.0.0.1'
   ) {
     console.log('🔒 Skipping indicator on JobJourney website');
+    return;
+  }
+
+  // Check if user closed the indicator within the last 24 hours
+  if (await isIndicatorHidden()) {
+    console.log('🔒 Indicator hidden by user (will reappear in less than 24 hours)');
     return;
   }
 
@@ -245,8 +278,11 @@ export function createJobJourneyIndicator() {
   // Add close button handler
   const closeBtn = indicator.querySelector('#jobjourney-close-btn');
   if (closeBtn) {
-    closeBtn.addEventListener('click', e => {
+    closeBtn.addEventListener('click', async e => {
       e.stopPropagation();
+
+      // Save the hidden state for 24 hours
+      await hideIndicatorFor24Hours();
 
       // Disconnect observer and clear interval
       observer.disconnect();
@@ -257,7 +293,6 @@ export function createJobJourneyIndicator() {
 
       // Remove the indicator
       indicator.remove();
-      console.log('🔒 JobJourney indicator hidden');
     });
 
     // Add hover effects

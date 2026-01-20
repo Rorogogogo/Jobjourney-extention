@@ -36,6 +36,9 @@ export interface JobData {
   extracted_at: string | null;
   isRPRequired?: boolean;
   companyLogoUrl?: string | null;
+  // Already applied detection
+  isAlreadyApplied?: boolean;
+  appliedDateUtc?: string | null;
 }
 
 export interface SearchConfig {

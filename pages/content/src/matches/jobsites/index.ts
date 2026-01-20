@@ -107,6 +107,9 @@ interface JobData {
   postedDate?: string;
   isRPRequired?: boolean;
   companyLogoUrl?: string;
+  // Already applied detection
+  isAlreadyApplied?: boolean;
+  appliedDateUtc?: string | null;
 }
 
 // Overlay functionality
@@ -308,6 +311,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'linkedin',
               extracted_at: job.postedDate || null,
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else if (platform === 'indeed' && (window as any).indeedScraper) {
             const result = await (window as any).indeedScraper.scrapeJobList();
@@ -327,6 +332,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'indeed',
               extracted_at: job.postedDate || null,
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else if (platform === 'seek' && (window as any).seekScraper) {
             const result = await (window as any).seekScraper.scrapeJobList();
@@ -346,6 +353,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'seek',
               extracted_at: job.postedDate || null,
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else if (platform === 'jora' && (window as any).joraScraper) {
             const result = await (window as any).joraScraper.scrapeJobList();
@@ -364,6 +373,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'jora',
               extracted_at: job.postedDate || null,
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else {
             jobs = (scrapingFunctions[platform as keyof typeof scrapingFunctions] as () => JobData[])();
@@ -400,6 +411,23 @@ if (platform === 'jobjourney') {
   console.log(`📍 Detected platform: ${platform}`);
   console.log('🎯 Ready to scrape jobs when requested');
 }
+
+// Listen for messages from the web app (e.g. "Open Extension" button)
+window.addEventListener('message', event => {
+  // We only accept messages from ourselves
+  if (event.source !== window) return;
+
+  if (event.data.type && event.data.type === 'JOBJOURNEY_OPEN_EXTENSION') {
+    console.log('📨 Received request to open extension from web app');
+    chrome.runtime
+      .sendMessage({
+        type: 'OPEN_SIDE_PANEL',
+      })
+      .catch(err => {
+        console.error('Failed to open side panel:', err);
+      });
+  }
+});
 
 // Export for potential use by other scripts
 (window as any).jobJourneyContentScript = {
