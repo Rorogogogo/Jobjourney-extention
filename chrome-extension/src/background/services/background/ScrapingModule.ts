@@ -31,6 +31,8 @@ export class ScrapingModule {
     this.eventManager.on('SCRAPING_ERROR', this.handleScrapingError.bind(this));
     this.eventManager.on('PLATFORM_STARTED', this.handlePlatformStarted.bind(this));
     this.eventManager.on('PLATFORM_COMPLETED', this.handlePlatformCompleted.bind(this));
+    this.eventManager.on('JOBS_SENDING', this.handleJobsSending.bind(this));
+    this.eventManager.on('JOBS_SENT', this.handleJobsSent.bind(this));
   }
 
   async loadPlatformProgress(): Promise<void> {
@@ -142,6 +144,16 @@ export class ScrapingModule {
   private handleScrapingComplete(data: any): void {
     Logger.success('Scraping completed', data);
     this.broadcastToSidebars?.({ type: 'SCRAPING_COMPLETE', data });
+  }
+
+  private handleJobsSending(data: any): void {
+    Logger.info('Sending jobs to frontend', data);
+    this.broadcastToSidebars?.({ type: 'JOBS_SENDING', data });
+  }
+
+  private handleJobsSent(data: any): void {
+    Logger.info('Jobs sent to frontend', data);
+    this.broadcastToSidebars?.({ type: 'JOBS_SENT', data });
   }
 
   private handleScrapingError(data: any): void {

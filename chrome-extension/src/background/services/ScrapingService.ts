@@ -1017,30 +1017,73 @@ export class ScrapingService {
       // Wait for tab to load completely
       await this.waitForTabLoad(targetTab.id!);
 
-      // Additional wait for JobJourney frontend to initialize
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Emit sending status so the side panel can show feedback
+      this.eventManager.emit('JOBS_SENDING', {
+        sessionId: session.id,
+        totalJobs: session.jobs.length,
+      });
 
-      // Send jobs to the tab via script injection (more reliable)
+      // Send jobs to the tab via script injection with readiness polling and retry
       try {
         await chrome.scripting.executeScript({
           target: { tabId: targetTab.id! },
-          func: jobsData => {
+          func: async (jobsData: any) => {
             try {
-              console.log('📤 JobJourney: Received extension jobs data with', jobsData.jobs.length, 'jobs');
+              // Poll for window.extensionPageReady (up to 5 seconds, every 500ms)
+              const maxWait = 5000;
+              const interval = 500;
+              let waited = 0;
 
-              // Store jobs in localStorage for the JobJourney frontend to access
+              while (!(window as any).extensionPageReady && waited < maxWait) {
+                await new Promise(resolve => setTimeout(resolve, interval));
+                waited += interval;
+              }
+
+              if ((window as any).extensionPageReady) {
+                console.log(`📤 JobJourney: Frontend ready after ${waited}ms, sending ${jobsData.jobs.length} jobs`);
+              } else {
+                console.warn('⚠️ JobJourney: Frontend not ready after 5s, attempting dispatch anyway');
+              }
+
+              // Store jobs in localStorage as fallback for the JobJourney frontend
               localStorage.setItem('extension_jobs', JSON.stringify(jobsData));
               localStorage.setItem('extension_jobs_timestamp', jobsData.timestamp);
 
-              // Dispatch custom event that JobJourney frontend can listen for
-              const event = new CustomEvent('extension-jobs-processed', {
-                detail: jobsData,
-              });
+              // Dispatch with retry logic
+              const maxRetries = 2;
+              let dispatched = false;
 
-              window.dispatchEvent(event);
-              console.log('✅ Successfully dispatched extension-jobs-processed event and stored data');
+              for (let attempt = 0; attempt <= maxRetries; attempt++) {
+                // Reset the received flag before dispatch
+                (window as any).extensionJobsReceived = false;
 
-              // Also try direct storage event for localStorage listeners
+                // Dispatch custom event
+                const event = new CustomEvent('extension-jobs-processed', {
+                  detail: jobsData,
+                });
+                window.dispatchEvent(event);
+
+                console.log(`📤 Dispatch attempt ${attempt + 1}/${maxRetries + 1}`);
+
+                // Wait briefly and check if the event was received
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                if ((window as any).extensionJobsReceived) {
+                  console.log('✅ Jobs received by frontend on attempt', attempt + 1);
+                  dispatched = true;
+                  break;
+                }
+
+                if (attempt < maxRetries) {
+                  console.warn(`⚠️ Jobs not received, retrying... (attempt ${attempt + 2})`);
+                }
+              }
+
+              if (!dispatched) {
+                console.warn('⚠️ Jobs may not have been received via event. localStorage fallback is available.');
+              }
+
+              // Also fire storage event for localStorage listeners
               const storageEvent = new StorageEvent('storage', {
                 key: 'extension_jobs',
                 newValue: JSON.stringify(jobsData),
@@ -1067,6 +1110,12 @@ export class ScrapingService {
       } catch (error) {
         Logger.error(`Failed to inject jobs script:`, error);
       }
+
+      // Emit sending complete
+      this.eventManager.emit('JOBS_SENT', {
+        sessionId: session.id,
+        totalJobs: session.jobs.length,
+      });
     } catch (error) {
       Logger.error('Failed to send jobs to frontend', error);
       // Don't fail the entire scraping process if job delivery fails

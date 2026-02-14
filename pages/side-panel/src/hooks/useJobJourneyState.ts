@@ -5,6 +5,8 @@ interface AuthStatus {
   user?: {
     id: string;
     email: string;
+    firstName: string;
+    lastName?: string;
     name: string;
     avatar?: string;
     isPro?: boolean;
@@ -42,7 +44,7 @@ interface SearchResults {
   duration?: number;
 }
 
-interface SearchConfig {
+export interface SearchConfig {
   keywords: string;
   location?: string;
   country?: string;
@@ -55,6 +57,8 @@ export const useJobJourneyState = () => {
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSendingJobs, setIsSendingJobs] = useState(false);
+  const [sendingJobCount, setSendingJobCount] = useState(0);
 
   // Check authentication status
   const checkAuthStatus = useCallback(async () => {
@@ -229,6 +233,16 @@ export const useJobJourneyState = () => {
             }
           }
           break;
+
+        case 'JOBS_SENDING':
+          setIsSendingJobs(true);
+          setSendingJobCount(message.data.totalJobs || 0);
+          break;
+
+        case 'JOBS_SENT':
+          setIsSendingJobs(false);
+          setSendingJobCount(0);
+          break;
       }
     };
 
@@ -280,6 +294,8 @@ export const useJobJourneyState = () => {
     searchResults,
     searchError,
     loading,
+    isSendingJobs,
+    sendingJobCount,
     startJobSearch,
     stopJobSearch,
     checkAuthStatus,
