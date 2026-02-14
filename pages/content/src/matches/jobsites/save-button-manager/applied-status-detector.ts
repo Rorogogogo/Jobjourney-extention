@@ -60,23 +60,16 @@ export class AppliedStatusDetector {
   }
 
   /**
-   * SEEK: If apply button/link is missing, assume applied
-   * Also check for any explicit applied indicator
+   * SEEK: Only detect applied when the explicit "You applied on ..." message is present
+   * Example: <span id="applied-date-message">... You applied on 8 Feb 2026 ...</span>
    */
   private static detectSeekAppliedStatus(): AppliedStatusResult {
-    // Check for explicit applied indicator
-    const appliedIndicators = [
-      '[data-automation="job-applied-badge"]',
-      '.applied-badge',
-      '[data-automation*="applied"]',
-    ];
-
-    for (const selector of appliedIndicators) {
-      const element = document.querySelector(selector);
-      if (element) {
-        const text = element.textContent?.trim() || '';
-        const dateUtc = this.parseRelativeTimeToUtc(text);
-        console.log('SEEK: Detected applied status:', text);
+    const appliedMessage = document.getElementById('applied-date-message');
+    if (appliedMessage) {
+      const text = appliedMessage.textContent?.trim() || '';
+      if (text.toLowerCase().includes('you applied')) {
+        const dateUtc = this.parseAppliedDateText(text);
+        console.log('SEEK: Detected applied status:', text, '-> Date:', dateUtc);
         return {
           isApplied: true,
           appliedDateUtc: dateUtc,
@@ -86,34 +79,23 @@ export class AppliedStatusDetector {
       }
     }
 
-    // Check if apply button is missing (inferred applied)
-    const applyButtonSelectors = [
-      '[data-automation="job-detail-apply"]',
-      'a[data-automation="job-detail-apply"]',
-      'button[data-automation="job-detail-apply"]',
-    ];
-
-    let hasApplyButton = false;
-    for (const selector of applyButtonSelectors) {
-      if (document.querySelector(selector)) {
-        hasApplyButton = true;
-        break;
-      }
-    }
-
-    // If no apply button found and we're on a valid job detail page, assume applied
-    if (!hasApplyButton) {
-      const hasJobTitle = document.querySelector('[data-automation="job-detail-title"]');
-      if (hasJobTitle) {
-        console.log('SEEK: No apply button found, inferring already applied');
-        return {
-          isApplied: true,
-          detectionSource: 'inferred',
-        };
-      }
-    }
-
     return { isApplied: false, detectionSource: 'explicit' };
+  }
+
+  /**
+   * Parse explicit date strings like "You applied on 8 Feb 2026" into ISO UTC
+   */
+  private static parseAppliedDateText(text: string): string | undefined {
+    // Match "on DD Mon YYYY" pattern
+    const match = text.match(/on\s+(\d{1,2}\s+\w+\s+\d{4})/i);
+    if (match) {
+      const parsed = new Date(match[1]);
+      if (!isNaN(parsed.getTime())) {
+        return parsed.toISOString();
+      }
+    }
+    // Fallback to relative time parsing
+    return this.parseRelativeTimeToUtc(text);
   }
 
   /**

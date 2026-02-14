@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type { ManifestType } from '@extension/shared';
 
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
+const packageJson = JSON.parse(readFileSync('../package.json', 'utf8'));
 
 /**
  * JobJourney Chrome Extension Manifest - DEVELOPMENT VERSION
@@ -13,7 +13,7 @@ const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const manifest = {
   manifest_version: 3,
   name: 'JobJourney Assistant (Dev)',
-  version: '3.1.0',
+  version: packageJson.version,
   description:
     'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',

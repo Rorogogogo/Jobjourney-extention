@@ -14,17 +14,17 @@ export class SaveButtonManager implements ISaveButtonManager {
   private currentPRDetection: PRDetectionResult | null = null;
   private currentUrl: string = '';
   private currentJobId: string = '';
-
   constructor() {
     this.init();
   }
 
   async init(): Promise<void> {
-    // Check authentication status
-    await AuthManager.checkAuthStatus();
-
-    // Start monitoring for job details
+    // Start monitoring immediately — don't wait for auth check
+    // Auth is only needed when saving, not for showing the button
     this.startJobDetailMonitoring();
+
+    // Check authentication status in parallel
+    AuthManager.checkAuthStatus();
   }
 
   private startJobDetailMonitoring() {
@@ -36,8 +36,13 @@ export class SaveButtonManager implements ISaveButtonManager {
     this.detectAndCreateButton();
 
     // Monitor for DOM changes (when user navigates to different jobs)
+    // This provides instant detection when SPA frameworks update the page
     const observer = new MutationObserver(() => {
-      this.detectAndCreateButton();
+      const existingButton = document.getElementById('jobjourney-button-container');
+      if (!existingButton) {
+        // Button missing — either never created or removed by SPA re-render
+        this.detectAndCreateButton();
+      }
     });
 
     observer.observe(document.body, {
@@ -45,76 +50,52 @@ export class SaveButtonManager implements ISaveButtonManager {
       subtree: true,
     });
 
-    // Check for URL changes more frequently for LinkedIn
+    // Also poll for URL/job ID changes (MutationObserver doesn't catch URL changes)
     const isLinkedIn =
       window.location.hostname === 'linkedin.com' || window.location.hostname.endsWith('.linkedin.com');
-    const urlCheckInterval = isLinkedIn ? 500 : 3000; // 500ms for LinkedIn, 3s for others
+    const urlCheckInterval = isLinkedIn ? 500 : 3000;
 
     setInterval(() => {
       const newUrl = window.location.href;
       const newJobId = this.extractJobId();
 
-      // If URL or job ID changed, force re-detection
       if (newUrl !== this.currentUrl || newJobId !== this.currentJobId) {
         this.currentUrl = newUrl;
         this.currentJobId = newJobId;
 
-        // Force re-detection by clearing current data
+        // New job — clear state and remove old button
         this.currentJobData = null;
         this.currentPRDetection = null;
+        this.removeButton();
+      }
 
-        // For SPA navigation, the DOM might not be ready yet
-        // Use retry mechanism to wait for content to load
-        this.detectWithRetry(isLinkedIn ? 10 : 5, 300);
-      } else {
-        // Regular detection for dynamic content
+      // Always try to create button if missing (handles SPA navigations,
+      // collection page switches, and any case where the button disappeared)
+      const btnExists = !!document.getElementById('jobjourney-button-container');
+      if (!btnExists && window.location.pathname.startsWith('/jobs')) {
+        console.log('[JJ Debug] Polling: button missing on jobs page, attempting detection...');
         this.detectAndCreateButton();
       }
     }, urlCheckInterval);
-  }
-
-  /**
-   * Retry detection with exponential backoff for SPA navigation
-   * This handles cases where DOM content isn't immediately available
-   */
-  private detectWithRetry(maxRetries: number, delayMs: number, attempt: number = 0): void {
-    const platform = PlatformDetector.getCurrentPlatform();
-    if (!platform) {
-      return;
-    }
-
-    const jobData = JobDataExtractor.extractJobData(platform);
-
-    if (jobData) {
-      // Success - create button
-      if (this.shouldCreateButton(jobData)) {
-        this.createOrUpdateButton(jobData, platform);
-      }
-      return;
-    }
-
-    // No job data found, retry if we have attempts left
-    if (attempt < maxRetries) {
-      setTimeout(() => {
-        this.detectWithRetry(maxRetries, delayMs, attempt + 1);
-      }, delayMs);
-    }
   }
 
   detectAndCreateButton(): void {
     // Always show the button, even when not authenticated
     const platform = PlatformDetector.getCurrentPlatform();
     if (!platform) {
+      console.log('[JJ Debug] No platform detected, URL:', window.location.href);
       return;
     }
 
     const jobData = JobDataExtractor.extractJobData(platform);
     if (!jobData) {
+      console.log('[JJ Debug] No job data extracted for platform:', platform, 'URL:', window.location.pathname);
       return;
     }
 
     // Only create/update button if we have valid job data
     if (this.shouldCreateButton(jobData)) {
+      console.log('[JJ Debug] Creating button for:', jobData.title, 'at', jobData.jobUrl);
       this.createOrUpdateButton(jobData, platform);
     }
   }
