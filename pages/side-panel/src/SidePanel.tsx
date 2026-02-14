@@ -15,8 +15,17 @@ type ViewType = 'search' | 'progress' | 'sending' | 'results' | 'error';
 const SidePanel = () => {
   const [currentView, setCurrentView] = useState<ViewType>('search');
 
-  const { authStatus, isAuthenticated, searchProgress, searchResults, searchError, isSendingJobs, sendingJobCount, startJobSearch, stopJobSearch } =
-    useJobJourneyState();
+  const {
+    authStatus,
+    isAuthenticated,
+    searchProgress,
+    searchResults,
+    searchError,
+    isSendingJobs,
+    sendingJobCount,
+    startJobSearch,
+    stopJobSearch,
+  } = useJobJourneyState();
 
   // Handle view transitions based on state
   useEffect(() => {
@@ -68,7 +77,7 @@ const SidePanel = () => {
             <span className="text-sm font-semibold tracking-tight">JobJourney</span>
           </div>
           <div className="flex items-center gap-2">
-             <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} />
+            <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} />
           </div>
         </header>
 
@@ -99,8 +108,8 @@ const SidePanel = () => {
 
         {/* Footer */}
         <footer className="border-t bg-white px-4 py-3 text-center">
-          <p className="text-xs text-muted-foreground">
-            Powered by <span className="font-medium text-foreground">JobJourney AI</span>
+          <p className="text-muted-foreground text-xs">
+            Powered by <span className="text-foreground font-medium">JobJourney AI</span>
           </p>
         </footer>
       </div>

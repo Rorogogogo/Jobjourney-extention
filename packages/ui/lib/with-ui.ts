@@ -1,5 +1,6 @@
 import deepmerge from 'deepmerge';
 import type { Config } from 'tailwindcss';
+import tailwindcssAnimate from 'tailwindcss-animate';
 
 const sharedConfig = {
   content: [],
@@ -69,7 +70,7 @@ const sharedConfig = {
       },
     },
   },
-  plugins: [require('tailwindcss-animate')],
+  plugins: [tailwindcssAnimate],
 } as Config;
 
 export const withUI = (tailwindConfig: Config): Config => {
@@ -77,6 +78,6 @@ export const withUI = (tailwindConfig: Config): Config => {
     deepmerge(sharedConfig, {
       content: ['../../packages/ui/lib/**/*.tsx'],
     }),
-    tailwindConfig
+    tailwindConfig,
   ) as Config;
 };

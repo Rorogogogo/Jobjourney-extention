@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 import { Button, Badge } from '@extension/ui';
 import { LogOut, User, Star, ExternalLink } from 'lucide-react';
+import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 
 interface AuthStatus {
   isAuthenticated: boolean;
@@ -68,25 +68,32 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
             variant="ghost"
             size="sm"
             className="flex h-8 items-center gap-2 rounded-full px-2"
-            onClick={() => setShowUserModal(true)}
-          >
+            onClick={() => setShowUserModal(true)}>
             {authStatus.user?.avatar ? (
               <img className="h-5 w-5 rounded-full object-cover" src={authStatus.user.avatar} alt="Profile" />
             ) : (
               <User className="h-4 w-4" />
             )}
-            <span className="max-w-[80px] truncate text-xs font-medium">
-              {authStatus.user?.firstName || 'User'}
-            </span>
+            <span className="max-w-[80px] truncate text-xs font-medium">{authStatus.user?.firstName || 'User'}</span>
           </Button>
         )}
 
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleDashboard} title="Dashboard">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground h-8 w-8"
+          onClick={handleDashboard}
+          title="Dashboard">
           <ExternalLink className="h-4 w-4" />
         </Button>
-        
-        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground" onClick={handleGitHub} title="GitHub">
-           <Star className="h-4 w-4" />
+
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground h-8 w-8"
+          onClick={handleGitHub}
+          title="GitHub">
+          <Star className="h-4 w-4" />
         </Button>
       </div>
 
@@ -94,25 +101,29 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
       {/* User Info Popover */}
       {showUserModal && (
         <>
-          <div 
-            className="fixed inset-0 z-40 bg-transparent" 
-            onClick={() => setShowUserModal(false)}
-          />
+          <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowUserModal(false)} />
           <div
-            className="absolute right-3 top-[3.25rem] z-50 w-72 origin-top-right overflow-hidden rounded-xl border bg-white shadow-xl animate-in fade-in zoom-in-95 duration-100" // top-13 to clear header
+            className="animate-in fade-in zoom-in-95 absolute right-3 top-[3.25rem] z-50 w-72 origin-top-right overflow-hidden rounded-xl border bg-white shadow-xl duration-100" // top-13 to clear header
             onClick={e => e.stopPropagation()}
-            role="dialog"
-          >
+            role="dialog">
             <div className="flex items-center justify-between border-b bg-gray-50/50 p-3">
-              <h3 className="text-xs font-semibold text-muted-foreground">Account</h3>
-              <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full hover:bg-gray-200" onClick={() => setShowUserModal(false)}>
+              <h3 className="text-muted-foreground text-xs font-semibold">Account</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-full hover:bg-gray-200"
+                onClick={() => setShowUserModal(false)}>
                 <span className="text-lg leading-none">×</span>
               </Button>
             </div>
             <div className="p-3">
               <div className="flex items-center gap-3">
                 {authStatus.user?.avatar ? (
-                  <img className="h-10 w-10 rounded-full border object-cover shadow-sm" src={authStatus.user.avatar} alt="Profile" />
+                  <img
+                    className="h-10 w-10 rounded-full border object-cover shadow-sm"
+                    src={authStatus.user.avatar}
+                    alt="Profile"
+                  />
                 ) : (
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
                     <User className="h-5 w-5 text-gray-400" />
@@ -120,24 +131,23 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
                 )}
                 <div className="flex-1 overflow-hidden">
                   <div className="truncate text-sm font-semibold text-gray-900">{authStatus.user?.name || 'User'}</div>
-                  <div className="truncate text-xs text-muted-foreground">{authStatus.user?.email}</div>
+                  <div className="text-muted-foreground truncate text-xs">{authStatus.user?.email}</div>
                 </div>
               </div>
               <div className="mt-3">
-                 {authStatus.user?.isPro ? (
+                {authStatus.user?.isPro ? (
                   <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-2 py-1.5 text-blue-700">
                     <Star className="h-3.5 w-3.5 fill-blue-600 text-blue-600" />
                     <span className="text-xs font-medium">Pro Plan Active</span>
                   </div>
-                 ) : (
+                ) : (
                   <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-2 py-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Free Plan</span>
-                    <Button 
-                      variant="link" 
-                      size="sm" 
-                      className="h-auto p-0 text-xs text-blue-600" 
-                      onClick={() => chrome.tabs.create({ url: 'https://www.jobjourney.me/subscription' })}
-                    >
+                    <span className="text-muted-foreground text-xs font-medium">Free Plan</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs text-blue-600"
+                      onClick={() => chrome.tabs.create({ url: 'https://www.jobjourney.me/subscription' })}>
                       Upgrade
                     </Button>
                   </div>
@@ -149,8 +159,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
                 variant="ghost"
                 size="sm"
                 className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
-                onClick={handleSignOut}
-              >
+                onClick={handleSignOut}>
                 <LogOut className="mr-2 h-3.5 w-3.5" />
                 Sign Out
               </Button>
