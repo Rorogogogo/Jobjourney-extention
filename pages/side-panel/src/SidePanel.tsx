@@ -3,6 +3,7 @@ import { cn, ErrorDisplay, LoadingSpinner, Button, Card } from '@extension/ui';
 import { useState, useEffect } from 'react';
 import { LogOut, Search, Settings } from 'lucide-react';
 import { AuthSection } from './components/AuthSection';
+import { DevMockButton } from './components/DevMockButton';
 import { ErrorSection } from './components/ErrorSection';
 import { ProgressSection } from './components/ProgressSection';
 import { ResultsSection } from './components/ResultsSection';
@@ -108,6 +109,7 @@ const SidePanel = () => {
 
         {/* Footer */}
         <footer className="border-t bg-white px-4 py-3 text-center">
+          <DevMockButton />
           <p className="text-muted-foreground text-xs">
             Powered by <span className="text-foreground font-medium">JobJourney AI</span>
           </p>

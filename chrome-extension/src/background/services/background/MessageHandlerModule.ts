@@ -177,6 +177,10 @@ export class MessageHandlerModule {
           }
           break;
 
+        case 'MOCK_LARGE_SCRAPE':
+          await this.handleMockLargeScrape(message.data, sendResponse);
+          break;
+
         default:
           Logger.warn(`Unknown message type: ${message.type}`);
           sendResponse({ success: false, error: 'Unknown message type' });
@@ -184,6 +188,24 @@ export class MessageHandlerModule {
     } catch (error) {
       Logger.error('Error handling message', error);
       sendResponse({ success: false, error: error.message });
+    }
+  }
+
+  /**
+   * Run a mock scraping session through the full pipeline.
+   * Dev/test only — exercises storage, progress events, chunking, and sendJobsToFrontend.
+   */
+  private async handleMockLargeScrape(data: { count?: number }, sendResponse: (response: any) => void): Promise<void> {
+    const count = data?.count ?? 1000;
+
+    try {
+      Logger.info(`🧪 Starting mock scrape with ${count} jobs...`);
+      const sessionId = await this.scrapingService.runMockScrapeSession(count);
+      Logger.success(`🧪 Mock scrape complete: session ${sessionId} with ${count} jobs`);
+      sendResponse({ success: true, message: `Mock scrape started: ${count} jobs`, sessionId });
+    } catch (error) {
+      Logger.error('🧪 Mock scrape failed:', error);
+      sendResponse({ success: false, error: (error as Error).message });
     }
   }
 }

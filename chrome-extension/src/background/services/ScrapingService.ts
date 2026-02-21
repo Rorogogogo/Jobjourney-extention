@@ -1023,92 +1023,63 @@ export class ScrapingService {
         totalJobs: session.jobs.length,
       });
 
-      // Send jobs to the tab via script injection with readiness polling and retry
+      // Send jobs to the tab via chrome.tabs.sendMessage with chunking for large payloads
+      const CHUNK_SIZE = 50;
+      const CHUNK_THRESHOLD = 200;
+      const tabId = targetTab.id!;
+
+      const jobsPayload = {
+        jobs: session.jobs,
+        config: session.config,
+        timestamp: new Date().toISOString(),
+        source: 'extension_scraping' as const,
+        sessionId: session.id,
+        totalJobs: session.jobs.length,
+        platforms: session.config.platforms,
+      };
+
       try {
-        await chrome.scripting.executeScript({
-          target: { tabId: targetTab.id! },
-          func: async (jobsData: any) => {
-            try {
-              // Poll for window.extensionPageReady (up to 5 seconds, every 500ms)
-              const maxWait = 5000;
-              const interval = 500;
-              let waited = 0;
+        if (session.jobs.length <= CHUNK_THRESHOLD) {
+          // Small payload: send as a single message
+          await chrome.tabs.sendMessage(tabId, {
+            type: 'EXTENSION_JOBS_PROCESSED',
+            data: jobsPayload,
+          });
+          Logger.success(`✅ Jobs sent via single message (${session.jobs.length} jobs) to: ${targetTab.url}`);
+        } else {
+          // Large payload: send in chunks
+          const transferId = `transfer_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+          const totalChunks = Math.ceil(session.jobs.length / CHUNK_SIZE);
 
-              while (!(window as any).extensionPageReady && waited < maxWait) {
-                await new Promise(resolve => setTimeout(resolve, interval));
-                waited += interval;
-              }
+          Logger.info(`📦 Chunking ${session.jobs.length} jobs into ${totalChunks} chunks (transferId: ${transferId})`);
 
-              if ((window as any).extensionPageReady) {
-                console.log(`📤 JobJourney: Frontend ready after ${waited}ms, sending ${jobsData.jobs.length} jobs`);
-              } else {
-                console.warn('⚠️ JobJourney: Frontend not ready after 5s, attempting dispatch anyway');
-              }
+          for (let i = 0; i < totalChunks; i++) {
+            const chunkJobs = session.jobs.slice(i * CHUNK_SIZE, (i + 1) * CHUNK_SIZE);
 
-              // Store jobs in localStorage as fallback for the JobJourney frontend
-              localStorage.setItem('extension_jobs', JSON.stringify(jobsData));
-              localStorage.setItem('extension_jobs_timestamp', jobsData.timestamp);
+            await chrome.tabs.sendMessage(tabId, {
+              type: 'EXTENSION_JOBS_CHUNK',
+              data: {
+                transferId,
+                chunkIndex: i,
+                totalChunks,
+                jobs: chunkJobs,
+                config: session.config,
+                timestamp: jobsPayload.timestamp,
+                source: jobsPayload.source,
+                totalJobs: session.jobs.length,
+              },
+            });
 
-              // Dispatch with retry logic
-              const maxRetries = 2;
-              let dispatched = false;
-
-              for (let attempt = 0; attempt <= maxRetries; attempt++) {
-                // Reset the received flag before dispatch
-                (window as any).extensionJobsReceived = false;
-
-                // Dispatch custom event
-                const event = new CustomEvent('extension-jobs-processed', {
-                  detail: jobsData,
-                });
-                window.dispatchEvent(event);
-
-                console.log(`📤 Dispatch attempt ${attempt + 1}/${maxRetries + 1}`);
-
-                // Wait briefly and check if the event was received
-                await new Promise(resolve => setTimeout(resolve, 500));
-
-                if ((window as any).extensionJobsReceived) {
-                  console.log('✅ Jobs received by frontend on attempt', attempt + 1);
-                  dispatched = true;
-                  break;
-                }
-
-                if (attempt < maxRetries) {
-                  console.warn(`⚠️ Jobs not received, retrying... (attempt ${attempt + 2})`);
-                }
-              }
-
-              if (!dispatched) {
-                console.warn('⚠️ Jobs may not have been received via event. localStorage fallback is available.');
-              }
-
-              // Also fire storage event for localStorage listeners
-              const storageEvent = new StorageEvent('storage', {
-                key: 'extension_jobs',
-                newValue: JSON.stringify(jobsData),
-                storageArea: localStorage,
-              });
-              window.dispatchEvent(storageEvent);
-            } catch (error) {
-              console.error('❌ Failed to process extension jobs:', error);
+            // Small delay between chunks to avoid overwhelming the content script
+            if (i < totalChunks - 1) {
+              await new Promise(resolve => setTimeout(resolve, 50));
             }
-          },
-          args: [
-            {
-              jobs: session.jobs,
-              config: session.config,
-              timestamp: new Date().toISOString(),
-              source: 'extension_scraping',
-              sessionId: session.id,
-              totalJobs: session.jobs.length,
-              platforms: session.config.platforms,
-            },
-          ],
-        });
-        Logger.success(`✅ Jobs sent via script injection to JobJourney tab: ${targetTab.url}`);
+          }
+
+          Logger.success(`✅ Jobs sent via ${totalChunks} chunks (${session.jobs.length} jobs) to: ${targetTab.url}`);
+        }
       } catch (error) {
-        Logger.error(`Failed to inject jobs script:`, error);
+        Logger.error(`Failed to send jobs via message:`, error);
       }
 
       // Emit sending complete
@@ -1313,6 +1284,190 @@ export class ScrapingService {
     }
 
     return Object.values(PLATFORMS).filter(platform => platform.enabled && country.platforms.includes(platform.id));
+  }
+
+  /**
+   * Run a mock scraping session that exercises the full pipeline:
+   * session creation → progress events → storage writes → completion → sendJobsToFrontend
+   * Skips submitJobsToApi to avoid polluting the backend with fake data.
+   */
+  async runMockScrapeSession(jobCount: number): Promise<string> {
+    const platforms = ['linkedin', 'indeed', 'seek', 'reed'];
+    const config: SearchConfig = {
+      keywords: 'mock test',
+      location: 'Worldwide',
+      platforms,
+      maxJobs: jobCount,
+    };
+
+    const sessionId = this.generateSessionId();
+    const session: ScrapingSession = {
+      id: sessionId,
+      config,
+      status: 'running',
+      startTime: Date.now(),
+      progress: {
+        totalPlatforms: platforms.length,
+        completedPlatforms: 0,
+        jobsFound: 0,
+        errors: [],
+      },
+      jobs: [],
+    };
+
+    this.activeSessions.set(sessionId, session);
+
+    // Clear previous scraped jobs
+    try {
+      await this.storageService.clearScrapedJobs();
+    } catch (error) {
+      Logger.warning('Mock: Failed to clear previous scraped jobs:', error);
+    }
+
+    Logger.info(`🧪 Starting mock scrape session: ${sessionId} (${jobCount} jobs)`);
+
+    this.eventManager.emit('SCRAPING_PROGRESS', {
+      sessionId: session.id,
+      progress: session.progress,
+      status: 'Starting mock job search...',
+    });
+
+    // Generate mock jobs and feed them in batches per platform (like real scraping)
+    const jobsPerPlatform = Math.ceil(jobCount / platforms.length);
+    const titles = [
+      'Software Engineer',
+      'Frontend Developer',
+      'Backend Developer',
+      'Full Stack Developer',
+      'DevOps Engineer',
+      'Data Scientist',
+      'Product Manager',
+      'UX Designer',
+      'QA Engineer',
+      'Cloud Architect',
+    ];
+    const companies = [
+      'TechCorp',
+      'InnovateLabs',
+      'DataDriven Inc',
+      'CloudScale',
+      'PixelPerfect',
+      'Quantum Solutions',
+      'NexGen Systems',
+      'ByteForge',
+      'Apex Digital',
+      'Horizon AI',
+    ];
+    const cities = ['Sydney', 'Melbourne', 'London', 'New York', 'San Francisco', 'Berlin', 'Toronto', 'Singapore'];
+
+    let globalIndex = 0;
+
+    for (let pIdx = 0; pIdx < platforms.length; pIdx++) {
+      const platformId = platforms[pIdx];
+      const platformName = platformId.charAt(0).toUpperCase() + platformId.slice(1);
+      const count = pIdx < platforms.length - 1 ? jobsPerPlatform : jobCount - globalIndex;
+
+      // Simulate pages of ~20 jobs each
+      const pageSize = 20;
+      const totalPages = Math.ceil(count / pageSize);
+
+      for (let page = 0; page < totalPages; page++) {
+        // Check if session was stopped
+        if (session.status === 'stopped') {
+          Logger.info(`🧪 Mock session ${sessionId} was stopped`);
+          return sessionId;
+        }
+
+        const jobsOnPage = Math.min(pageSize, count - page * pageSize);
+        const pageJobs: JobData[] = [];
+
+        for (let j = 0; j < jobsOnPage; j++) {
+          const i = globalIndex++;
+          pageJobs.push({
+            id: `mock_${sessionId}_${i}`,
+            title: `${titles[i % titles.length]} ${Math.floor(i / titles.length) + 1}`,
+            company: companies[i % companies.length],
+            location: cities[i % cities.length],
+            jobUrl: `https://example.com/jobs/mock-${i}`,
+            platform: platformId,
+            description: `Mock job description for testing. Position: ${titles[i % titles.length]} at ${companies[i % companies.length]}, ${cities[i % cities.length]}. `,
+            salary: `$${80 + (i % 120)}k - $${100 + (i % 120)}k`,
+            postedDate: new Date(Date.now() - i * 3600000).toISOString(),
+            extracted_at: new Date().toISOString(),
+            isRPRequired: i % 5 === 0,
+            companyLogoUrl: null,
+            isAlreadyApplied: i % 20 === 0,
+            appliedDateUtc: i % 20 === 0 ? new Date().toISOString() : null,
+          });
+        }
+
+        session.jobs.push(...pageJobs);
+        session.progress.jobsFound += pageJobs.length;
+
+        // Store jobs in storage (like real scraping does)
+        this.storageService.setScrapedJobs(session.jobs).catch(error => {
+          Logger.warning('Mock: Failed to store jobs:', error);
+        });
+
+        // Emit progress event (like real scraping does)
+        this.eventManager.emit('SCRAPING_PROGRESS', {
+          sessionId: session.id,
+          platform: platformId,
+          platformName,
+          currentPage: page + 1,
+          jobsFoundOnPage: pageJobs.length,
+          totalJobsForPlatform: session.jobs.filter(j => j.platform === platformId).length,
+          totalJobs: session.progress.jobsFound,
+          hasNextPage: page < totalPages - 1,
+        });
+
+        // Small delay between pages to simulate scraping
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+
+      session.progress.completedPlatforms++;
+
+      this.eventManager.emit('SCRAPING_PROGRESS', {
+        sessionId: session.id,
+        progress: session.progress,
+        status: `Completed ${platformName}`,
+      });
+    }
+
+    // Complete session (mirrors runScrapingSession completion logic)
+    session.status = 'completed';
+    session.endTime = Date.now();
+
+    this.completedSessions.set(session.id, session);
+    this.activeSessions.delete(session.id);
+
+    Logger.success(`🧪 Mock scraping completed: ${session.id}`, {
+      totalJobs: session.jobs.length,
+      duration: session.endTime - session.startTime,
+    });
+
+    // Emit completion event (triggers results page in side panel)
+    this.eventManager.emit('SCRAPING_COMPLETE', {
+      sessionId: session.id,
+      status: 'completed',
+      jobs: session.jobs,
+      totalJobs: session.jobs.length,
+      duration: session.endTime - session.startTime,
+      errors: [],
+    });
+
+    // Send jobs to frontend (skipping submitJobsToApi to avoid fake data in backend)
+    if (session.jobs.length > 0) {
+      Promise.resolve().then(async () => {
+        try {
+          await this.sendJobsToFrontend(session);
+        } catch (error) {
+          Logger.error('Mock: Failed to send jobs to frontend:', error);
+        }
+      });
+    }
+
+    return sessionId;
   }
 }
 
