@@ -412,10 +412,16 @@ if (platform === 'jobjourney') {
   console.log('🎯 Ready to scrape jobs when requested');
 }
 
-// Listen for messages from the web app (e.g. "Open Extension" button)
+// Listen for messages from the web app (e.g. "Open Extension" button, extension detection ping)
 window.addEventListener('message', event => {
   // We only accept messages from ourselves
   if (event.source !== window) return;
+
+  // Respond to extension detection ping from the web app
+  if (event.data.type && event.data.type === 'JOBJOURNEY_EXTENSION_PING') {
+    window.postMessage({ type: 'JOBJOURNEY_EXTENSION_PONG', source: 'JOBJOURNEY_EXTENSION' }, '*');
+    return;
+  }
 
   if (event.data.type && event.data.type === 'JOBJOURNEY_OPEN_EXTENSION') {
     console.log('📨 Received request to open extension from web app');
