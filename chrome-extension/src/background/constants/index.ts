@@ -1,6 +1,6 @@
 // Constants for JobJourney Extension
 export const EXTENSION_NAME = 'JobJourney Assistant';
-export const VERSION = '3.0.0';
+export const VERSION = '3.2.0';
 
 // Country configurations with icons and platform mappings
 export interface CountryConfig {
@@ -479,7 +479,7 @@ export const SCRAPING_CONFIG = {
   RATE_LIMIT_DELAY: 1000,
   MAX_RETRIES: 3,
   TIMEOUT: TIMEOUT_CONFIG.PLATFORM_SCRAPING_TOTAL, // Use centralized timeout
-  USER_AGENT: 'JobJourney-Assistant/3.0.0',
+  USER_AGENT: 'JobJourney-Assistant/3.2.0',
 } as const;
 
 // UI states

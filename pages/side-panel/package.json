@@ -20,11 +20,12 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
+    "@extension/env": "workspace:*",
+    "@extension/i18n": "workspace:*",
     "@extension/shared": "workspace:*",
     "@extension/storage": "workspace:*",
-    "@extension/i18n": "workspace:*",
     "@extension/ui": "workspace:*",
-    "@extension/env": "workspace:*"
+    "lucide-react": "^0.564.0"
   },
   "devDependencies": {
     "@extension/tailwindcss-config": "workspace:*",

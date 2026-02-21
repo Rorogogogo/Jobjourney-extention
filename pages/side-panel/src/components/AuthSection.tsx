@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { Button, Badge } from '@extension/ui';
+import { LogOut, User, Star, ExternalLink, Github } from 'lucide-react';
 import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 
 interface AuthStatus {
@@ -32,22 +34,13 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
   }, []);
 
   const handleSignIn = async () => {
-    // Use global environment detection utility
     const authUrl = await getAuthUrl();
-    chrome.tabs.create({
-      url: authUrl,
-      active: true,
-    });
+    chrome.tabs.create({ url: authUrl, active: true });
   };
 
   const handleDashboard = async () => {
-    // Use global environment detection utility
-    // Open job-market page for better user experience
     const jobMarketUrl = await getJobMarketUrl();
-    chrome.tabs.create({
-      url: jobMarketUrl,
-      active: true,
-    });
+    chrome.tabs.create({ url: jobMarketUrl, active: true });
   };
 
   const handleGitHub = () => {
@@ -57,130 +50,123 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
   const handleSignOut = async () => {
     try {
       setShowUserModal(false);
-
-      // Send sign-out command to background service
-      const response = await chrome.runtime.sendMessage({
-        type: 'SIGN_OUT_USER',
-      });
-
-      if (response?.success) {
-        console.log('✅ Sign-out command successful:', response.message);
-        // The extension will automatically detect the auth change and update UI
-      } else {
-        console.error('❌ Sign-out command failed:', response?.error);
-      }
+      await chrome.runtime.sendMessage({ type: 'SIGN_OUT_USER' });
     } catch (error) {
-      console.error('❌ Failed to send sign-out command:', error);
+      console.error('Failed to sign out:', error);
     }
   };
 
   return (
     <>
-      <div className="flex items-center justify-end">
-        <div className="flex items-center gap-2">
-          {!isAuthenticated ? (
-            <div className="flex gap-2">
-              <button
-                className="cursor-pointer rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition-all duration-300 hover:border-white/30 hover:bg-white/15"
-                onClick={handleSignIn}>
-                Sign In
-              </button>
-            </div>
-          ) : (
-            <button
-              className="flex cursor-pointer items-center gap-1.5 rounded-md border-0 bg-transparent px-2 py-1 transition-all duration-300 hover:bg-white/10"
-              title="Click for user details"
-              onClick={() => setShowUserModal(true)}>
-              {authStatus.user?.avatar ? (
-                <img className="h-5 w-5 rounded-full object-cover" src={authStatus.user.avatar} alt="Profile" />
-              ) : (
-                <span className="text-base">👤</span>
-              )}
-              <span className="whitespace-nowrap text-xs font-medium text-white">
-                {authStatus.user?.firstName || 'User'}
-              </span>
-              {authStatus.user?.isPro && (
-                <span className="rounded-full bg-gradient-to-r from-yellow-400 to-yellow-300 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-black">
-                  PRO
-                </span>
-              )}
-            </button>
-          )}
+      <div className="flex items-center gap-2">
+        {!isAuthenticated ? (
+          <Button variant="outline" size="sm" onClick={handleSignIn} className="h-8">
+            Sign In
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="flex h-8 items-center gap-2 rounded-full px-2"
+            onClick={() => setShowUserModal(true)}>
+            {authStatus.user?.avatar ? (
+              <img className="h-5 w-5 rounded-full object-cover" src={authStatus.user.avatar} alt="Profile" />
+            ) : (
+              <User className="h-4 w-4" />
+            )}
+            <span className="max-w-[80px] truncate text-xs font-medium">{authStatus.user?.firstName || 'User'}</span>
+          </Button>
+        )}
 
-          <button
-            className="cursor-pointer whitespace-nowrap rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
-            onClick={handleDashboard}>
-            Dashboard
-          </button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground h-8 w-8"
+          onClick={handleDashboard}
+          title="Dashboard">
+          <ExternalLink className="h-4 w-4" />
+        </Button>
 
-          <button
-            className="flex cursor-pointer items-center gap-1 whitespace-nowrap rounded-lg bg-gradient-to-r from-white to-gray-200 px-3 py-1.5 text-xs font-semibold text-black transition-all duration-300 hover:from-gray-100 hover:to-gray-300"
-            onClick={handleGitHub}
-            title="Star us on GitHub">
-            <svg className="h-2.5 w-2.5" viewBox="0 0 98 96" xmlns="http://www.w3.org/2000/svg">
-              <path
-                fillRule="evenodd"
-                clipRule="evenodd"
-                d="M48.854 0C21.839 0 0 22 0 49.217c0 21.756 13.993 40.172 33.405 46.69 2.427.49 3.316-1.059 3.316-2.362 0-1.141-.08-5.052-.08-9.127-13.59 2.934-16.42-5.867-16.42-5.867-2.184-5.704-5.42-7.17-5.42-7.17-4.448-3.015.324-3.015.324-3.015 4.934.326 7.523 5.052 7.523 5.052 4.367 7.496 11.404 5.378 14.235 4.074.404-3.178 1.699-5.378 3.074-6.6-10.839-1.141-22.243-5.378-22.243-24.283 0-5.378 1.94-9.778 5.014-13.2-.485-1.222-2.184-6.275.486-13.038 0 0 4.125-1.304 13.426 5.052a46.97 46.97 0 0 1 12.214-1.63c4.125 0 8.33.571 12.213 1.63 9.302-6.356 13.427-5.052 13.427-5.052 2.67 6.763.97 11.816.485 13.038 3.155 3.422 5.015 7.822 5.015 13.2 0 18.905-11.404 23.06-22.324 24.283 1.78 1.548 3.316 4.481 3.316 9.126 0 6.6-.08 11.897-.08 13.526 0 1.304.89 2.853 3.316 2.364 19.412-6.52 33.405-24.935 33.405-46.691C97.707 22 75.788 0 48.854 0z"
-                fill="currentColor"
-              />
-            </svg>
-            {githubStars !== null ? githubStars : 'Loading...'} ⭐
-          </button>
-        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-muted-foreground flex h-8 items-center gap-1.5 px-2.5"
+          onClick={handleGitHub}
+          title="GitHub">
+          <Github className="h-4 w-4" />
+          {githubStars !== null && <span className="text-xs font-medium">{githubStars}</span>}
+        </Button>
       </div>
 
       {/* User Info Modal */}
+      {/* User Info Popover */}
       {showUserModal && (
-        <div
-          role="button"
-          tabIndex={0}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80"
-          onClick={() => setShowUserModal(false)}
-          onKeyDown={e => {
-            if (e.key === 'Escape' || e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              setShowUserModal(false);
-            }
-          }}>
+        <>
+          <div className="fixed inset-0 z-40 bg-transparent" onClick={() => setShowUserModal(false)} />
           <div
-            role="dialog"
-            aria-modal="true"
-            className="max-h-[90vh] w-[90%] max-w-md overflow-hidden rounded-xl border border-gray-700 bg-gray-800"
+            className="animate-in fade-in zoom-in-95 absolute right-3 top-[3.25rem] z-50 w-72 origin-top-right overflow-hidden rounded-xl border bg-white shadow-xl duration-100" // top-13 to clear header
             onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              e.stopPropagation();
-            }}>
-            <div className="flex items-center justify-between border-b border-gray-700 p-4">
-              <h3 className="text-base font-semibold">User Information</h3>
-              <button
-                className="flex h-6 w-6 cursor-pointer items-center justify-center rounded border-none bg-none p-0 text-2xl text-white hover:bg-white/10"
+            role="dialog">
+            <div className="flex items-center justify-between border-b bg-gray-50/50 p-3">
+              <h3 className="text-muted-foreground text-xs font-semibold">Account</h3>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 rounded-full hover:bg-gray-200"
                 onClick={() => setShowUserModal(false)}>
-                ×
-              </button>
+                <span className="text-lg leading-none">×</span>
+              </Button>
             </div>
-            <div className="p-4">
+            <div className="p-3">
               <div className="flex items-center gap-3">
-                {authStatus.user?.avatar && (
-                  <img className="h-16 w-16 rounded-full object-cover" src={authStatus.user.avatar} alt="Profile" />
+                {authStatus.user?.avatar ? (
+                  <img
+                    className="h-10 w-10 rounded-full border object-cover shadow-sm"
+                    src={authStatus.user.avatar}
+                    alt="Profile"
+                  />
+                ) : (
+                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gray-100">
+                    <User className="h-5 w-5 text-gray-400" />
+                  </div>
                 )}
-                <div className="flex-1">
-                  <div className="mb-1 text-base font-semibold text-white">{authStatus.user?.name || 'User'}</div>
-                  <div className="mb-1 text-xs text-white/70">{authStatus.user?.email || 'user@example.com'}</div>
-                  <div className="text-xs text-cyan-400">{authStatus.user?.isPro ? 'Pro Account' : 'Free Account'}</div>
+                <div className="flex-1 overflow-hidden">
+                  <div className="truncate text-sm font-semibold text-gray-900">{authStatus.user?.name || 'User'}</div>
+                  <div className="text-muted-foreground truncate text-xs">{authStatus.user?.email}</div>
                 </div>
               </div>
+              <div className="mt-3">
+                {authStatus.user?.isPro ? (
+                  <div className="flex items-center gap-2 rounded-lg bg-blue-50 px-2 py-1.5 text-blue-700">
+                    <Star className="h-3.5 w-3.5 fill-blue-600 text-blue-600" />
+                    <span className="text-xs font-medium">Pro Plan Active</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between rounded-lg border bg-gray-50 px-2 py-1.5">
+                    <span className="text-muted-foreground text-xs font-medium">Free Plan</span>
+                    <Button
+                      variant="link"
+                      size="sm"
+                      className="h-auto p-0 text-xs text-blue-600"
+                      onClick={() => chrome.tabs.create({ url: 'https://www.jobjourney.me/subscription' })}>
+                      Upgrade
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="flex justify-end border-t border-gray-700 p-4">
-              <button
-                className="cursor-pointer rounded-md border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-400 transition-all duration-300 hover:bg-red-500/15"
-                onClick={handleSignOut}
-                data-testid="logout-button">
+            <div className="border-t bg-gray-50/50 p-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="w-full justify-start text-red-600 hover:bg-red-50 hover:text-red-700"
+                onClick={handleSignOut}>
+                <LogOut className="mr-2 h-3.5 w-3.5" />
                 Sign Out
-              </button>
+              </Button>
             </div>
           </div>
-        </div>
+        </>
       )}
     </>
   );

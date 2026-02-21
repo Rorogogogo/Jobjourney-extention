@@ -1,6 +1,37 @@
 // SEEK scraper from working version
 export {};
 
+// Helper function to parse relative time to UTC date string
+function parseRelativeTimeToUtc(relativeText: string): string | null {
+  if (!relativeText) return null;
+
+  const now = new Date();
+  const text = relativeText.toLowerCase();
+
+  // Match patterns like "1 minute ago", "2 hours ago", "3 days ago", etc.
+  const minuteMatch = text.match(/(\d+)\s*minute/);
+  const hourMatch = text.match(/(\d+)\s*hour/);
+  const dayMatch = text.match(/(\d+)\s*day/);
+  const weekMatch = text.match(/(\d+)\s*week/);
+  const monthMatch = text.match(/(\d+)\s*month/);
+
+  if (minuteMatch) {
+    now.setMinutes(now.getMinutes() - parseInt(minuteMatch[1], 10));
+  } else if (hourMatch) {
+    now.setHours(now.getHours() - parseInt(hourMatch[1], 10));
+  } else if (dayMatch) {
+    now.setDate(now.getDate() - parseInt(dayMatch[1], 10));
+  } else if (weekMatch) {
+    now.setDate(now.getDate() - parseInt(weekMatch[1], 10) * 7);
+  } else if (monthMatch) {
+    now.setMonth(now.getMonth() - parseInt(monthMatch[1], 10));
+  } else {
+    return null;
+  }
+
+  return now.toISOString();
+}
+
 // Helper function to scrape the SEEK job detail panel
 async function scrapeSeekJobDetailPanel(basicInfo: any = {}): Promise<any> {
   try {
@@ -101,6 +132,43 @@ async function scrapeSeekJobDetailPanel(basicInfo: any = {}): Promise<any> {
     );
     const companyLogoUrl = logoElement ? (logoElement as HTMLImageElement).src : null;
 
+    // Detect "Already Applied" status
+    // On SEEK, if the apply button is missing or shows "Applied", the user has already applied
+    let isAlreadyApplied = false;
+    let appliedDateUtc: string | null = null;
+
+    // Check for apply button - if missing on a valid job page, user likely already applied
+    const applyButton = panel.querySelector('[data-automation="job-detail-apply"], [data-automation="applyButton"]');
+    const appliedBadge = panel.querySelector('[data-automation="applied-badge"], [data-testid="applied-badge"]');
+
+    // Check for "Applied" text in various locations
+    const appliedTextElements = Array.from(panel.querySelectorAll('span, div, button')).filter(el => {
+      const text = el.textContent?.toLowerCase().trim() || '';
+      return text === 'applied' || text.includes('you applied') || text.includes('already applied');
+    });
+
+    if (appliedBadge || appliedTextElements.length > 0) {
+      isAlreadyApplied = true;
+      console.log('[SEEK Scraper] Detected already applied status via badge/text');
+
+      // Try to find the applied date
+      for (const el of appliedTextElements) {
+        const text = el.textContent?.trim() || '';
+        if (text.toLowerCase().includes('applied') && /\d+\s*(minute|hour|day|week|month)/i.test(text)) {
+          appliedDateUtc = parseRelativeTimeToUtc(text);
+          if (appliedDateUtc) {
+            console.log('[SEEK Scraper] Parsed applied date:', appliedDateUtc);
+            break;
+          }
+        }
+      }
+    } else if (!applyButton && title && company) {
+      // If no apply button found but we have valid job data, might be applied
+      // This is a softer check - only flag if we're confident we have job data
+      console.log('[SEEK Scraper] No apply button found - may be already applied');
+      // Don't automatically set isAlreadyApplied here as SEEK might just not have loaded the button
+    }
+
     // Create the job object
     const job = (window as any).Job.createFromSEEK({
       title,
@@ -114,6 +182,8 @@ async function scrapeSeekJobDetailPanel(basicInfo: any = {}): Promise<any> {
       jobType,
       workplaceType,
       applicantCount: '',
+      isAlreadyApplied,
+      appliedDateUtc,
     });
 
     console.log('Scraped SEEK job detail from panel:', job);

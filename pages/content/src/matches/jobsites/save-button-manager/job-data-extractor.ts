@@ -1,5 +1,6 @@
 // Job data extraction for different platforms
 import { analyzeJobDescription } from '../descriptionAnalysis';
+import { AppliedStatusDetector } from './applied-status-detector';
 import type { JobData, Platform } from './types';
 
 export class JobDataExtractor {
@@ -43,6 +44,15 @@ export class JobDataExtractor {
         jobData.analysis = analyzeJobDescription(jobData.description);
       }
 
+      // Detect applied status for supported platforms
+      if (jobData && ['linkedin', 'seek', 'jora'].includes(platform)) {
+        const appliedStatus = AppliedStatusDetector.detectAppliedStatus(platform);
+        if (appliedStatus.isApplied) {
+          jobData.isAlreadyApplied = true;
+          jobData.appliedDateUtc = appliedStatus.appliedDateUtc;
+        }
+      }
+
       return jobData;
     } catch (error) {
       console.warn(`Error extracting ${platform} job data:`, error);
@@ -51,52 +61,139 @@ export class JobDataExtractor {
   }
 
   private static extractLinkedInJobData(): JobData | null {
-    // First check if we're on a job detail page by checking the URL
-    const url = window.location.href;
-
-    // LinkedIn job detail pages have URLs like:
-    // 1. https://www.linkedin.com/jobs/view/123456789/
-    // 2. https://www.linkedin.com/jobs/collections/...?currentJobId=123456789
-    // 3. https://www.linkedin.com/jobs/search-results/?currentJobId=123456789
-    // We should show button when there's a specific currentJobId parameter OR on /jobs/view/ pages
-    const hasCurrentJobId = url.includes('currentJobId=');
-    const isDirectJobView = url.includes('/jobs/view/');
-
-    if (!hasCurrentJobId && !isDirectJobView) {
-      console.log('LinkedIn: Not on a job detail page - no currentJobId or direct view');
+    // Must be on a LinkedIn /jobs/ page
+    if (!window.location.pathname.startsWith('/jobs')) {
       return null;
     }
 
-    // Check if we're on a job detail page
-    const titleElement = document.querySelector(
-      '.job-details-jobs-unified-top-card__job-title h1, .t-24.job-details-jobs-unified-top-card__job-title, h1.job-title',
-    );
-    const companyElement = document.querySelector(
-      '.job-details-jobs-unified-top-card__company-name a, .jobs-details-top-card__company-url, .job-details-jobs-unified-top-card__company-name',
-    );
+    // Find the job detail panel — LinkedIn uses different containers depending on the page
+    const detailPanel =
+      document.querySelector('.scaffold-layout__detail') ||
+      document.querySelector('.jobs-search__job-details') ||
+      document.querySelector('.jobs-details') ||
+      document.querySelector('[class*="job-details"]') ||
+      document;
+
+    // Title selectors — try specific first, then generic within detail panel
+    const titleSelectors = [
+      '.job-details-jobs-unified-top-card__job-title h1',
+      '.t-24.job-details-jobs-unified-top-card__job-title',
+      'h1.job-title',
+      '.jobs-unified-top-card__job-title h1',
+      '.jobs-unified-top-card__job-title',
+      '[class*="top-card"] [class*="job-title"] h1',
+      '[class*="top-card"] [class*="job-title"]',
+      '[class*="top-card"] h1',
+      '[class*="job-title"] h1',
+    ];
+
+    // Company selectors
+    const companySelectors = [
+      '.job-details-jobs-unified-top-card__company-name a',
+      '.jobs-details-top-card__company-url',
+      '.job-details-jobs-unified-top-card__company-name',
+      '.jobs-unified-top-card__company-name a',
+      '.jobs-unified-top-card__company-name',
+      '[class*="top-card"] [class*="company-name"] a',
+      '[class*="top-card"] [class*="company-name"]',
+    ];
+
+    let titleElement: Element | null = null;
+    let companyElement: Element | null = null;
+
+    // Try title selectors on the detail panel first, then on full document
+    for (const sel of titleSelectors) {
+      titleElement = detailPanel.querySelector(sel) || document.querySelector(sel);
+      if (titleElement?.textContent?.trim()) break;
+    }
+
+    // Fallback: find h1 inside the detail panel
+    if (!titleElement && detailPanel !== document) {
+      titleElement = detailPanel.querySelector('h1');
+    }
+
+    for (const sel of companySelectors) {
+      companyElement = detailPanel.querySelector(sel) || document.querySelector(sel);
+      if (companyElement?.textContent?.trim()) break;
+    }
+
     const locationElement = document.querySelector(
-      '.job-details-jobs-unified-top-card__primary-description-container, .jobs-details-top-card__job-info',
+      '.job-details-jobs-unified-top-card__primary-description-container, .jobs-details-top-card__job-info, .jobs-unified-top-card__subtitle',
     );
     const descriptionElement = document.querySelector(
-      '.jobs-description__content .jobs-box__html-content, .jobs-description-content__text, div#job-details',
+      '.jobs-description__content .jobs-box__html-content, .jobs-description-content__text, div#job-details, .jobs-description__content',
     );
 
-    // Extract company logo - from LinkedIn job detail company section
+    // Extract company logo
     const logoElement = document.querySelector(
       '.artdeco-entity-lockup__image img.evi-image, ' +
         '.jobs-company img.evi-image, ' +
-        '.job-details-jobs-unified-top-card__container--two-pane .evi-image',
+        '.job-details-jobs-unified-top-card__container--two-pane .evi-image, ' +
+        '[class*="top-card"] img.evi-image',
     ) as HTMLImageElement;
     const companyLogoUrl = logoElement?.src || undefined;
 
-    if (!titleElement || !companyElement) return null;
+    if (!titleElement || !companyElement) {
+      // Debug: log what LinkedIn's DOM actually looks like so we can fix selectors
+      console.log(
+        '[JJ Debug] LinkedIn extraction failed. titleElement:',
+        !!titleElement,
+        'companyElement:',
+        !!companyElement,
+      );
+      console.log(
+        '[JJ Debug] Detail panel found:',
+        detailPanel !== document ? (detailPanel as Element).className : 'fallback to document',
+      );
+      // Log all h1/h2 elements to find the right ones
+      const allH1s = document.querySelectorAll('h1');
+      const allH2s = document.querySelectorAll('h2');
+      console.log(
+        '[JJ Debug] All h1 elements on page:',
+        Array.from(allH1s).map(el => ({
+          text: el.textContent?.trim()?.substring(0, 50),
+          class: el.className,
+          parentClass: el.parentElement?.className,
+        })),
+      );
+      console.log(
+        '[JJ Debug] All h2 elements on page:',
+        Array.from(allH2s).map(el => ({
+          text: el.textContent?.trim()?.substring(0, 50),
+          class: el.className,
+          parentClass: el.parentElement?.className,
+        })),
+      );
+      // Log elements with "company" or "employer" in class name
+      const companyEls = document.querySelectorAll('[class*="company"], [class*="employer"], [class*="subtitle"]');
+      console.log(
+        '[JJ Debug] Elements with company/employer/subtitle in class:',
+        Array.from(companyEls).map(el => ({
+          text: el.textContent?.trim()?.substring(0, 50),
+          class: el.className,
+          tag: el.tagName,
+        })),
+      );
+      return null;
+    }
 
-    // Extract job ID from URL if possible
-    let jobUrl = window.location.href.split('?')[0];
-    const currentJobIdMatch = window.location.href.match(/currentJobId=(\d+)/);
-    if (currentJobIdMatch) {
-      // Convert collections URL to proper job view URL
+    // Build job URL — try URL params first, then extract from DOM link, then fallback
+    const url = window.location.href;
+    let jobUrl = '';
+    const currentJobIdMatch = url.match(/currentJobId=(\d+)/);
+    const directViewMatch = url.match(/\/jobs\/view\/(\d+)/);
+
+    if (directViewMatch) {
+      jobUrl = `https://www.linkedin.com/jobs/view/${directViewMatch[1]}/`;
+    } else if (currentJobIdMatch) {
       jobUrl = `https://www.linkedin.com/jobs/view/${currentJobIdMatch[1]}/`;
+    } else {
+      const titleLink = titleElement.closest('a') || titleElement.querySelector('a');
+      if (titleLink?.href?.includes('/jobs/view/')) {
+        jobUrl = titleLink.href.split('?')[0];
+      } else {
+        jobUrl = url.split('?')[0];
+      }
     }
 
     return {

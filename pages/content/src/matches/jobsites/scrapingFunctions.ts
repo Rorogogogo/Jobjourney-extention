@@ -1,197 +1,12 @@
 // Scraping functions for different job platforms
+// Import shared Job class - single source of truth
+import { Job } from './job-class';
+import type { JobData } from './job-class';
 import { detectPRRequirement } from './prDetection';
-import {
-  analyzeJobDescription,
-  JobAnalysisResult,
-  WorkArrangementResult,
-  EmploymentTypeResult,
-  ExperienceLevelResult,
-  TechStackResult,
-} from './descriptionAnalysis';
 
-// Interface for job data (legacy compatibility)
-interface JobData {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  salary?: string;
-  postedDate?: string;
-  isRPRequired?: boolean;
-  companyLogoUrl?: string;
-  // New fields (optional for legacy)
-  detectedWorkArrangement?: WorkArrangementResult;
-  detectedEmploymentType?: EmploymentTypeResult;
-  detectedExperienceLevel?: ExperienceLevelResult;
-  techStack?: TechStackResult;
-  platform?: string;
-}
-
-// Enhanced Job class from working version
-export class Job {
-  public title: string;
-  public company: string;
-  public location: string;
-  public jobUrl: string;
-  public description: string;
-  public salary: string;
-  public postedDate: string;
-  public companyLogoUrl: string | null;
-  public platform: string;
-  public jobType: string;
-  public workplaceType: string;
-  public applicantCount: string;
-  public isRPRequired: boolean;
-
-  // New analysis fields
-  public analysis: JobAnalysisResult;
-
-  constructor({
-    title,
-    company,
-    location,
-    jobUrl,
-    description = '',
-    salary = '',
-    postedDate = '',
-    companyLogoUrl = null,
-    platform,
-    jobType = '',
-    workplaceType = '',
-    applicantCount = '',
-  }: {
-    title: string;
-    company: string;
-    location: string;
-    jobUrl: string;
-    description?: string;
-    salary?: string;
-    postedDate?: string;
-    companyLogoUrl?: string | null;
-    platform: string;
-    jobType?: string;
-    workplaceType?: string;
-    applicantCount?: string;
-  }) {
-    this.title = title?.trim() || '';
-    this.company = company?.trim() || '';
-    this.location = location?.trim() || '';
-    this.jobUrl = jobUrl || '';
-    this.description = description?.trim() || '';
-    this.salary = salary?.trim() || '';
-    this.postedDate = postedDate?.trim() || '';
-    this.companyLogoUrl = companyLogoUrl || null;
-    this.platform = platform || '';
-    this.jobType = jobType?.trim() || '';
-    this.workplaceType = workplaceType?.trim() || '';
-    this.applicantCount = applicantCount?.trim() || '';
-
-    // Analyze description for PR requirement using utility function
-    const prResult = detectPRRequirement(this.description);
-    this.isRPRequired = prResult.isRPRequired;
-
-    // Perform comprehensive analysis
-    this.analysis = analyzeJobDescription(this.description);
-  }
-
-  // Custom JSON serialization to ensure proper field names
-  toJSON() {
-    return {
-      title: this.title,
-      company: this.company,
-      location: this.location,
-      jobUrl: this.jobUrl, // Ensure this is jobUrl not url
-      description: this.description,
-      salary: this.salary,
-      postedDate: this.postedDate,
-      companyLogoUrl: this.companyLogoUrl, // Ensure this is included
-      platform: this.platform,
-      jobType: this.jobType,
-      workplaceType: this.workplaceType,
-      applicantCount: this.applicantCount,
-      isRPRequired: this.isRPRequired,
-
-      // Include new analysis results
-      detectedWorkArrangement: this.analysis.workArrangement,
-      detectedEmploymentType: this.analysis.employmentType,
-      detectedExperienceLevel: this.analysis.experienceLevel,
-      techStack: this.analysis.techStack,
-
-      extracted_at: this.postedDate || null,
-      id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
-    };
-  }
-
-  static createFromLinkedIn(data: any) {
-    return new Job({
-      title: data.title,
-      company: data.company,
-      location: data.location,
-      jobUrl: data.jobUrl,
-      description: data.description,
-      salary: data.salary,
-      postedDate: data.postedDate,
-      companyLogoUrl: data.companyLogoUrl,
-      platform: 'LinkedIn',
-      jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
-      applicantCount: data.applicantCount || '',
-    });
-  }
-
-  static createFromSEEK(data: any) {
-    return new Job({
-      title: data.title,
-      company: data.company,
-      location: data.location,
-      jobUrl: data.jobUrl,
-      description: data.description,
-      salary: data.salary,
-      postedDate: data.postedDate,
-      companyLogoUrl: data.companyLogoUrl,
-      platform: 'SEEK',
-      jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
-      applicantCount: data.applicantCount || '',
-    });
-  }
-
-  static createFromIndeed(data: any) {
-    return new Job({
-      title: data.title,
-      company: data.company,
-      location: data.location,
-      jobUrl: data.jobUrl,
-      description: data.description,
-      salary: data.salary,
-      postedDate: data.postedDate,
-      companyLogoUrl: data.companyLogoUrl,
-      platform: 'Indeed',
-      jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
-      applicantCount: data.applicantCount || '',
-    });
-  }
-
-  static createJoraJob(data: any) {
-    return new Job({
-      title: data.title,
-      company: data.company,
-      location: data.location,
-      jobUrl: data.link || data.jobUrl,
-      description: data.description,
-      salary: data.salary,
-      postedDate: data.postedDate || data.datePosted,
-      companyLogoUrl: data.companyLogoUrl,
-      platform: 'Jora',
-      jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
-      applicantCount: data.applicantCount || '',
-    });
-  }
-}
+// Re-export Job class for backward compatibility
+export { Job };
+export type { JobData };
 
 // Advanced Indeed scraper helper function from working version
 function scrapeIndeedJobDetailPanel(panelElement: Element, basicInfo: any = {}): any {
@@ -642,6 +457,59 @@ export const scrapingFunctions = {
         );
         const companyLogoUrl = logoElement ? (logoElement as HTMLImageElement).src : null;
 
+        // Detect "Already Applied" status
+        let isAlreadyApplied = false;
+        let appliedDateUtc: string | null = null;
+
+        // Check for apply button and applied indicators
+        const applyButton = panel.querySelector(
+          '[data-automation="job-detail-apply"], [data-automation="applyButton"]',
+        );
+        const appliedBadge = panel.querySelector('[data-automation="applied-badge"], [data-testid="applied-badge"]');
+
+        // Check for "Applied" text in various locations
+        const appliedTextElements = Array.from(panel.querySelectorAll('span, div, button')).filter(el => {
+          const text = el.textContent?.toLowerCase().trim() || '';
+          return text === 'applied' || text.includes('you applied') || text.includes('already applied');
+        });
+
+        if (appliedBadge || appliedTextElements.length > 0) {
+          isAlreadyApplied = true;
+          console.log('[SEEK Scraper] Detected already applied status');
+
+          // Try to find the applied date
+          for (const el of appliedTextElements) {
+            const text = el.textContent?.trim() || '';
+            if (text.toLowerCase().includes('applied') && /\d+\s*(minute|hour|day|week|month)/i.test(text)) {
+              // Parse relative time
+              const now = new Date();
+              const lowerText = text.toLowerCase();
+              const minuteMatch = lowerText.match(/(\d+)\s*minute/);
+              const hourMatch = lowerText.match(/(\d+)\s*hour/);
+              const dayMatch = lowerText.match(/(\d+)\s*day/);
+              const weekMatch = lowerText.match(/(\d+)\s*week/);
+              const monthMatch = lowerText.match(/(\d+)\s*month/);
+
+              if (minuteMatch) {
+                now.setMinutes(now.getMinutes() - parseInt(minuteMatch[1], 10));
+              } else if (hourMatch) {
+                now.setHours(now.getHours() - parseInt(hourMatch[1], 10));
+              } else if (dayMatch) {
+                now.setDate(now.getDate() - parseInt(dayMatch[1], 10));
+              } else if (weekMatch) {
+                now.setDate(now.getDate() - parseInt(weekMatch[1], 10) * 7);
+              } else if (monthMatch) {
+                now.setMonth(now.getMonth() - parseInt(monthMatch[1], 10));
+              }
+              appliedDateUtc = now.toISOString();
+              console.log('[SEEK Scraper] Parsed applied date:', appliedDateUtc);
+              break;
+            }
+          }
+        } else if (!applyButton && title && company) {
+          console.log('[SEEK Scraper] No apply button found - may be already applied');
+        }
+
         // Create the job object
         const job = Job.createFromSEEK({
           title,
@@ -655,6 +523,8 @@ export const scrapingFunctions = {
           jobType,
           workplaceType,
           applicantCount: '',
+          isAlreadyApplied,
+          appliedDateUtc,
         });
 
         console.log('Scraped SEEK job detail from panel:', job);

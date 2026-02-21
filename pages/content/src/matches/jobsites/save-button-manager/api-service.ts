@@ -9,6 +9,7 @@ export class ApiService {
       const isRPRequired = RPRequirementDetector.determineRPRequirement(jobData, platform);
 
       // Prepare job data for API
+      // Status: 1 = Saved, 2 = Applied
       const apiJobData = {
         Name: jobData.title,
         CompanyName: jobData.company,
@@ -20,9 +21,12 @@ export class ApiService {
         WorkArrangement: jobData.workArrangement || '',
         CompanyLogoUrl: jobData.companyLogoUrl || null,
         PlatformName: jobData.platform || platform,
-        Status: 1, // Default to "Saved" status
+        Status: jobData.isAlreadyApplied ? 2 : 1, // 2 = Applied, 1 = Saved
         IsStarred: false,
         IsRPRequired: isRPRequired,
+        // Already applied detection
+        IsAlreadyApplied: jobData.isAlreadyApplied || false,
+        AppliedDateUtc: jobData.appliedDateUtc || null,
       };
 
       // Send request to background script

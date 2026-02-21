@@ -36,6 +36,9 @@ export interface JobData {
   extracted_at: string | null;
   isRPRequired?: boolean;
   companyLogoUrl?: string | null;
+  // Already applied detection
+  isAlreadyApplied?: boolean;
+  appliedDateUtc?: string | null;
 }
 
 export interface SearchConfig {
@@ -92,7 +95,9 @@ export type EventType =
   | 'SCRAPING_ERROR'
   | 'API_REQUEST'
   | 'AUTH_CHECK_REQUIRED'
-  | 'AUTH_STATUS_REFRESH';
+  | 'AUTH_STATUS_REFRESH'
+  | 'JOBS_SENDING'
+  | 'JOBS_SENT';
 
 export interface EventData {
   [key: string]: unknown;
@@ -108,7 +113,9 @@ export type MessageType =
   | 'SCRAPING_PROGRESS'
   | 'SCRAPING_COMPLETE'
   | 'SCRAPING_ERROR'
-  | 'EXTENSION_JOBS_PROCESSED';
+  | 'EXTENSION_JOBS_PROCESSED'
+  | 'JOBS_SENDING'
+  | 'JOBS_SENT';
 
 // Configuration types
 export interface ConfigData {

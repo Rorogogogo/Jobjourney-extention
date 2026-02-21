@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import type { ManifestType } from '@extension/shared';
 
-const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
+const packageJson = JSON.parse(readFileSync('../package.json', 'utf8'));
 
 /**
  * JobJourney Chrome Extension Manifest - DEVELOPMENT VERSION
@@ -13,7 +13,7 @@ const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 const manifest = {
   manifest_version: 3,
   name: 'JobJourney Assistant (Dev)',
-  version: '3.0.7',
+  version: packageJson.version,
   description:
     'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
   default_locale: 'en',
@@ -23,6 +23,9 @@ const manifest = {
     '*://*.seek.com.au/*',
     '*://*.seek.co.nz/*',
     '*://*.indeed.com/*',
+    '*://*.jora.com/*',
+    '*://*.au.jora.com/*',
+    '*://*.reed.co.uk/*',
     '*://*.jobjourney.me/*',
     'http://localhost:5001/*',
     'http://localhost:5014/*',
@@ -46,6 +49,9 @@ const manifest = {
         '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
+        '*://*.jora.com/*',
+        '*://*.au.jora.com/*',
+        '*://*.reed.co.uk/*',
         '*://*.jobjourney.me/*',
         'http://localhost:5001/*',
         'http://localhost:5014/*',
@@ -64,6 +70,9 @@ const manifest = {
         '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
+        '*://*.jora.com/*',
+        '*://*.au.jora.com/*',
+        '*://*.reed.co.uk/*',
         '*://*.jobjourney.me/*',
         'http://localhost:5001/*',
         'http://localhost:5014/*',

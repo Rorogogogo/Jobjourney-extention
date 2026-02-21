@@ -237,7 +237,7 @@ const joraScraper = {
           },
         );
 
-        const job = (window as any).Job.createJoraJob(mergedJob);
+        const job = (window as any).Job.createFromJora(mergedJob);
 
         jobs.push(job);
 

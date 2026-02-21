@@ -1,26 +1,39 @@
 import { withErrorBoundary, withSuspense } from '@extension/shared';
-import { cn, ErrorDisplay, LoadingSpinner } from '@extension/ui';
+import { cn, ErrorDisplay, LoadingSpinner, Button, Card } from '@extension/ui';
 import { useState, useEffect } from 'react';
+import { LogOut, Search, Settings } from 'lucide-react';
 import { AuthSection } from './components/AuthSection';
+import { DevMockButton } from './components/DevMockButton';
 import { ErrorSection } from './components/ErrorSection';
 import { ProgressSection } from './components/ProgressSection';
 import { ResultsSection } from './components/ResultsSection';
 import { SearchSection } from './components/SearchSection';
 import ToastManager from './components/ToastManager';
-import { useJobJourneyState } from './hooks/useJobJourneyState';
+import { useJobJourneyState, type SearchConfig } from './hooks/useJobJourneyState';
 
-type ViewType = 'search' | 'progress' | 'results' | 'error';
+type ViewType = 'search' | 'progress' | 'sending' | 'results' | 'error';
 
 const SidePanel = () => {
   const [currentView, setCurrentView] = useState<ViewType>('search');
 
-  const { authStatus, isAuthenticated, searchProgress, searchResults, searchError, startJobSearch, stopJobSearch } =
-    useJobJourneyState();
+  const {
+    authStatus,
+    isAuthenticated,
+    searchProgress,
+    searchResults,
+    searchError,
+    isSendingJobs,
+    sendingJobCount,
+    startJobSearch,
+    stopJobSearch,
+  } = useJobJourneyState();
 
   // Handle view transitions based on state
   useEffect(() => {
     if (searchError) {
       setCurrentView('error');
+    } else if (isSendingJobs) {
+      setCurrentView('sending');
     } else if (searchProgress?.sessionId && searchProgress.status !== 'completed') {
       setCurrentView('progress');
     } else if (searchResults?.jobs && searchResults.jobs.length > 0) {
@@ -28,9 +41,9 @@ const SidePanel = () => {
     } else {
       setCurrentView('search');
     }
-  }, [searchProgress, searchResults, searchError]);
+  }, [searchProgress, searchResults, searchError, isSendingJobs]);
 
-  const handleStartSearch = async (searchConfig: Record<string, unknown>) => {
+  const handleStartSearch = async (searchConfig: SearchConfig) => {
     try {
       setCurrentView('progress');
       await startJobSearch(searchConfig);
@@ -58,40 +71,49 @@ const SidePanel = () => {
 
   return (
     <ToastManager>
-      <div
-        className={cn(
-          'flex h-screen w-full flex-col overflow-x-hidden font-sans text-sm leading-relaxed text-white',
-          'bg-gradient-to-br from-black to-gray-900',
-        )}>
-        {/* Header */}
-        <div className="flex items-center gap-4 border-b border-gray-700 px-4 py-2">
-          <div className="flex items-center justify-center">
-            <span className="text-base font-bold leading-none tracking-wider text-white">JJ</span>
+      <div className="flex h-screen w-full flex-col overflow-x-hidden bg-white font-sans text-sm text-gray-900">
+        {/* Apple-style Header */}
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b bg-white/90 px-3 py-2 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <span className="text-sm font-semibold tracking-tight">JobJourney</span>
           </div>
-          <div className="flex-1">
+          <div className="flex items-center gap-2">
             <AuthSection authStatus={authStatus} isAuthenticated={isAuthenticated} />
           </div>
-        </div>
+        </header>
 
         {/* Main Content */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {currentView === 'search' && (
-            <SearchSection onStartSearch={handleStartSearch} isAuthenticated={isAuthenticated} />
-          )}
+        <main className="flex-1 overflow-y-auto p-3">
+          <div className="mx-auto flex h-full max-w-md flex-col space-y-4">
+            {currentView === 'search' && (
+              <SearchSection onStartSearch={handleStartSearch} isAuthenticated={isAuthenticated} />
+            )}
 
-          {currentView === 'progress' && <ProgressSection progress={searchProgress} onStop={handleStopSearch} />}
+            {currentView === 'progress' && <ProgressSection progress={searchProgress} onStop={handleStopSearch} />}
 
-          {currentView === 'results' && <ResultsSection results={searchResults} onSearchAgain={handleSearchAgain} />}
+            {currentView === 'sending' && (
+              <div className="flex flex-1 flex-col items-center justify-center gap-3 py-8">
+                <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-blue-500" />
+                <p className="text-sm font-medium text-gray-700">
+                  Sending {sendingJobCount} job{sendingJobCount !== 1 ? 's' : ''} to JobJourney...
+                </p>
+                <p className="text-xs text-gray-500">Opening your dashboard</p>
+              </div>
+            )}
 
-          {currentView === 'error' && <ErrorSection error={searchError} onRetry={handleRetry} />}
-        </div>
+            {currentView === 'results' && <ResultsSection results={searchResults} onSearchAgain={handleSearchAgain} />}
+
+            {currentView === 'error' && <ErrorSection error={searchError} onRetry={handleRetry} />}
+          </div>
+        </main>
 
         {/* Footer */}
-        <div className="border-t border-gray-700 px-4 py-2 text-center">
-          <p className="text-xs text-white/50">
-            Powered by <span className="font-medium text-white/80">JobJourney</span>
+        <footer className="border-t bg-white px-4 py-3 text-center">
+          <DevMockButton />
+          <p className="text-muted-foreground text-xs">
+            Powered by <span className="text-foreground font-medium">JobJourney AI</span>
           </p>
-        </div>
+        </footer>
       </div>
     </ToastManager>
   );

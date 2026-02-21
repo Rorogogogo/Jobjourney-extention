@@ -364,6 +364,9 @@ export class ApiService {
       platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
       companyLogoUrl: jobData.CompanyLogoUrl || null,
       isRPRequired: jobData.IsRPRequired === true || jobData.IsRPRequired === 'true',
+      // Already applied detection
+      isAlreadyApplied: jobData.IsAlreadyApplied === true,
+      appliedDateUtc: jobData.AppliedDateUtc || null,
     };
 
     return this.makeRequest('/job-market/save', {

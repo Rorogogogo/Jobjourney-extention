@@ -4,12 +4,36 @@ import type { Platform } from './types';
 export class InsertionPointFinder {
   static findInsertionPoint(platform: Platform): HTMLElement | null {
     switch (platform) {
-      case 'linkedin':
-        // Find the title container and get its parent to insert below
-        const linkedinTitle = document.querySelector(
-          '.job-details-jobs-unified-top-card__job-title, .t-24.job-details-jobs-unified-top-card__job-title, h1.job-title',
-        );
+      case 'linkedin': {
+        // Find the title within the job detail panel
+        const detailPanel =
+          document.querySelector('.scaffold-layout__detail') ||
+          document.querySelector('.jobs-search__job-details') ||
+          document.querySelector('.jobs-details') ||
+          document.querySelector('[class*="job-details"]');
+
+        const titleSelectors = [
+          '.job-details-jobs-unified-top-card__job-title',
+          '.t-24.job-details-jobs-unified-top-card__job-title',
+          'h1.job-title',
+          '.jobs-unified-top-card__job-title',
+          '[class*="top-card"] [class*="job-title"]',
+          '[class*="top-card"] h1',
+        ];
+
+        let linkedinTitle: Element | null = null;
+        for (const sel of titleSelectors) {
+          linkedinTitle = detailPanel?.querySelector(sel) || document.querySelector(sel);
+          if (linkedinTitle) break;
+        }
+
+        // Fallback: h1 inside the detail panel
+        if (!linkedinTitle && detailPanel) {
+          linkedinTitle = detailPanel.querySelector('h1');
+        }
+
         return linkedinTitle?.parentElement?.parentElement || linkedinTitle?.parentElement || null;
+      }
 
       case 'indeed':
         // Find the header container to insert below title
