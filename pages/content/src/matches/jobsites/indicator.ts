@@ -176,7 +176,7 @@ export async function createJobJourneyIndicator() {
   const indicator = document.createElement('div');
   indicator.id = INDICATOR_ID;
   indicator.innerHTML = `
-    <div style="
+    <div id="jobjourney-indicator-inner" style="
       position: fixed !important;
       top: 0 !important;
       left: 0 !important;
@@ -199,6 +199,7 @@ export async function createJobJourneyIndicator() {
       pointer-events: auto !important;
       opacity: 1 !important;
       visibility: visible !important;
+      transition: transform 0.4s ease, opacity 0.4s ease !important;
     ">
       <div style="
         position: absolute !important;
@@ -302,6 +303,65 @@ export async function createJobJourneyIndicator() {
     closeBtn.addEventListener('mouseleave', () => {
       (closeBtn as HTMLElement).style.color = '#666';
     });
+  }
+
+  // Auto-dismiss after 3 seconds with slide-away animation
+  const autoDismissTimeout = setTimeout(() => {
+    const innerDiv = indicator.querySelector('#jobjourney-indicator-inner') as HTMLElement;
+    if (!innerDiv) return;
+
+    // Apply slide-up and fade-out
+    innerDiv.style.transform = 'translateY(-100%)';
+    innerDiv.style.opacity = '0';
+
+    // After transition completes, clean up
+    // NOTE: We do NOT call restoreLayout() here — abruptly removing body padding
+    // and restoring fixed element positions causes LinkedIn (and other SPAs) to
+    // re-render and lose their job detail panel DOM. Instead, we smoothly transition
+    // the padding away and let the observer/interval wind down gracefully.
+    setTimeout(() => {
+      observer.disconnect();
+      clearInterval(intervalId);
+
+      // Smoothly transition body padding back to original
+      document.body.style.transition = 'padding-top 0.3s ease';
+      const originalPadding = document.body.getAttribute('data-jj-original-padding');
+      document.body.style.paddingTop = originalPadding || '';
+      document.body.removeAttribute('data-jj-original-padding');
+
+      // Smoothly restore fixed elements
+      const adjustedElements = document.querySelectorAll('[data-jj-adjusted="true"]');
+      adjustedElements.forEach(el => {
+        const element = el as HTMLElement;
+        element.style.transition = 'top 0.3s ease';
+        const originalTop = element.getAttribute('data-jj-original-top');
+        element.style.top = originalTop !== null ? `${originalTop}px` : '';
+        element.removeAttribute('data-jj-original-top');
+        element.removeAttribute('data-jj-adjusted');
+
+        // Clean up transition property after animation
+        setTimeout(() => {
+          element.style.transition = '';
+        }, 300);
+      });
+
+      // Clean up body transition and remove indicator after animation
+      setTimeout(() => {
+        document.body.style.transition = '';
+        indicator.remove();
+      }, 300);
+    }, 400);
+  }, 3000);
+
+  // Update close button handler to also clear auto-dismiss timer
+  if (closeBtn) {
+    closeBtn.addEventListener(
+      'click',
+      () => {
+        clearTimeout(autoDismissTimeout);
+      },
+      true,
+    );
   }
 
   console.log('🎯 JobJourney indicator strip added to page');

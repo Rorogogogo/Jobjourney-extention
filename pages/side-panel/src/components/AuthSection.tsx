@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Badge } from '@extension/ui';
-import { LogOut, User, Star, ExternalLink } from 'lucide-react';
+import { LogOut, User, Star, ExternalLink, Github } from 'lucide-react';
 import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
 
 interface AuthStatus {
@@ -88,12 +88,13 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
         </Button>
 
         <Button
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground h-8 w-8"
+          variant="outline"
+          size="sm"
+          className="text-muted-foreground flex h-8 items-center gap-1.5 px-2.5"
           onClick={handleGitHub}
           title="GitHub">
-          <Star className="h-4 w-4" />
+          <Github className="h-4 w-4" />
+          {githubStars !== null && <span className="text-xs font-medium">{githubStars}</span>}
         </Button>
       </div>
 

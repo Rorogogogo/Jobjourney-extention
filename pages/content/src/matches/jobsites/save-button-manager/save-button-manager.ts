@@ -172,6 +172,11 @@ export class SaveButtonManager implements ISaveButtonManager {
     );
     buttonContainer.appendChild(badges);
 
+    // Company link buttons
+    if (this.currentJobData.company) {
+      buttonContainer.appendChild(ButtonComponent.createCompanyLinks(this.currentJobData.company));
+    }
+
     // Create button (no PR badge on it anymore)
     this.button = ButtonComponent.createButton(undefined);
 

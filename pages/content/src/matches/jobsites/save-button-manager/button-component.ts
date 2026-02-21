@@ -449,6 +449,55 @@ export class ButtonComponent {
     return container;
   }
 
+  static createCompanyLinks(companyName: string): HTMLElement {
+    const container = document.createElement('div');
+    container.style.cssText = 'display:flex;gap:6px;align-items:center;';
+
+    const encoded = encodeURIComponent(companyName);
+    const links = [
+      {
+        label: 'LinkedIn',
+        icon: 'in',
+        color: '#0A66C2',
+        url: `https://www.linkedin.com/search/results/companies/?keywords=${encoded}`,
+      },
+      {
+        label: 'Levels.fyi',
+        icon: 'L',
+        color: '#6E56CF',
+        url: `https://www.levels.fyi/t/software-engineer?search=${encoded}`,
+      },
+      {
+        label: 'Glassdoor',
+        icon: 'G',
+        color: '#0CAA41',
+        url: `https://www.glassdoor.com/Search/results.htm?keyword=${encoded}`,
+      },
+    ];
+
+    for (const { label, icon, color, url } of links) {
+      const a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener noreferrer';
+      a.title = `Search ${label} for ${companyName}`;
+      a.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid ${color};border-radius:4px;color:${color};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;transition:all 0.15s ease;line-height:1.5;background:transparent;`;
+      a.innerHTML = `<span style="font-weight:700">${icon}</span><span>${label}</span>`;
+      a.addEventListener('mouseenter', () => {
+        a.style.backgroundColor = color;
+        a.style.color = '#fff';
+      });
+      a.addEventListener('mouseleave', () => {
+        a.style.backgroundColor = 'transparent';
+        a.style.color = color;
+      });
+      a.addEventListener('click', e => e.stopPropagation());
+      container.appendChild(a);
+    }
+
+    return container;
+  }
+
   static createButton(_prDetection?: PRDetectionResult): HTMLElement {
     const button = document.createElement('button');
     button.id = 'jobjourney-save-button';
