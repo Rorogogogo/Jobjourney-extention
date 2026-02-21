@@ -1,18 +1,18 @@
 import { readFileSync } from 'node:fs';
 import type { ManifestType } from '@extension/shared';
 
-const packageJson = JSON.parse(readFileSync('../package.json', 'utf8'));
+const packageJson = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 /**
- * JobJourney Chrome Extension Manifest - DEVELOPMENT VERSION
+ * JobJourney Chrome Extension Manifest - PRODUCTION VERSION
  * Smart job search assistant that scrapes listings from multiple platforms
  *
- * This version includes localhost permissions for development
- * Use manifest.ts for production builds
+ * This version is ready for Chrome Web Store submission
+ * NO localhost permissions or system.display permission
  */
 const manifest = {
   manifest_version: 3,
-  name: 'JobJourney Assistant (Dev)',
+  name: 'JobJourney Assistant',
   version: packageJson.version,
   description:
     'Smart job search assistant that scrapes listings from multiple platforms and integrates with JobJourney',
@@ -23,21 +23,17 @@ const manifest = {
     '*://*.seek.com.au/*',
     '*://*.seek.co.nz/*',
     '*://*.indeed.com/*',
+    '*://recruitment.macquarie.com/*',
+    '*://*.atlassian.com/*',
+    '*://ebuu.fa.ap1.oraclecloud.com/*',
+    '*://www.lifeatcanva.com/*',
     '*://*.jobjourney.me/*',
-    'http://localhost:5001/*',
-    'http://localhost:5014/*',
-    'http://localhost:5000/*',
-    'http://localhost:3000/*',
+    '*://*.jora.com/*',
+    '*://*.au.jora.com/*',
+    '*://*.reed.co.uk/*',
   ],
   action: {
     default_title: 'JobJourney Assistant',
-  },
-  background: {
-    service_worker: 'background.js',
-    type: 'module',
-  },
-  side_panel: {
-    default_path: 'side-panel/index.html',
   },
   content_scripts: [
     {
@@ -46,13 +42,34 @@ const manifest = {
         '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
+        '*://recruitment.macquarie.com/*',
+        '*://*.atlassian.com/*',
+        '*://ebuu.fa.ap1.oraclecloud.com/*',
+        '*://www.lifeatcanva.com/*',
         '*://*.jobjourney.me/*',
-        'http://localhost:5001/*',
-        'http://localhost:5014/*',
-        'http://localhost:5000/*',
-        'http://localhost:3000/*',
+        '*://*.jora.com/*',
+        '*://*.au.jora.com/*',
+        '*://*.reed.co.uk/*',
       ],
       js: ['content/jobsites.iife.js'],
+      run_at: 'document_idle',
+    },
+    {
+      matches: [
+        '*://*.linkedin.com/*',
+        '*://*.seek.com.au/*',
+        '*://*.seek.co.nz/*',
+        '*://*.indeed.com/*',
+        '*://recruitment.macquarie.com/*',
+        '*://*.atlassian.com/*',
+        '*://ebuu.fa.ap1.oraclecloud.com/*',
+        '*://www.lifeatcanva.com/*',
+        '*://*.jobjourney.me/*',
+        '*://*.jora.com/*',
+        '*://*.au.jora.com/*',
+        '*://*.reed.co.uk/*',
+      ],
+      js: ['content-ui/all.iife.js'],
       run_at: 'document_idle',
     },
   ],
@@ -64,11 +81,14 @@ const manifest = {
         '*://*.seek.com.au/*',
         '*://*.seek.co.nz/*',
         '*://*.indeed.com/*',
+        '*://recruitment.macquarie.com/*',
+        '*://*.atlassian.com/*',
+        '*://ebuu.fa.ap1.oraclecloud.com/*',
+        '*://www.lifeatcanva.com/*',
         '*://*.jobjourney.me/*',
-        'http://localhost:5001/*',
-        'http://localhost:5014/*',
-        'http://localhost:5000/*',
-        'http://localhost:3000/*',
+        '*://*.jora.com/*',
+        '*://*.au.jora.com/*',
+        '*://*.reed.co.uk/*',
       ],
     },
   ],
@@ -76,6 +96,13 @@ const manifest = {
     '16': 'icon-16.png',
     '48': 'icon-48.png',
     '128': 'icon-128.png',
+  },
+  background: {
+    service_worker: 'background.js',
+    type: 'module',
+  },
+  side_panel: {
+    default_path: 'side-panel/index.html',
   },
 } satisfies ManifestType;
 
