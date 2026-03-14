@@ -3,6 +3,7 @@ import type React from 'react';
 import { Button, Input, Label, Badge, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@extension/ui';
 import { Search, MapPin, Globe, Check, Briefcase } from 'lucide-react';
 import { cn } from '@extension/ui';
+import type { Platform, PlatformId } from '@extension/types';
 import type { SearchConfig } from '../hooks/useJobJourneyState';
 import { COUNTRIES, PLATFORMS } from '../constants';
 import { useToast } from './ToastManager';
@@ -25,7 +26,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
   const [keywords, setKeywords] = useState('');
   const [country, setCountry] = useState('');
   const [location, setLocation] = useState('');
-  const [platforms, setPlatforms] = useState<Record<string, boolean>>({});
+  const [platforms, setPlatforms] = useState<Partial<Record<PlatformId, boolean>>>({});
   const [hasLoadedInitialData, setHasLoadedInitialData] = useState(false);
 
   const selectedCountryConfig = country ? COUNTRIES[country] : null;
@@ -89,46 +90,54 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
   useEffect(() => {
     if (!hasLoadedInitialData) return;
 
-    if (country && selectedCountryConfig) {
+    const currentCountryConfig = country ? COUNTRIES[country] : null;
+
+    if (country && currentCountryConfig) {
       const savedPlatforms = localStorage.getItem(STORAGE_KEYS.PLATFORMS);
-      let currentPlatforms: Record<string, boolean> = {};
+      const nextAvailablePlatforms = currentCountryConfig.platforms.filter(
+        id => !(PLATFORMS[id] && PLATFORMS[id].enabled === false),
+      );
 
-      try {
-        currentPlatforms = savedPlatforms ? JSON.parse(savedPlatforms) : platforms;
-      } catch {
-        currentPlatforms = platforms;
-      }
+      setPlatforms(previousPlatforms => {
+        let currentPlatforms: Partial<Record<PlatformId, boolean>> = previousPlatforms;
 
-      const newPlatforms: Record<string, boolean> = {};
-      availablePlatforms.forEach(platformId => {
-        newPlatforms[platformId] = currentPlatforms[platformId] !== undefined ? currentPlatforms[platformId] : true;
-      });
-
-      // Reset invalid platforms
-      Object.keys(PLATFORMS).forEach(platformId => {
-        if (!selectedCountryConfig.platforms.includes(platformId)) {
-          newPlatforms[platformId] = false;
+        try {
+          currentPlatforms = savedPlatforms ? JSON.parse(savedPlatforms) : previousPlatforms;
+        } catch {
+          currentPlatforms = previousPlatforms;
         }
-      });
 
-      setPlatforms(newPlatforms);
+        const newPlatforms: Partial<Record<PlatformId, boolean>> = {};
+        nextAvailablePlatforms.forEach(platformId => {
+          newPlatforms[platformId] = currentPlatforms[platformId] !== undefined ? currentPlatforms[platformId] : true;
+        });
+
+        // Reset invalid platforms
+        (Object.keys(PLATFORMS) as PlatformId[]).forEach(platformId => {
+          if (!currentCountryConfig.platforms.includes(platformId)) {
+            newPlatforms[platformId] = false;
+          }
+        });
+
+        return newPlatforms;
+      });
 
       // Validate location
       const savedLocation = localStorage.getItem(STORAGE_KEYS.LOCATION);
-      if (savedLocation && selectedCountryConfig.locations.includes(savedLocation)) {
+      if (savedLocation && currentCountryConfig.locations.includes(savedLocation)) {
         setLocation(savedLocation);
       } else {
         setLocation('');
       }
     } else if (!country) {
       // Initialize all platforms if no country
-      const allPlatforms: Record<string, boolean> = {};
-      Object.keys(PLATFORMS).forEach(id => (allPlatforms[id] = true));
+      const allPlatforms: Partial<Record<PlatformId, boolean>> = {};
+      (Object.keys(PLATFORMS) as PlatformId[]).forEach(id => (allPlatforms[id] = true));
       setPlatforms(allPlatforms);
     }
   }, [country, hasLoadedInitialData]);
 
-  const togglePlatform = (platformId: string) => {
+  const togglePlatform = (platformId: PlatformId) => {
     setPlatforms(prev => ({
       ...prev,
       [platformId]: !prev[platformId],
@@ -139,8 +148,8 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
     e.preventDefault();
     if (!isFormValid()) return;
 
-    const selectedPlatforms = Object.entries(platforms)
-      .filter(([_, checked]) => checked)
+    const selectedPlatforms = (Object.entries(platforms) as [PlatformId, boolean | undefined][])
+      .filter(([, checked]) => checked)
       .map(([id]) => id);
 
     const config: SearchConfig = {
@@ -246,7 +255,7 @@ export const SearchSection: React.FC<SearchSectionProps> = ({ onStartSearch, isA
               Select Platforms
             </Label>
             <div className="flex flex-wrap gap-2">
-              {Object.entries(PLATFORMS).map(([platformId, platform]) => {
+              {(Object.entries(PLATFORMS) as [PlatformId, Platform][]).map(([platformId, platform]) => {
                 const isAvailable = !country || availablePlatforms.includes(platformId);
                 if (!isAvailable) return null;
 

@@ -1,5 +1,7 @@
 // JobJourney Content Script for Job Sites
 // Import modularized functions
+import { MessageType } from '@extension/types';
+import type { JobData } from '@extension/types';
 import { initializeAuthMonitoring } from './authMonitoring';
 import { createJobJourneyIndicator } from './indicator';
 import { SaveButtonManager } from './save-button-manager';
@@ -94,23 +96,6 @@ function checkAndCleanupLocalStorage() {
 
 // Run cleanup check when content script loads
 checkAndCleanupLocalStorage();
-
-// Interface for job data (legacy compatibility)
-interface JobData {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  salary?: string;
-  postedDate?: string;
-  isRPRequired?: boolean;
-  companyLogoUrl?: string;
-  // Already applied detection
-  isAlreadyApplied?: boolean;
-  appliedDateUtc?: string | null;
-}
 
 // Overlay functionality
 function showDiscoverOverlay(message: string, submessage?: string) {
@@ -264,7 +249,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
     } catch (error) {
       console.error('Failed to clear scraped jobs:', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to clear scraped jobs',
+      });
     }
     return false;
   }
@@ -383,14 +371,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.log(`✅ Scraped ${jobs.length} jobs from ${platform}`);
 
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_RESULT',
+            type: MessageType.SCRAPING_RESULT,
             data: { jobs, platform, nextUrl },
           });
         } catch (error) {
           console.error(`❌ Error during ${platform} scraping:`, error);
 
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_RESULT',
+            type: MessageType.SCRAPING_RESULT,
             data: { jobs: [], error: (error as Error).message, platform },
           });
         }
@@ -427,7 +415,7 @@ window.addEventListener('message', event => {
     console.log('📨 Received request to open extension from web app');
     chrome.runtime
       .sendMessage({
-        type: 'OPEN_SIDE_PANEL',
+        type: MessageType.OPEN_SIDE_PANEL,
       })
       .catch(err => {
         console.error('Failed to open side panel:', err);

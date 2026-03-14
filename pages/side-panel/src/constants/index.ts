@@ -1,30 +1,21 @@
 // Constants for JobJourney Extension - Side Panel
-export interface CountryConfig {
-  name: string;
-  code: string;
-  icon: string;
-  platforms: string[];
-  locations: string[];
-}
+import type { CountryConfig, Platform, PlatformId } from '@extension/types';
 
-export interface Platform {
-  id: string;
-  name: string;
-  icon: string;
-  enabled: boolean;
-}
-
-export const PLATFORMS: Record<string, Platform> = {
+export const PLATFORMS: Partial<Record<PlatformId, Platform>> = {
   linkedin: {
     id: 'linkedin',
     name: 'LinkedIn',
     icon: '💼',
+    domains: ['linkedin.com'],
+    color: '#0077b5',
     enabled: true,
   },
   seek: {
     id: 'seek',
     name: 'SEEK',
     icon: '🔍',
+    domains: ['seek.com.au', 'seek.co.nz'],
+    color: '#0d3880',
     enabled: true,
   },
   // Indeed temporarily disabled
@@ -32,18 +23,24 @@ export const PLATFORMS: Record<string, Platform> = {
   //   id: 'indeed',
   //   name: 'Indeed',
   //   icon: '📋',
+  //   domains: ['indeed.com'],
+  //   color: '#2164f3',
   //   enabled: false,
   // },
   jora: {
     id: 'jora',
     name: 'Jora',
     icon: '🧭',
+    domains: ['jora.com'],
+    color: '#00a1e0',
     enabled: true,
   },
   reed: {
     id: 'reed',
     name: 'Reed',
     icon: '🇬🇧',
+    domains: ['reed.co.uk'],
+    color: '#d4002a',
     enabled: true,
   },
 };
@@ -53,7 +50,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     name: 'United States',
     code: 'US',
     icon: '🇺🇸',
-    platforms: ['linkedin'],
+    platforms: ['linkedin' as PlatformId],
     locations: [
       'New York, NY',
       'Los Angeles, CA',
@@ -106,12 +103,13 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Arlington, TX',
       'New Orleans, LA',
     ],
+    urls: {},
   },
   AU: {
     name: 'Australia',
     code: 'AU',
     icon: '🇦🇺',
-    platforms: ['linkedin', 'seek', 'jora'],
+    platforms: ['linkedin' as PlatformId, 'seek' as PlatformId, 'jora' as PlatformId],
     locations: [
       'Sydney, NSW',
       'Melbourne, VIC',
@@ -154,12 +152,13 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Lismore, NSW',
       'Goulburn, NSW',
     ],
+    urls: {},
   },
   UK: {
     name: 'United Kingdom',
     code: 'UK',
     icon: '🇬🇧',
-    platforms: ['linkedin', 'reed'],
+    platforms: ['linkedin' as PlatformId, 'reed' as PlatformId],
     locations: [
       'London',
       'Manchester',
@@ -205,12 +204,13 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Stirling',
       'Inverness',
     ],
+    urls: {},
   },
   CA: {
     name: 'Canada',
     code: 'CA',
     icon: '🇨🇦',
-    platforms: ['linkedin'],
+    platforms: ['linkedin' as PlatformId],
     locations: [
       'Toronto, ON',
       'Vancouver, BC',
@@ -253,12 +253,13 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Grande Prairie, AB',
       'Charlottetown, PE',
     ],
+    urls: {},
   },
   NZ: {
     name: 'New Zealand',
     code: 'NZ',
     icon: '🇳🇿',
-    platforms: ['linkedin', 'seek'],
+    platforms: ['linkedin' as PlatformId, 'seek' as PlatformId],
     locations: [
       'Auckland',
       'Wellington',
@@ -291,5 +292,6 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Whakatane',
       'Rangiora',
     ],
+    urls: {},
   },
 };

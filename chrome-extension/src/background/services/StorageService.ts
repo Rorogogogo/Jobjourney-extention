@@ -1,6 +1,6 @@
 // Storage Service for JobJourney Extension
-import { Logger } from '../utils/Logger';
-import type { StorageData, AuthStatus, UserSettings, CacheData } from '../types';
+import { Logger } from '@extension/shared';
+import type { AuthStatus, UserSettings, CacheData } from '@extension/types';
 
 // Storage keys
 export const STORAGE_KEYS = {

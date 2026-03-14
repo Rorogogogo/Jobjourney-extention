@@ -1,8 +1,8 @@
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseSingleJobScraper } from './base-single-job-scraper';
 
 export class AtlassianScraper extends BaseSingleJobScraper {
-  protected platformName = 'Atlassian';
+  protected platform = 'Atlassian';
   protected companyLogoUrl = 'https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon-32x32.png';
 
   isOnJobDetailPage(): boolean {
@@ -10,10 +10,10 @@ export class AtlassianScraper extends BaseSingleJobScraper {
     return url.includes('/careers/details/');
   }
 
-  extractJobData(): JobData | undefined {
+  extractJobData(): JobData | null {
     if (!this.isOnJobDetailPage()) {
       console.log('Atlassian: Not on a job detail page');
-      return undefined;
+      return null;
     }
 
     // Extract job information based on the provided HTML structure
@@ -21,7 +21,7 @@ export class AtlassianScraper extends BaseSingleJobScraper {
 
     if (!titleElement) {
       console.warn('Atlassian: Could not find job title');
-      return undefined;
+      return null;
     }
 
     // Company is always Atlassian for this domain
@@ -61,16 +61,16 @@ export class AtlassianScraper extends BaseSingleJobScraper {
       requiredSkills: undefined,
       employmentTypes: department, // Use department as employment type
       workArrangement: undefined,
-      platform: this.platformName,
+      platform: this.platform,
       companyLogoUrl: this.companyLogoUrl,
     };
   }
 
-  findInsertionPoint(): HTMLElement | undefined {
+  findInsertionPoint(): HTMLElement | null {
     // Find the main content area where the title is located
     const atlassianTitle = document.querySelector('.default.heading');
 
-    if (!atlassianTitle) return undefined;
+    if (!atlassianTitle) return null;
 
     // Find the container that holds both title and job details
     const titleContainer = atlassianTitle.closest('.column.colspan-10.text-left.push.push-1');
@@ -101,6 +101,6 @@ export class AtlassianScraper extends BaseSingleJobScraper {
     }
 
     // Final fallback to title's container
-    return (atlassianTitle.parentElement as HTMLElement) || undefined;
+    return (atlassianTitle.parentElement as HTMLElement) || null;
   }
 }

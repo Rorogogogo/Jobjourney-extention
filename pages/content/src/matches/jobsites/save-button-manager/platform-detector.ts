@@ -1,8 +1,8 @@
 // Platform detection utilities
-import type { Platform } from './types';
+import type { PlatformId } from '@extension/types';
 
 export class PlatformDetector {
-  static getCurrentPlatform(): Platform | null {
+  static getCurrentPlatform(): PlatformId | null {
     const hostname = window.location.hostname.toLowerCase();
 
     // Use exact hostname or subdomain matching to prevent injection attacks

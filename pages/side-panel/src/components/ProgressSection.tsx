@@ -1,37 +1,11 @@
 import type React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, Progress, Badge, Button } from '@extension/ui';
-import { Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle, Briefcase, Globe } from 'lucide-react';
-import { cn } from '@extension/ui';
-
-interface PlatformProgress {
-  platform: string;
-  platformName?: string;
-  status: 'pending' | 'active' | 'scraping' | 'completed' | 'error';
-  current: number;
-  total: number;
-  jobsFound: number;
-  currentPage?: number;
-  totalPages?: number;
-  hasNextPage?: boolean;
-  totalJobsFromPreviousPages?: number;
-  error?: string;
-}
-
-interface ProgressData {
-  sessionId: string;
-  status: string;
-  progress?: {
-    totalPlatforms: number;
-    completedPlatforms: number;
-    currentPlatform?: string;
-    jobsFound: number;
-    errors: string[];
-  };
-  platformProgress?: Record<string, PlatformProgress>;
-}
+import { Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle, Briefcase } from 'lucide-react';
+import type { PlatformProgress } from '@extension/types';
+import type { SearchProgressState } from '../hooks/useJobJourneyState';
 
 interface ProgressSectionProps {
-  progress: ProgressData | null;
+  progress: SearchProgressState | null;
   onStop: () => void;
 }
 

@@ -1,7 +1,6 @@
 import { withErrorBoundary, withSuspense } from '@extension/shared';
-import { cn, ErrorDisplay, LoadingSpinner, Button, Card } from '@extension/ui';
+import { ErrorDisplay, LoadingSpinner } from '@extension/ui';
 import { useState, useEffect } from 'react';
-import { LogOut, Search, Settings } from 'lucide-react';
 import { AuthSection } from './components/AuthSection';
 import { DevMockButton } from './components/DevMockButton';
 import { ErrorSection } from './components/ErrorSection';

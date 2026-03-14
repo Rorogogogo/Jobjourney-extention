@@ -1,4 +1,5 @@
 // Authentication monitoring for JobJourney domains
+import { MessageType } from '@extension/types';
 
 // Extend Window interface to include custom properties
 declare global {
@@ -255,12 +256,12 @@ export const initializeAuthMonitoring = () => {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('🔵 JobJourney page received message:', message.type);
 
-      if (message.type === 'EXTENSION_SIGN_OUT_COMMAND') {
+      if (message.type === MessageType.EXTENSION_SIGN_OUT_COMMAND) {
         handleExtensionSignOutCommand(sendResponse);
         return true; // Keep message channel open for async response
       }
 
-      if (message.type === 'EXTENSION_JOBS_PROCESSED') {
+      if (message.type === MessageType.EXTENSION_JOBS_PROCESSED) {
         try {
           const { jobs, config, timestamp, source } = message.data;
           console.log(`📋 Received ${jobs.length} jobs directly from extension`);
@@ -285,7 +286,7 @@ export const initializeAuthMonitoring = () => {
         }
       }
 
-      if (message.type === 'EXTENSION_JOBS_CHUNK') {
+      if (message.type === MessageType.EXTENSION_JOBS_CHUNK) {
         handleJobsChunk(message, sendResponse);
       }
 
@@ -362,7 +363,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_DETECTED',
+              type: MessageType.AUTH_DETECTED,
               data: authData,
               shouldShowToast: shouldShowToast,
             },
@@ -391,7 +392,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_DETECTED',
+              type: MessageType.AUTH_DETECTED,
               data: authData,
               shouldShowToast: false, // Silent sync, no toast
             },
@@ -431,7 +432,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_CLEARED',
+              type: MessageType.AUTH_CLEARED,
               shouldShowToast: true, // Real sign-out, show toast
             },
             response => {
@@ -457,7 +458,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_CLEARED',
+              type: MessageType.AUTH_CLEARED,
               shouldShowToast: false, // Silent sync, no toast for initial check
             },
             response => {

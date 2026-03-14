@@ -1,4 +1,5 @@
 // Main Save Button Manager
+import type { JobData, PlatformId, PrDetectionResult } from '@extension/types';
 import { ApiService } from './api-service';
 import { AuthManager } from './auth-manager';
 import { ButtonComponent } from './button-component';
@@ -6,12 +7,17 @@ import { InsertionPointFinder } from './insertion-point-finder';
 import { JobDataExtractor } from './job-data-extractor';
 import { PlatformDetector } from './platform-detector';
 import { ToastService } from './toast-service';
-import type { JobData, Platform, ISaveButtonManager, PRDetectionResult } from './types';
+
+export interface ISaveButtonManager {
+  init(): Promise<void>;
+  detectAndCreateButton(): void;
+  removeButton(): void;
+}
 
 export class SaveButtonManager implements ISaveButtonManager {
   private button: HTMLElement | null = null;
   private currentJobData: JobData | null = null;
-  private currentPRDetection: PRDetectionResult | null = null;
+  private currentPRDetection: PrDetectionResult | null = null;
   private currentUrl: string = '';
   private currentJobId: string = '';
   constructor() {
@@ -125,7 +131,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     return true;
   }
 
-  private createOrUpdateButton(jobData: JobData, platform: Platform) {
+  private createOrUpdateButton(jobData: JobData, platform: PlatformId) {
     // Remove existing button
     this.removeButton();
 
@@ -136,7 +142,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     // If analysis exists and has PR detection, use it; otherwise create a default one
     if (jobData.analysis?.prDetection) {
       this.currentPRDetection = {
-        isRPRequired: jobData.analysis.prDetection.isPrRequired,
+        isRPRequired: jobData.analysis.prDetection.isRPRequired,
         confidence: jobData.analysis.prDetection.confidence,
         matchedPatterns: jobData.analysis.prDetection.matchedPatterns,
         reasoning: jobData.analysis.prDetection.reasoning,
@@ -163,7 +169,7 @@ export class SaveButtonManager implements ISaveButtonManager {
 
     // Create badges (including PR status and applied status)
     const appliedStatus = this.currentJobData.isAlreadyApplied
-      ? { isApplied: true, appliedDateUtc: this.currentJobData.appliedDateUtc }
+      ? { isApplied: true, appliedDateUtc: this.currentJobData.appliedDateUtc ?? undefined }
       : undefined;
     const badges = ButtonComponent.createBadges(
       this.currentJobData.analysis,
@@ -194,7 +200,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     insertionPoint.appendChild(buttonContainer);
   }
 
-  private async handleSaveJob(platform: Platform) {
+  private async handleSaveJob(platform: PlatformId) {
     if (!this.currentJobData || !this.button) return;
 
     // Check authentication first

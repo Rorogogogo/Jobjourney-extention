@@ -1,10 +1,10 @@
 // Job data extraction for different platforms
+import type { JobData, PlatformId } from '@extension/types';
 import { analyzeJobDescription } from '../descriptionAnalysis';
 import { AppliedStatusDetector } from './applied-status-detector';
-import type { JobData, Platform } from './types';
 
 export class JobDataExtractor {
-  static extractJobData(platform: Platform): JobData | null {
+  static extractJobData(platform: PlatformId): JobData | null {
     try {
       let jobData: JobData | null = null;
 
@@ -326,7 +326,7 @@ export class JobDataExtractor {
 
     const linkElement =
       activeCard?.querySelector<HTMLAnchorElement>('.job-title a.job-link, .job-title a') ||
-      (titleElement as HTMLAnchorElement);
+      (titleElement instanceof HTMLAnchorElement ? titleElement : titleElement?.querySelector<HTMLAnchorElement>('a'));
 
     let jobUrl = window.location.href;
     if (linkElement?.href) {

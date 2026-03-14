@@ -1,28 +1,9 @@
 import type React from 'react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, Button, Badge } from '@extension/ui';
-import { CheckCircle2, Copy, ExternalLink, Briefcase, MapPin, Building2, LayoutGrid, RotateCcw } from 'lucide-react';
-import { getJobMarketUrl } from '../utils/environment';
-
-interface JobData {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  url: string;
-  platform: string;
-  description?: string;
-  salary?: string;
-  postedDate?: string;
-  isAlreadyApplied?: boolean;
-  appliedDateUtc?: string | null;
-}
-
-interface SearchResults {
-  sessionId: string;
-  jobs: JobData[];
-  totalJobs: number;
-  duration?: number;
-}
+import { Card, CardContent, Button, Badge } from '@extension/ui';
+import { CheckCircle2, MapPin, Building2, LayoutGrid, RotateCcw } from 'lucide-react';
+import { getJobMarketUrl } from '@extension/shared';
+import { MessageType } from '@extension/types';
+import type { SearchResults } from '@extension/types';
 
 interface ResultsSectionProps {
   results: SearchResults | null;
@@ -59,14 +40,14 @@ export const ResultsSection: React.FC<ResultsSectionProps> = ({ results, onSearc
   const handleViewJobs = async () => {
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'SHOW_JOBS_IN_JOBJOURNEY',
+        type: MessageType.SHOW_JOBS_IN_JOBJOURNEY,
         data: { sessionId: results.sessionId },
       });
 
       if (!response.success) {
         console.error('Failed to show jobs in JobJourney:', response.error);
       }
-    } catch (error) {
+    } catch {
       const jobMarketUrl = await getJobMarketUrl();
       chrome.tabs.create({ url: jobMarketUrl, active: true });
     }

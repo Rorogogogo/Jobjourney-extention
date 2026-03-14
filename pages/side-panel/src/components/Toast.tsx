@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import type React from 'react';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
@@ -20,6 +20,13 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
   const [isVisible, setIsVisible] = useState(false);
   const [isRemoving, setIsRemoving] = useState(false);
 
+  const handleRemove = useCallback(() => {
+    setIsRemoving(true);
+    setTimeout(() => {
+      onRemove(toast.id);
+    }, 300); // Match animation duration
+  }, [onRemove, toast.id]);
+
   useEffect(() => {
     // Show toast with animation
     const showTimer = setTimeout(() => setIsVisible(true), 10);
@@ -33,14 +40,7 @@ const Toast: React.FC<ToastProps> = ({ toast, onRemove }) => {
       clearTimeout(showTimer);
       clearTimeout(removeTimer);
     };
-  }, []);
-
-  const handleRemove = () => {
-    setIsRemoving(true);
-    setTimeout(() => {
-      onRemove(toast.id);
-    }, 300); // Match animation duration
-  };
+  }, [handleRemove, toast.duration]);
 
   const getIcon = () => {
     switch (toast.type) {

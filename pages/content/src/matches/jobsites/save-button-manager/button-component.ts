@@ -1,8 +1,8 @@
 // Save button UI component
-import type { PRDetectionResult } from './types';
+import type { PrDetectionResult } from '@extension/types';
 
 export class ButtonComponent {
-  static createPRBadge(prDetection: PRDetectionResult): HTMLElement {
+  static createPRBadge(prDetection: PrDetectionResult): HTMLElement {
     let badgeColor = '#10b981'; // Green by default (no PR required)
     let badgeText = 'No PR Req';
 
@@ -109,7 +109,7 @@ export class ButtonComponent {
       // Loading state styling
       button.style.background = 'transparent';
       button.style.color = 'black';
-      button.style.border = '1px solid #ccc';
+      button.style.border = '1px solid rgba(228,228,231,0.5)';
       button.style.pointerEvents = 'none';
       button.style.transform = 'scale(1)';
     } else {
@@ -171,8 +171,8 @@ export class ButtonComponent {
   }
 
   static createBadges(
-    analysis?: import('./types').JobData['analysis'],
-    prDetection?: PRDetectionResult,
+    analysis?: import('@extension/types').JobAnalysisResult,
+    prDetection?: PrDetectionResult,
     appliedStatus?: { isApplied: boolean; appliedDateUtc?: string },
   ): HTMLElement {
     const container = document.createElement('div');
@@ -188,12 +188,12 @@ export class ButtonComponent {
       const badge = document.createElement('span');
       badge.textContent = text;
       badge.style.cssText = `
-        background-color: ${bgColor};
+        background-color: ${bgColor.replace(/^#[a-fA-F0-9]{6}$/, (m: string) => `${m}80`)};
         color: ${color};
         padding: 2px 10px;
-        border-radius: 6px;
+        border-radius: 12px;
         font-size: 12px;
-        font-weight: 500;
+        font-weight: 600;
         white-space: nowrap;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         border: 1px solid ${borderColor};
@@ -363,9 +363,9 @@ export class ButtonComponent {
           background-color: ${bg};
           color: ${color};
           padding: 2px 8px 2px 10px;
-          border-radius: 6px;
+          border-radius: 12px;
           font-size: 12px;
-          font-weight: 500;
+          font-weight: 600;
           white-space: nowrap;
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
           border: 1px solid ${border};
@@ -406,11 +406,11 @@ export class ButtonComponent {
             background: white;
             color: #1e293b;
             padding: 12px;
-            border-radius: 8px;
+            border-radius: 16px;
             font-size: 13px;
             line-height: 1.5;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-            border: 1px solid #e2e8f0;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.08), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
+            border: 1px solid rgba(228,228,231,0.5);
             z-index: 2147483647;
             max-width: 300px;
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -481,7 +481,7 @@ export class ButtonComponent {
       a.target = '_blank';
       a.rel = 'noopener noreferrer';
       a.title = `Search ${label} for ${companyName}`;
-      a.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid ${color};border-radius:4px;color:${color};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:600;text-decoration:none;cursor:pointer;transition:all 0.15s ease;line-height:1.5;background:transparent;`;
+      a.style.cssText = `display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border:1px solid ${color};border-radius:10px;color:${color};font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:11px;font-weight:700;text-decoration:none;cursor:pointer;transition:all 0.15s ease;line-height:1.5;background:transparent;`;
       a.innerHTML = `<span style="font-weight:700">${icon}</span><span>${label}</span>`;
       a.addEventListener('mouseenter', () => {
         a.style.backgroundColor = color;
@@ -498,7 +498,8 @@ export class ButtonComponent {
     return container;
   }
 
-  static createButton(_prDetection?: PRDetectionResult): HTMLElement {
+  static createButton(_prDetection?: PrDetectionResult): HTMLElement {
+    void _prDetection;
     const button = document.createElement('button');
     button.id = 'jobjourney-save-button';
 
@@ -508,13 +509,13 @@ export class ButtonComponent {
       align-items: center;
       justify-content: center;
       padding: 6px 16px;
-      background-color: #0f172a; /* Slate 900 */
+      background-color: #000000;
       color: white;
-      border: 1px solid #0f172a;
-      border-radius: 6px;
+      border: 1px solid #000000;
+      border-radius: 12px;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       font-size: 13px;
-      font-weight: 600;
+      font-weight: 700;
       cursor: pointer;
       transition: all 0.2s ease;
       box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
@@ -522,14 +523,12 @@ export class ButtonComponent {
 
     // Add hover effect
     button.addEventListener('mouseenter', () => {
-      button.style.backgroundColor = '#1e293b'; /* Slate 800 */
-      button.style.transform = 'translateY(-1px)';
-      button.style.boxShadow = '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)';
+      button.style.backgroundColor = 'rgba(0,0,0,0.9)';
+      button.style.boxShadow = '0 2px 4px 0 rgba(0, 0, 0, 0.1)';
     });
 
     button.addEventListener('mouseleave', () => {
-      button.style.backgroundColor = '#0f172a';
-      button.style.transform = 'translateY(0)';
+      button.style.backgroundColor = '#000000';
       button.style.boxShadow = '0 1px 2px 0 rgba(0, 0, 0, 0.05)';
     });
 
@@ -553,11 +552,11 @@ export class ButtonComponent {
       align-items: center;
       flex-wrap: wrap;
       gap: 12px;
-      padding: 6px 8px 6px 12px;
+      padding: 8px 12px 8px 14px;
       background: white;
-      border: 1px solid #e4e4e7;
-      border-radius: 8px;
-      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      border: 1px solid rgba(228,228,231,0.5);
+      border-radius: 16px;
+      box-shadow: 0 1px 2px 0 rgba(0,0,0,0.05);
       width: fit-content;
     `;
 
@@ -568,7 +567,7 @@ export class ButtonComponent {
       width: 24px;
       height: 24px;
       object-fit: contain;
-      border-radius: 4px;
+      border-radius: 8px;
     `;
     buttonContainer.appendChild(iconImg);
 

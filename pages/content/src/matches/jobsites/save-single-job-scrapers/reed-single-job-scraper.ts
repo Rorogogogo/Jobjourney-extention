@@ -1,5 +1,5 @@
 // Reed job scraper
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseScraper } from './base-single-job-scraper';
 
 export class ReedScraper extends BaseScraper {

@@ -1,23 +1,9 @@
 // Save Job Button functionality for job detail pages
-import { detectPRRequirement } from './prDetection';
+import { MessageType } from '@extension/types';
+import type { JobData } from '@extension/types';
+import { detectPRRequirement } from '@extension/shared';
 
 export {};
-
-interface JobData {
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  requiredSkills?: string;
-  employmentTypes?: string;
-  workArrangement?: string;
-  platform: string;
-  companyLogoUrl?: string;
-  // Already applied detection
-  isAlreadyApplied?: boolean;
-  appliedDateUtc?: string | null;
-}
 
 class SaveJobButton {
   private button: HTMLElement | null = null;
@@ -41,7 +27,7 @@ class SaveJobButton {
   private async checkAuthStatus() {
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'GET_AUTH_STATUS',
+        type: MessageType.GET_AUTH_STATUS,
       });
 
       this.isAuthenticated = response.success && response.data?.isAuthenticated;
@@ -900,7 +886,7 @@ class SaveJobButton {
       // Job aggregator websites - always run PR detection
       const jobAggregatorSites = ['LinkedIn', 'Indeed', 'SEEK', 'Reed'];
       if (jobAggregatorSites.includes(platform)) {
-        isRPRequired = detectPRRequirement(this.currentJobData.description || '');
+        isRPRequired = detectPRRequirement(this.currentJobData.description || '').isRPRequired;
       }
       // Company-specific websites - use predefined company policies
       else if (platform === 'Atlassian' || platform === 'Canva' || platform === 'Westpac') {
@@ -910,7 +896,7 @@ class SaveJobButton {
       }
       // Default fallback for any other platforms
       else {
-        isRPRequired = detectPRRequirement(this.currentJobData.description || '');
+        isRPRequired = detectPRRequirement(this.currentJobData.description || '').isRPRequired;
       }
 
       // Prepare job data for API
@@ -931,7 +917,7 @@ class SaveJobButton {
 
       // Send request to background script
       const response = await chrome.runtime.sendMessage({
-        type: 'SAVE_JOB_MANUALLY',
+        type: MessageType.SAVE_JOB_MANUALLY,
         data: jobData,
       });
 

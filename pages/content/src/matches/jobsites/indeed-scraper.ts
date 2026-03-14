@@ -1,4 +1,6 @@
 // Indeed scraper from working version
+import { MessageType } from '@extension/types';
+
 export {};
 
 // Note: Overlay management removed to match LinkedIn/SEEK architecture
@@ -546,7 +548,7 @@ async function waitForRobotCheckCompletion(): Promise<boolean> {
 
 const indeedScraper = {
   // Temporarily disabled to avoid UI/verification issues; always return false
-  isMatch: (_url: string) => false,
+  isMatch: () => false,
   scrapeJobList: async () => {
     console.group('Indeed - Job Scraping - Click & Scrape');
 
@@ -720,7 +722,7 @@ const indeedScraper = {
         // Send progress update
         try {
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_PROGRESS',
+            type: MessageType.SCRAPING_PROGRESS,
             data: {
               platform: 'indeed',
               current: i + 1,
@@ -730,7 +732,7 @@ const indeedScraper = {
           });
         } catch (progressError) {
           // Check if extension context is invalidated
-          if (progressError.message?.includes('Extension context invalidated')) {
+          if (progressError instanceof Error && progressError.message.includes('Extension context invalidated')) {
             console.log('🔄 Extension reloaded, stopping scraping gracefully');
             return jobs; // Return what we have so far
           }
@@ -786,7 +788,7 @@ const indeedScraper = {
 
         for (const selector of dateSelectors) {
           const elements = node.querySelectorAll(selector);
-          for (const el of elements) {
+          for (const el of Array.from(elements)) {
             const text = el.textContent?.trim() || '';
             // Look for date patterns like "Posted 3 days ago", "Active 1 day ago", etc.
             if (text && /\d+\s+(day|week|month|year|hour)s?\s+ago|Posted|Active|New/i.test(text)) {

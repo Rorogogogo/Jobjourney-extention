@@ -1,7 +1,7 @@
 // Base scraper class with common functionality
-import type { JobData, JobScraper } from '../types';
+import type { JobData, JobScraper } from '@extension/types';
 
-export abstract class BaseScraper implements JobScraper {
+export abstract class BaseSingleJobScraper implements JobScraper {
   protected abstract platform: string;
 
   abstract extractJobData(): JobData | null;
@@ -35,3 +35,5 @@ export abstract class BaseScraper implements JobScraper {
     return null;
   }
 }
+
+export { BaseSingleJobScraper as BaseScraper };

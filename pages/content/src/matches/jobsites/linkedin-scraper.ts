@@ -1,4 +1,6 @@
 // LinkedIn scraper from working version
+import { MessageType } from '@extension/types';
+
 export {};
 
 // Helper function to parse relative time strings to UTC ISO date
@@ -227,7 +229,7 @@ function scrapeCurrentJobDetail(): any {
       } else {
         // Fallback to parsing the full text
         console.log('LinkedIn standalone fallback parsing from full text:', metaContainer.textContent);
-        const fullText = metaContainer.textContent.trim();
+        const fullText = metaContainer.textContent?.trim() || '';
         const parts = fullText.split('·').map((part: string) => part.trim());
         console.log('LinkedIn standalone split parts:', parts);
 
@@ -465,7 +467,7 @@ const scrapeJobDetailFromPanel = (): any => {
       } else {
         // Fallback to parsing the full text
         console.log('LinkedIn fallback parsing from full text:', metaContainer.textContent);
-        const fullText = metaContainer.textContent.trim();
+        const fullText = metaContainer.textContent?.trim() || '';
         const parts = fullText.split('·').map((part: string) => part.trim());
         console.log('LinkedIn split parts:', parts);
 
@@ -827,7 +829,7 @@ const linkedInScraper = {
           // Send progress update
           try {
             chrome.runtime.sendMessage({
-              type: 'SCRAPING_PROGRESS',
+              type: MessageType.SCRAPING_PROGRESS,
               data: {
                 platform: 'linkedin',
                 current: i + 1,
@@ -837,7 +839,7 @@ const linkedInScraper = {
             });
           } catch (progressError) {
             // Check if extension context is invalidated
-            if (progressError.message?.includes('Extension context invalidated')) {
+            if (progressError instanceof Error && progressError.message.includes('Extension context invalidated')) {
               console.log('🔄 Extension reloaded, stopping scraping gracefully');
               return jobs; // Return what we have so far
             }

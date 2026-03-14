@@ -6,7 +6,7 @@
   "private": true,
   "sideEffects": false,
   "scripts": {
-    "clean:node_modules": "pnpx rimraf node_modules",
+    "clean:node_modules": "rimraf node_modules",
     "clean:turbo": "rimraf .turbo",
     "clean": "pnpm clean:turbo && pnpm clean:node_modules",
     "ready": "tsc -b pre-build.tsconfig.json",
@@ -28,6 +28,7 @@
     "@extension/dev-utils": "workspace:*",
     "@extension/hmr": "workspace:*",
     "@extension/tsconfig": "workspace:*",
+    "@extension/types": "workspace:*",
     "@extension/vite-config": "workspace:*",
     "@laynezh/vite-plugin-lib-assets": "^1.1.0",
     "magic-string": "^0.30.17",

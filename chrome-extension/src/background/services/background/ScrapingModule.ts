@@ -1,8 +1,12 @@
-import { Logger } from '../../utils/Logger';
-import type { ScrapingSession } from '../../types';
+import { Logger } from '@extension/shared';
+import { MessageType, EventType } from '@extension/types';
+import type { ChromeMessage, ScrapingSession } from '@extension/types';
 import type { EventManager } from '../EventManager';
-import type { ScrapingService } from '../ScrapingService';
+import type { ScrapingService } from '../scraping/ScrapingService';
 import type { StorageService } from '../StorageService';
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Unknown scraping module error';
 
 export class ScrapingModule {
   private eventManager: EventManager;
@@ -12,7 +16,7 @@ export class ScrapingModule {
   private scrapingControllers = new Map<string, AbortController>();
   private platformProgress: Record<string, any> = {};
 
-  private broadcastToSidebars?: (message: any) => void;
+  private broadcastToSidebars?: (message: ChromeMessage) => void;
 
   constructor(eventManager: EventManager, scrapingService: ScrapingService, storageService: StorageService) {
     this.eventManager = eventManager;
@@ -20,19 +24,19 @@ export class ScrapingModule {
     this.storageService = storageService;
   }
 
-  setBroadcastHandler(broadcastHandler: (message: any) => void) {
+  setBroadcastHandler(broadcastHandler: (message: ChromeMessage) => void) {
     this.broadcastToSidebars = broadcastHandler;
   }
 
   setupEventListeners(): void {
-    this.eventManager.on('START_SCRAPING', this.handleStartScraping.bind(this));
-    this.eventManager.on('SCRAPING_PROGRESS', this.handleScrapingProgress.bind(this));
-    this.eventManager.on('SCRAPING_COMPLETE', this.handleScrapingComplete.bind(this));
-    this.eventManager.on('SCRAPING_ERROR', this.handleScrapingError.bind(this));
-    this.eventManager.on('PLATFORM_STARTED', this.handlePlatformStarted.bind(this));
-    this.eventManager.on('PLATFORM_COMPLETED', this.handlePlatformCompleted.bind(this));
-    this.eventManager.on('JOBS_SENDING', this.handleJobsSending.bind(this));
-    this.eventManager.on('JOBS_SENT', this.handleJobsSent.bind(this));
+    this.eventManager.on(EventType.START_SCRAPING, this.handleStartScraping.bind(this));
+    this.eventManager.on(EventType.SCRAPING_PROGRESS, this.handleScrapingProgress.bind(this));
+    this.eventManager.on(EventType.SCRAPING_COMPLETE, this.handleScrapingComplete.bind(this));
+    this.eventManager.on(EventType.SCRAPING_ERROR, this.handleScrapingError.bind(this));
+    this.eventManager.on(EventType.PLATFORM_STARTED, this.handlePlatformStarted.bind(this));
+    this.eventManager.on(EventType.PLATFORM_COMPLETED, this.handlePlatformCompleted.bind(this));
+    this.eventManager.on(EventType.JOBS_SENDING, this.handleJobsSending.bind(this));
+    this.eventManager.on(EventType.JOBS_SENT, this.handleJobsSent.bind(this));
   }
 
   async loadPlatformProgress(): Promise<void> {
@@ -137,28 +141,28 @@ export class ScrapingModule {
         this.updateOverallProgress();
       }
 
-      this.broadcastToSidebars?.({ type: 'SCRAPING_PROGRESS', data });
+      this.broadcastToSidebars?.({ type: MessageType.SCRAPING_PROGRESS, data });
     }
   }
 
   private handleScrapingComplete(data: any): void {
     Logger.success('Scraping completed', data);
-    this.broadcastToSidebars?.({ type: 'SCRAPING_COMPLETE', data });
+    this.broadcastToSidebars?.({ type: MessageType.SCRAPING_COMPLETE, data });
   }
 
   private handleJobsSending(data: any): void {
     Logger.info('Sending jobs to frontend', data);
-    this.broadcastToSidebars?.({ type: 'JOBS_SENDING', data });
+    this.broadcastToSidebars?.({ type: MessageType.JOBS_SENDING, data });
   }
 
   private handleJobsSent(data: any): void {
     Logger.info('Jobs sent to frontend', data);
-    this.broadcastToSidebars?.({ type: 'JOBS_SENT', data });
+    this.broadcastToSidebars?.({ type: MessageType.JOBS_SENT, data });
   }
 
   private handleScrapingError(data: any): void {
     Logger.error('Scraping error', data);
-    this.broadcastToSidebars?.({ type: 'SCRAPING_ERROR', data });
+    this.broadcastToSidebars?.({ type: MessageType.SCRAPING_ERROR, data });
   }
 
   private async handlePlatformStarted(data: any): Promise<void> {
@@ -231,7 +235,7 @@ export class ScrapingModule {
     }
 
     this.broadcastToSidebars?.({
-      type: 'SCRAPING_PROGRESS_UPDATE',
+      type: MessageType.SCRAPING_PROGRESS_UPDATE,
       data: {
         sessionId: 'current',
         status: statusMessage,
@@ -283,7 +287,7 @@ export class ScrapingModule {
       const completedPlatforms = 0;
 
       this.broadcastToSidebars?.({
-        type: 'SCRAPING_PROGRESS_UPDATE',
+        type: MessageType.SCRAPING_PROGRESS_UPDATE,
         data: {
           sessionId: 'initializing',
           status: 'Initializing job search...',
@@ -309,7 +313,7 @@ export class ScrapingModule {
 
       sendResponse({ success: true, data: { sessionId } });
     } catch (error) {
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -333,7 +337,7 @@ export class ScrapingModule {
 
       sendResponse({ success: true, data: { sessionId, status: 'stopped' } });
     } catch (error) {
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -405,7 +409,7 @@ export class ScrapingModule {
       const completedPlatforms = platforms.filter(p => p.status === 'completed').length;
 
       this.broadcastToSidebars?.({
-        type: 'SCRAPING_PROGRESS_UPDATE',
+        type: MessageType.SCRAPING_PROGRESS_UPDATE,
         data: {
           sessionId: 'current',
           status: `Processing ${data.platform} jobs: ${data.current}/${data.total}`,
@@ -423,7 +427,7 @@ export class ScrapingModule {
       sendResponse({ success: true });
     } catch (error) {
       Logger.error('Error handling scraping progress message', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -436,7 +440,7 @@ export class ScrapingModule {
       sendResponse({ success: true });
     } catch (error) {
       Logger.error('Error handling scraping result', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -445,7 +449,8 @@ export class ScrapingModule {
 
     const now = new Date();
     for (const [sessionId, session] of this.activeScrapingSessions.entries()) {
-      const ageInHours = (now.getTime() - session.startTime.getTime()) / (1000 * 60 * 60);
+      const sessionStartTime = session.startTime instanceof Date ? session.startTime.getTime() : session.startTime;
+      const ageInHours = (now.getTime() - sessionStartTime) / (1000 * 60 * 60);
       if (ageInHours > 24) {
         this.activeScrapingSessions.delete(sessionId);
         this.scrapingControllers.delete(sessionId);

@@ -1,5 +1,5 @@
 // Macquarie Group job scraper
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseScraper } from './base-single-job-scraper';
 
 export class MacquarieScraper extends BaseScraper {
@@ -25,10 +25,6 @@ export class MacquarieScraper extends BaseScraper {
 
     const employmentTypeElement = document.querySelector(
       '.article__content__view__field.field--employmentterm .article__content__view__field__value',
-    );
-
-    const _datePostedElement = document.querySelector(
-      '.article__content__view__field.field--date .article__content__view__field__value',
     );
 
     // Extract job description from all relevant sections

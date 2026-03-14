@@ -1,8 +1,10 @@
 // API Service for JobJourney Extension
-import { Logger } from '../utils/Logger';
-import type { ApiResponse, JobData } from '../types';
+import { Logger } from '@extension/shared';
+import { EventType } from '@extension/types';
+import type { ApiResponse, JobData } from '@extension/types';
 import type { AuthService } from './AuthService';
 import type { ConfigService } from './ConfigService';
+import type { EventManager } from './EventManager';
 
 // API Endpoints
 export const API_ENDPOINTS = {
@@ -18,10 +20,12 @@ export class ApiService {
   private initialized = false;
   private configService!: ConfigService;
   private authService!: AuthService;
+  private eventManager!: EventManager;
 
-  setDependencies(configService: ConfigService, authService: AuthService): void {
+  setDependencies(configService: ConfigService, authService: AuthService, eventManager: EventManager): void {
     this.configService = configService;
     this.authService = authService;
+    this.eventManager = eventManager;
   }
 
   /**
@@ -36,79 +40,6 @@ export class ApiService {
     } catch (error) {
       Logger.error('Failed to initialize API service', error);
       throw error;
-    }
-  }
-
-  /**
-   * Perform logout with fallback (same as logout button functionality)
-   */
-  private async performLogoutWithFallback(): Promise<void> {
-    try {
-      Logger.info('🔓 API Interceptor - Performing logout due to 401 response');
-
-      // Find JobJourney tabs and send sign-out command (same as BackgroundService.handleSignOutUser)
-      const jobJourneyTabs = await this.findJobJourneyTabs();
-
-      if (jobJourneyTabs.length > 0) {
-        // Send sign-out command to ALL JobJourney tabs for complete logout
-        Logger.info(`🔗 Sending sign-out command to ${jobJourneyTabs.length} JobJourney tab(s)`);
-
-        let commandSent = false;
-        for (const tab of jobJourneyTabs) {
-          try {
-            // Focus the tab first to ensure it's active
-            await chrome.tabs.update(tab.id!, { active: true });
-            await chrome.windows.update(tab.windowId!, { focused: true });
-
-            await chrome.tabs.sendMessage(tab.id!, {
-              type: 'EXTENSION_SIGN_OUT_COMMAND',
-            });
-            Logger.success(`✅ Sign-out command sent to: ${tab.url}`);
-            commandSent = true;
-          } catch (error) {
-            Logger.warning(`Failed to send sign-out command to tab ${tab.url}`, error);
-          }
-        }
-
-        // Always clear auth data locally when 401 occurs, regardless of tab communication
-        await this.authService.clearAuthData(true, 'token_expired');
-        Logger.info('🔐 Cleared auth data due to 401 response');
-      } else {
-        // No JobJourney tabs found - just clear auth data immediately
-        Logger.info('💡 No JobJourney tabs found - clearing auth data directly');
-        await this.authService.clearAuthData(true, 'token_expired');
-      }
-    } catch (error) {
-      Logger.error('Failed to perform logout with fallback, clearing auth data', error);
-      await this.authService.clearAuthData(true, 'token_expired');
-    }
-  }
-
-  /**
-   * Find JobJourney tabs (same logic as BackgroundService)
-   */
-  private async findJobJourneyTabs(): Promise<chrome.tabs.Tab[]> {
-    try {
-      const tabs = await chrome.tabs.query({});
-      return tabs.filter(tab => {
-        if (!tab.url) return false;
-
-        try {
-          const url = new URL(tab.url);
-          const hostname = url.hostname.toLowerCase();
-
-          return (
-            hostname === 'jobjourney.me' ||
-            hostname === 'www.jobjourney.me' ||
-            (hostname === 'localhost' && url.port === '5001')
-          );
-        } catch (urlError) {
-          return false;
-        }
-      });
-    } catch (error) {
-      Logger.error('Failed to find JobJourney tabs', error);
-      return [];
     }
   }
 
@@ -145,10 +76,9 @@ export class ApiService {
         Logger.debug(`✅ API Success: ${endpoint}`, { status: response.status });
         return { success: true, data };
       } else {
-        // Handle 401 responses with performLogoutWithFallback
         if (response.status === 401) {
-          Logger.warning('API Request - 401 response detected, calling performLogoutWithFallback');
-          this.performLogoutWithFallback();
+          Logger.warning('API Request - 401 response detected, emitting unauthorized event');
+          this.eventManager.emit(EventType.UNAUTHORIZED, { reason: 'token_expired' });
 
           return {
             success: false,
@@ -417,7 +347,7 @@ export class ApiService {
 
       clearTimeout(timeoutId);
       return response.ok;
-    } catch (error) {
+    } catch {
       return false;
     }
   }

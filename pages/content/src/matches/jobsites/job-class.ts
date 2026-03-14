@@ -3,56 +3,9 @@
  * All scrapers should import from this file
  */
 
-import { detectPRRequirement } from './prDetection';
-import {
-  analyzeJobDescription,
-  JobAnalysisResult,
-  WorkArrangementResult,
-  EmploymentTypeResult,
-  ExperienceLevelResult,
-  TechStackResult,
-} from './descriptionAnalysis';
-
-// Interface for job data (legacy compatibility)
-export interface JobData {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  salary?: string;
-  postedDate?: string;
-  isRPRequired?: boolean;
-  companyLogoUrl?: string;
-  // New fields (optional for legacy)
-  detectedWorkArrangement?: WorkArrangementResult;
-  detectedEmploymentType?: EmploymentTypeResult;
-  detectedExperienceLevel?: ExperienceLevelResult;
-  techStack?: TechStackResult;
-  platform?: string;
-  // Already applied detection
-  isAlreadyApplied?: boolean;
-  appliedDateUtc?: string | null;
-}
-
-// Job constructor parameters
-export interface JobConstructorParams {
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  salary?: string;
-  postedDate?: string;
-  companyLogoUrl?: string | null;
-  platform: string;
-  jobType?: string;
-  workplaceType?: string;
-  applicantCount?: string;
-  isAlreadyApplied?: boolean;
-  appliedDateUtc?: string | null;
-}
+import type { JobAnalysisResult, JobConstructorParams } from '@extension/types';
+import { detectPRRequirement } from '@extension/shared';
+import { analyzeJobDescription } from './descriptionAnalysis';
 
 /**
  * Job class - represents a scraped job listing

@@ -1,20 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Badge } from '@extension/ui';
+import { MessageType } from '@extension/types';
+import { Button } from '@extension/ui';
 import { LogOut, User, Star, ExternalLink, Github } from 'lucide-react';
-import { getAuthUrl, getJobMarketUrl } from '../utils/environment';
-
-interface AuthStatus {
-  isAuthenticated: boolean;
-  user?: {
-    id: string;
-    email: string;
-    firstName: string;
-    lastName?: string;
-    name: string;
-    avatar?: string;
-    isPro?: boolean;
-  };
-}
+import { getAuthUrl, getJobMarketUrl } from '@extension/shared';
+import type { AuthStatus } from '@extension/types';
 
 interface AuthSectionProps {
   authStatus: AuthStatus;
@@ -50,7 +39,7 @@ export const AuthSection: React.FC<AuthSectionProps> = ({ authStatus, isAuthenti
   const handleSignOut = async () => {
     try {
       setShowUserModal(false);
-      await chrome.runtime.sendMessage({ type: 'SIGN_OUT_USER' });
+      await chrome.runtime.sendMessage({ type: MessageType.SIGN_OUT_USER });
     } catch (error) {
       console.error('Failed to sign out:', error);
     }

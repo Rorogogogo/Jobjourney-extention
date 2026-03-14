@@ -1,8 +1,8 @@
 // Scraping functions for different job platforms
 // Import shared Job class - single source of truth
+import { detectPRRequirement } from '@extension/shared';
+import type { JobData } from '@extension/types';
 import { Job } from './job-class';
-import type { JobData } from './job-class';
-import { detectPRRequirement } from './prDetection';
 
 // Re-export Job class for backward compatibility
 export { Job };
@@ -197,6 +197,7 @@ export const scrapingFunctions = {
             company: job.company,
             location: job.location,
             jobUrl: job.jobUrl,
+            platform: job.platform,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -277,6 +278,7 @@ export const scrapingFunctions = {
               company: job.company,
               location: job.location,
               jobUrl: job.jobUrl,
+              platform: job.platform,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
@@ -330,6 +332,7 @@ export const scrapingFunctions = {
             company: job.company,
             location: job.location,
             jobUrl: job.jobUrl,
+            platform: job.platform,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -546,6 +549,7 @@ export const scrapingFunctions = {
           company: jobDetail.company,
           location: jobDetail.location,
           jobUrl: jobDetail.jobUrl,
+          platform: 'SEEK',
           description: jobDetail.description,
           salary: jobDetail.salary,
           postedDate: jobDetail.postedDate,
@@ -642,6 +646,7 @@ export const scrapingFunctions = {
               company: jobDetail.company,
               location: jobDetail.location,
               jobUrl: jobDetail.jobUrl,
+              platform: 'SEEK',
               description: jobDetail.description,
               salary: jobDetail.salary,
               postedDate: jobDetail.postedDate,
@@ -659,6 +664,7 @@ export const scrapingFunctions = {
               company: job.company,
               location: job.location,
               jobUrl: job.jobUrl,
+              platform: job.platform,
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
@@ -676,6 +682,7 @@ export const scrapingFunctions = {
             company: job.company,
             location: job.location,
             jobUrl: job.jobUrl,
+            platform: job.platform,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -814,6 +821,7 @@ export const scrapingFunctions = {
             company: jobDetail.company,
             location: jobDetail.location,
             jobUrl: jobDetail.jobUrl,
+            platform: 'Indeed',
             description: jobDetail.description,
             salary: jobDetail.salary,
             postedDate: jobDetail.postedDate,
@@ -936,6 +944,7 @@ export const scrapingFunctions = {
             company: job.company,
             location: job.location,
             jobUrl: job.jobUrl,
+            platform: job.platform,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -977,6 +986,7 @@ export const scrapingFunctions = {
           company: job.company,
           location: job.location,
           jobUrl: job.jobUrl,
+          platform: job.platform || 'Indeed',
           description: job.description,
           salary: job.salary,
           postedDate: job.postedDate,
@@ -998,6 +1008,7 @@ export const scrapingFunctions = {
             company: job.company,
             location: job.location,
             jobUrl: job.jobUrl,
+            platform: job.platform,
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
@@ -1040,6 +1051,7 @@ export const scrapingFunctions = {
               company,
               location,
               jobUrl: url,
+              platform: 'Reed',
               salary,
               description: '',
               postedDate: '',

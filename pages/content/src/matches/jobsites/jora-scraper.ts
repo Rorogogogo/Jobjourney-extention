@@ -1,4 +1,6 @@
 // Jora job scraper
+import { MessageType } from '@extension/types';
+
 export {};
 
 interface JoraJobPayload {
@@ -92,7 +94,7 @@ const parseJobDescriptionHtml = (html: string): ParsedJobDetail => {
       '.job-view-subheader li',
       '.job-meta li',
     ]),
-    datePosted: postedDate,
+    postedDate,
     jobType: jobTypeBadge || queryText(doc, ['.job-view-employment-type', '.job-meta li[data-icon="briefcase"]']),
     workplaceType:
       workArrangementBadge ||
@@ -221,6 +223,8 @@ const joraScraper = {
           postedDate: textContent(postedDateNode),
           description: abstractItems,
           jobType: badges,
+          salary: '',
+          workplaceType: '',
         };
 
         const detail = await fetchJobDescription(payload);
@@ -229,13 +233,23 @@ const joraScraper = {
           ...detail,
         };
 
-        ['title', 'company', 'location', 'description', 'salary', 'jobType', 'workplaceType', 'datePosted'].forEach(
-          key => {
-            if (!detail?.[key] && basicJobData[key as keyof typeof basicJobData]) {
-              mergedJob[key] = basicJobData[key as keyof typeof basicJobData];
-            }
-          },
-        );
+        const mergeKeys = [
+          'title',
+          'company',
+          'location',
+          'description',
+          'salary',
+          'jobType',
+          'workplaceType',
+          'postedDate',
+        ] as const;
+
+        mergeKeys.forEach(key => {
+          const basicValue = basicJobData[key];
+          if (!detail?.[key] && basicValue) {
+            mergedJob[key] = basicValue;
+          }
+        });
 
         const job = (window as any).Job.createFromJora(mergedJob);
 
@@ -243,7 +257,7 @@ const joraScraper = {
 
         try {
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_PROGRESS',
+            type: MessageType.SCRAPING_PROGRESS,
             data: {
               platform: 'jora',
               current: index + 1,
@@ -252,7 +266,7 @@ const joraScraper = {
             },
           });
         } catch (progressError) {
-          if (progressError.message?.includes('Extension context invalidated')) {
+          if (progressError instanceof Error && progressError.message.includes('Extension context invalidated')) {
             console.log('Extension context invalidated while sending progress');
             break;
           }

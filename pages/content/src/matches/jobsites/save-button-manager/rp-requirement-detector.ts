@@ -1,13 +1,13 @@
 // RP requirement detection logic
-import { detectPRRequirement } from '../prDetection';
-import type { Platform, JobData } from './types';
+import { detectPRRequirement } from '@extension/shared';
+import type { PlatformId, JobData } from '@extension/types';
 
 export class RPRequirementDetector {
-  static determineRPRequirement(jobData: JobData, platform: Platform): boolean {
+  static determineRPRequirement(jobData: JobData, platform: PlatformId): boolean {
     // Job aggregator websites - always run PR detection
-    const jobAggregatorSites: Platform[] = ['linkedin', 'indeed', 'seek', 'jora', 'reed'];
+    const jobAggregatorSites: PlatformId[] = ['linkedin', 'indeed', 'seek', 'jora', 'reed'];
     if (jobAggregatorSites.includes(platform)) {
-      return detectPRRequirement(jobData.description || '');
+      return detectPRRequirement(jobData.description || '').isRPRequired;
     }
 
     // Company-specific websites - use predefined company policies
@@ -20,6 +20,6 @@ export class RPRequirementDetector {
     }
 
     // Default fallback for any other platforms
-    return detectPRRequirement(jobData.description || '');
+    return detectPRRequirement(jobData.description || '').isRPRequired;
   }
 }

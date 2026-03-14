@@ -1,8 +1,8 @@
 // Button insertion point finder for different platforms
-import type { Platform } from './types';
+import type { PlatformId } from '@extension/types';
 
 export class InsertionPointFinder {
-  static findInsertionPoint(platform: Platform): HTMLElement | null {
+  static findInsertionPoint(platform: PlatformId): HTMLElement | null {
     switch (platform) {
       case 'linkedin': {
         // Find the title within the job detail panel

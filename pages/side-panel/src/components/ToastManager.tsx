@@ -1,4 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
+import { MessageType } from '@extension/types';
 import Toast from './Toast';
 import type { ToastData, ToastType } from './Toast';
 
@@ -37,7 +38,7 @@ const ToastManager: React.FC<ToastManagerProps> = ({ children }) => {
   useEffect(() => {
     const handleMessages = (message: any) => {
       switch (message.type) {
-        case 'AUTH_STATUS_CHANGED':
+        case MessageType.AUTH_STATUS_CHANGED:
           const { isAuthenticated, user, shouldShowToast, reason } = message.data;
 
           // Only show toast if explicitly requested (default to true for backward compatibility)
@@ -65,8 +66,8 @@ const ToastManager: React.FC<ToastManagerProps> = ({ children }) => {
           }
           break;
 
-        case 'SCRAPING_COMPLETE':
-          const { jobs, sessionId, status } = message.data;
+        case MessageType.SCRAPING_COMPLETE:
+          const { jobs, status } = message.data;
           const jobCount = jobs?.length || 0;
 
           // Only show toast for natural completion, not manual stops
@@ -85,7 +86,7 @@ const ToastManager: React.FC<ToastManagerProps> = ({ children }) => {
           // For manual stops (status === 'stopped'), don't show toast as user initiated the action
           break;
 
-        case 'SCRAPING_ERROR':
+        case MessageType.SCRAPING_ERROR:
           const { error } = message.data;
           showToast('error', 'Search Failed', error?.message || 'An error occurred while searching for jobs', 5000);
           break;
@@ -93,6 +94,8 @@ const ToastManager: React.FC<ToastManagerProps> = ({ children }) => {
         default:
           break;
       }
+
+      return undefined;
     };
 
     // Listen for messages from background script
@@ -103,6 +106,8 @@ const ToastManager: React.FC<ToastManagerProps> = ({ children }) => {
         chrome.runtime.onMessage.removeListener(handleMessages);
       };
     }
+
+    return undefined;
   }, [showToast]);
 
   return (

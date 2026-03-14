@@ -1,9 +1,10 @@
 // API service for saving jobs
+import { MessageType } from '@extension/types';
+import type { JobData, PlatformId } from '@extension/types';
 import { RPRequirementDetector } from './rp-requirement-detector';
-import type { JobData, Platform } from './types';
 
 export class ApiService {
-  static async saveJob(jobData: JobData, platform: Platform): Promise<{ success: boolean; error?: string }> {
+  static async saveJob(jobData: JobData, platform: PlatformId): Promise<{ success: boolean; error?: string }> {
     try {
       // Determine IsRPRequired based on platform type
       const isRPRequired = RPRequirementDetector.determineRPRequirement(jobData, platform);
@@ -31,7 +32,7 @@ export class ApiService {
 
       // Send request to background script
       const response = await chrome.runtime.sendMessage({
-        type: 'SAVE_JOB_MANUALLY',
+        type: MessageType.SAVE_JOB_MANUALLY,
         data: apiJobData,
       });
 

@@ -1,11 +1,11 @@
 // Applied status detection for different platforms
-import type { Platform, AppliedStatusResult } from './types';
+import type { PlatformId, AppliedStatusResult } from '@extension/types';
 
 export class AppliedStatusDetector {
   /**
    * Detect applied status based on platform
    */
-  static detectAppliedStatus(platform: Platform): AppliedStatusResult {
+  static detectAppliedStatus(platform: PlatformId): AppliedStatusResult {
     switch (platform) {
       case 'linkedin':
         return this.detectLinkedInAppliedStatus();

@@ -1,7 +1,6 @@
 // Configuration management for JobJourney Extension
-import { detectEnvironment as globalDetectEnvironment, getJobJourneyBaseUrl } from '../utils/environment';
-import { Logger } from '../utils/Logger';
-import type { ConfigData } from '../types';
+import { detectEnvironment as globalDetectEnvironment, getJobJourneyBaseUrl, Logger } from '@extension/shared';
+import type { ConfigData } from '@extension/types';
 
 export class ConfigService {
   private config: ConfigData = {

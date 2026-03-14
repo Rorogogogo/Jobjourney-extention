@@ -1,4 +1,6 @@
 // SEEK scraper from working version
+import { MessageType } from '@extension/types';
+
 export {};
 
 // Helper function to parse relative time to UTC date string
@@ -283,7 +285,7 @@ const seekScraper = {
         // Send progress update
         try {
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_PROGRESS',
+            type: MessageType.SCRAPING_PROGRESS,
             data: {
               platform: 'seek',
               current: i + 1,
@@ -293,7 +295,7 @@ const seekScraper = {
           });
         } catch (progressError) {
           // Check if extension context is invalidated
-          if (progressError.message?.includes('Extension context invalidated')) {
+          if (progressError instanceof Error && progressError.message.includes('Extension context invalidated')) {
             console.log('🔄 Extension reloaded, stopping scraping gracefully');
             return jobs; // Return what we have so far
           }

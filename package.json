@@ -12,7 +12,7 @@
   "type": "module",
   "scripts": {
     "clean:bundle": "rimraf dist && turbo clean:bundle",
-    "clean:node_modules": "pnpx rimraf node_modules && pnpx turbo clean:node_modules",
+    "clean:node_modules": "rimraf node_modules && turbo clean:node_modules",
     "clean:turbo": "rimraf .turbo && turbo clean:turbo",
     "clean": "pnpm clean:bundle && pnpm clean:turbo && pnpm clean:node_modules",
     "clean:install": "pnpm clean:node_modules && pnpm install --frozen-lockfile",
@@ -34,7 +34,6 @@
     "update-version": "bash bash-scripts/update_version.sh",
     "copy-env": "bash bash-scripts/copy_env.sh",
     "set-global-env": "bash bash-scripts/set_global_env.sh",
-    "module-manager": "pnpm -F module-manager start",
     "manifest:dev": "node scripts/switch-manifest.js dev",
     "manifest:prod": "node scripts/switch-manifest.js prod",
     "postinstall": "pnpm copy-env"

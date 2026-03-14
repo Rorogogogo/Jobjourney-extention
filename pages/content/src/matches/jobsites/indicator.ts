@@ -1,5 +1,6 @@
 // JobJourney Page Indicator Module
 // Creates and manages the indicator strip at the top of pages
+import { MessageType } from '@extension/types';
 
 // JobJourney Page Indicator Module
 // Creates and manages the indicator strip at the top of pages
@@ -268,7 +269,7 @@ export async function createJobJourneyIndicator() {
     // Send message to background to open side panel
     chrome.runtime
       .sendMessage({
-        type: 'OPEN_SIDE_PANEL',
+        type: MessageType.OPEN_SIDE_PANEL,
       })
       .catch(() => {
         // Fallback: try to open extension popup

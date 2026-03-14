@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@extension/ui';
 import { IS_DEV } from '@extension/env';
+import { MessageType } from '@extension/types';
 import { FlaskConical } from 'lucide-react';
 
 const JOB_COUNTS = [100, 500, 1000, 2000, 5000];
@@ -23,7 +24,7 @@ export const DevMockButton: React.FC = () => {
 
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'MOCK_LARGE_SCRAPE',
+        type: MessageType.MOCK_LARGE_SCRAPE,
         data: { count },
       });
 
