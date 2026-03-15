@@ -298,7 +298,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               isRPRequired: job.isRPRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'linkedin',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
               isAlreadyApplied: job.isAlreadyApplied || false,
               appliedDateUtc: job.appliedDateUtc || null,
             }));
@@ -319,7 +321,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               isRPRequired: job.isRPRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'indeed',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
               isAlreadyApplied: job.isAlreadyApplied || false,
               appliedDateUtc: job.appliedDateUtc || null,
             }));
@@ -340,7 +344,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               isRPRequired: job.isRPRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'seek',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
               isAlreadyApplied: job.isAlreadyApplied || false,
               appliedDateUtc: job.appliedDateUtc || null,
             }));
@@ -360,7 +366,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               isRPRequired: job.isRPRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'jora',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
               isAlreadyApplied: job.isAlreadyApplied || false,
               appliedDateUtc: job.appliedDateUtc || null,
             }));

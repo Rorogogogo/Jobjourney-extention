@@ -594,7 +594,6 @@ export class ScrapingService {
             const platformJobs: JobData[] = (jobs || []).map((job: any) => ({
               ...job,
               platform: platform.id,
-              extractedAt: new Date().toISOString(),
               // Ensure postedDate is explicitly null when empty, not undefined
               postedDate: job.postedDate && job.postedDate.trim() ? job.postedDate.trim() : undefined,
               isRPRequired: job.isRPRequired !== undefined ? job.isRPRequired : isPRRequired(job.description || ''),
@@ -1232,7 +1231,6 @@ export class ScrapingService {
             description: `Mock job description for testing. Position: ${titles[i % titles.length]} at ${companies[i % companies.length]}, ${cities[i % cities.length]}. `,
             salary: `$${80 + (i % 120)}k - $${100 + (i % 120)}k`,
             postedDate: new Date(Date.now() - i * 3600000).toISOString(),
-            extractedAt: new Date().toISOString(),
             isRPRequired: i % 5 === 0,
             companyLogoUrl: null,
             isAlreadyApplied: i % 20 === 0,

@@ -219,7 +219,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: descriptionElement?.textContent?.trim() || '',
-      employmentTypes: jobTypeElement?.textContent?.trim() || '',
+      jobType: jobTypeElement?.textContent?.trim() || '',
       platform: 'Indeed',
       companyLogoUrl: companyLogoUrl,
     };
@@ -284,7 +284,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: descriptionElement?.textContent?.trim() || '',
-      employmentTypes: workTypeElement?.textContent?.trim() || '',
+      jobType: workTypeElement?.textContent?.trim() || '',
       platform: 'SEEK',
       companyLogoUrl: companyLogoUrl,
     };
@@ -353,7 +353,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
-      employmentTypes: employmentTypeElement?.textContent?.trim() || '',
+      jobType: employmentTypeElement?.textContent?.trim() || '',
       platform: 'Macquarie Group',
       companyLogoUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Macquarie_Group_logo.jpg',
     };
@@ -409,7 +409,7 @@ class SaveJobButton {
       location,
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
-      employmentTypes: department, // Use department as employment type
+      jobType: department, // Use department as employment type
       platform: 'Atlassian',
       companyLogoUrl: 'https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon-32x32.png',
     };
@@ -475,7 +475,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
-      employmentTypes: jobSchedule, // Use job schedule as employment type
+      jobType: jobSchedule, // Use job schedule as employment type
       platform: 'Westpac',
       companyLogoUrl: 'https://1000logos.net/wp-content/uploads/2019/10/Westpac-Logo.jpg',
     };
@@ -540,7 +540,7 @@ class SaveJobButton {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: jobSchedule,
+      jobType: jobSchedule,
       workArrangement: undefined,
       platform: 'Canva',
       companyLogoUrl: 'https://www.pngmart.com/files/23/Canva-Logo-PNG-Picture.png',
@@ -907,7 +907,7 @@ class SaveJobButton {
         JobUrl: this.currentJobData.jobUrl,
         Description: this.currentJobData.description || '',
         RequiredSkills: this.currentJobData.requiredSkills || '',
-        EmploymentTypes: this.currentJobData.employmentTypes || '',
+        EmploymentTypes: this.currentJobData.jobType || '',
         WorkArrangement: this.currentJobData.workArrangement || '',
         CompanyLogoUrl: this.currentJobData.companyLogoUrl || null,
         Status: 1, // Default to "Saved" status

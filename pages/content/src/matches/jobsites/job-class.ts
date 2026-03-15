@@ -22,7 +22,7 @@ export class Job {
   public companyLogoUrl: string | null;
   public platform: string;
   public jobType: string;
-  public workplaceType: string;
+  public workArrangement: string;
   public applicantCount: string;
   public isRPRequired: boolean;
 
@@ -44,7 +44,7 @@ export class Job {
     companyLogoUrl = null,
     platform,
     jobType = '',
-    workplaceType = '',
+    workArrangement = '',
     applicantCount = '',
     isAlreadyApplied = false,
     appliedDateUtc = null,
@@ -59,7 +59,7 @@ export class Job {
     this.companyLogoUrl = companyLogoUrl || null;
     this.platform = platform || '';
     this.jobType = jobType?.trim() || '';
-    this.workplaceType = workplaceType?.trim() || '';
+    this.workArrangement = workArrangement?.trim() || '';
     this.applicantCount = applicantCount?.trim() || '';
     this.isAlreadyApplied = isAlreadyApplied || false;
     this.appliedDateUtc = appliedDateUtc || null;
@@ -84,22 +84,13 @@ export class Job {
       postedDate: this.postedDate,
       companyLogoUrl: this.companyLogoUrl,
       platform: this.platform,
-      jobType: this.jobType,
-      workplaceType: this.workplaceType,
+      jobType: this.jobType || this.analysis.employmentType?.type || '',
+      workArrangement: this.workArrangement || this.analysis.workArrangement?.type || '',
+      requiredSkills: this.analysis.techStack?.technologies?.join(', ') || '',
       applicantCount: this.applicantCount,
       isRPRequired: this.isRPRequired,
-
-      // Already applied detection
       isAlreadyApplied: this.isAlreadyApplied,
       appliedDateUtc: this.appliedDateUtc,
-
-      // Include analysis results
-      detectedWorkArrangement: this.analysis.workArrangement,
-      detectedEmploymentType: this.analysis.employmentType,
-      detectedExperienceLevel: this.analysis.experienceLevel,
-      techStack: this.analysis.techStack,
-
-      extracted_at: this.postedDate || null,
       id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,
     };
   }
@@ -116,7 +107,7 @@ export class Job {
       companyLogoUrl: data.companyLogoUrl,
       platform: 'LinkedIn',
       jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
+      workArrangement: data.workArrangement || data.workplaceType || '',
       applicantCount: data.applicantCount || '',
       isAlreadyApplied: data.isAlreadyApplied || false,
       appliedDateUtc: data.appliedDateUtc || null,
@@ -135,7 +126,7 @@ export class Job {
       companyLogoUrl: data.companyLogoUrl,
       platform: 'SEEK',
       jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
+      workArrangement: data.workArrangement || data.workplaceType || '',
       applicantCount: data.applicantCount || '',
       isAlreadyApplied: data.isAlreadyApplied || false,
       appliedDateUtc: data.appliedDateUtc || null,
@@ -154,7 +145,7 @@ export class Job {
       companyLogoUrl: data.companyLogoUrl,
       platform: 'Indeed',
       jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
+      workArrangement: data.workArrangement || data.workplaceType || '',
       applicantCount: data.applicantCount || '',
       isAlreadyApplied: data.isAlreadyApplied || false,
       appliedDateUtc: data.appliedDateUtc || null,
@@ -173,7 +164,7 @@ export class Job {
       companyLogoUrl: data.companyLogoUrl,
       platform: 'Jora',
       jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
+      workArrangement: data.workArrangement || data.workplaceType || '',
       applicantCount: data.applicantCount || '',
       isAlreadyApplied: data.isAlreadyApplied || false,
       appliedDateUtc: data.appliedDateUtc || null,
@@ -192,7 +183,7 @@ export class Job {
       companyLogoUrl: data.companyLogoUrl,
       platform: 'Reed',
       jobType: data.jobType || '',
-      workplaceType: data.workplaceType || '',
+      workArrangement: data.workArrangement || data.workplaceType || '',
       applicantCount: data.applicantCount || '',
       isAlreadyApplied: data.isAlreadyApplied || false,
       appliedDateUtc: data.appliedDateUtc || null,

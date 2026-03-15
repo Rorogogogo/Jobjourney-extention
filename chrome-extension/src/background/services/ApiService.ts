@@ -281,22 +281,21 @@ export class ApiService {
       return { success: false, error: 'Authentication required' };
     }
 
-    // Prepare JSON payload for the job-market API endpoint
+    // Prepare JSON payload matching backend JobMarketDto (PascalCase)
     const payload = {
-      title: jobData.Name?.trim() || '',
-      company: jobData.CompanyName?.trim() || '',
-      location: jobData.Location?.trim() || '',
-      jobUrl: jobData.JobUrl?.trim() || '',
-      description: jobData.Description?.trim() || '',
-      salary: '', // Not provided in the current data
-      jobType: jobData.EmploymentTypes?.trim() || '',
-      postedDate: '', // Not provided in the current data
-      platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
-      companyLogoUrl: jobData.CompanyLogoUrl || null,
-      isRPRequired: jobData.IsRPRequired === true || jobData.IsRPRequired === 'true',
-      // Already applied detection
-      isAlreadyApplied: jobData.IsAlreadyApplied === true,
-      appliedDateUtc: jobData.AppliedDateUtc || null,
+      Title: jobData.Name?.trim() || '',
+      Company: jobData.CompanyName?.trim() || '',
+      Location: jobData.Location?.trim() || '',
+      JobUrl: jobData.JobUrl?.trim() || '',
+      Description: jobData.Description?.trim() || '',
+      Salary: jobData.Salary?.trim() || '',
+      JobType: jobData.EmploymentTypes?.trim() || '',
+      PostedDate: jobData.PostedDate?.trim() || '',
+      Platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
+      CompanyLogoUrl: jobData.CompanyLogoUrl || null,
+      IsRPRequired: jobData.IsRPRequired === true || jobData.IsRPRequired === 'true',
+      IsAlreadyApplied: jobData.IsAlreadyApplied === true,
+      AppliedDateUtc: jobData.AppliedDateUtc || null,
     };
 
     return this.makeRequest('/job-market/save', {

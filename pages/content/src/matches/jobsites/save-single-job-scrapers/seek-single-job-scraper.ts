@@ -54,7 +54,7 @@ export class SeekScraper extends BaseScraper {
       location: this.extractText(locationElement),
       jobUrl: window.location.href,
       description: this.extractText(descriptionElement),
-      employmentTypes: this.extractText(workTypeElement),
+      jobType: this.extractText(workTypeElement),
       platform: this.platform,
       companyLogoUrl: companyLogoUrl || undefined,
     };

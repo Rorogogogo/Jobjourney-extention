@@ -18,7 +18,7 @@ export class ApiService {
         JobUrl: jobData.jobUrl,
         Description: jobData.description || '',
         RequiredSkills: jobData.requiredSkills || '',
-        EmploymentTypes: jobData.employmentTypes || '',
+        EmploymentTypes: jobData.jobType || '',
         WorkArrangement: jobData.workArrangement || '',
         CompanyLogoUrl: jobData.companyLogoUrl || null,
         PlatformName: jobData.platform || platform,

@@ -67,7 +67,7 @@ export class CanvaScraper extends BaseSingleJobScraper {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: jobSchedule,
+      jobType: jobSchedule,
       workArrangement: undefined,
       platform: this.platform,
       companyLogoUrl: this.companyLogoUrl,

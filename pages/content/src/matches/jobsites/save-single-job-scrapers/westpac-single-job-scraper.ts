@@ -69,7 +69,7 @@ export class WestpacScraper extends BaseSingleJobScraper {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: jobSchedule, // Use job schedule as employment type
+      jobType: jobSchedule, // Use job schedule as employment type
       workArrangement: undefined,
       platform: this.platform,
       companyLogoUrl: this.companyLogoUrl,

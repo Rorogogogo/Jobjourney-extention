@@ -59,7 +59,7 @@ export class AtlassianScraper extends BaseSingleJobScraper {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: department, // Use department as employment type
+      jobType: department, // Use department as employment type
       workArrangement: undefined,
       platform: this.platform,
       companyLogoUrl: this.companyLogoUrl,

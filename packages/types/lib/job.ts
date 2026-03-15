@@ -12,15 +12,15 @@ export interface JobData {
   description?: string;
   salary?: string;
   postedDate?: string;
-  extractedAt?: string | null;
-  isRPRequired?: boolean;
   companyLogoUrl?: string | null;
-  requiredSkills?: string;
-  employmentTypes?: string;
-  workArrangement?: string;
-  analysis?: JobAnalysisResult;
+  jobType?: string; // matches backend JobMarketDto.JobType
+  workArrangement?: string; // matches backend ManualCreateJobDto.WorkArrangement
+  requiredSkills?: string; // matches backend ManualCreateJobDto.RequiredSkills
+  isRPRequired?: boolean;
   isAlreadyApplied?: boolean;
   appliedDateUtc?: string | null;
+  applicantCount?: string;
+  analysis?: JobAnalysisResult;
 }
 
 export interface JobConstructorParams {
@@ -34,7 +34,7 @@ export interface JobConstructorParams {
   postedDate?: string;
   companyLogoUrl?: string | null;
   jobType?: string;
-  workplaceType?: string;
+  workArrangement?: string;
   applicantCount?: string;
   isAlreadyApplied?: boolean;
   appliedDateUtc?: string | null;

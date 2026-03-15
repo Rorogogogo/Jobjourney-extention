@@ -52,7 +52,7 @@ export class MacquarieScraper extends BaseScraper {
       location: this.extractText(locationElement),
       jobUrl: this.cleanUrl(window.location.href),
       description: description.trim(),
-      employmentTypes: this.extractText(employmentTypeElement),
+      jobType: this.extractText(employmentTypeElement),
       platform: this.platform,
       companyLogoUrl,
     };
