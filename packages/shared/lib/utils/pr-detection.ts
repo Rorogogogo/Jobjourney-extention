@@ -63,7 +63,7 @@ const CONTEXT_KEYWORDS = [/\b(work\s+permit|visa|immigration|sponsorship|authori
 export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequirementResult => {
   if (!jobText || typeof jobText !== 'string') {
     return {
-      isRPRequired: false,
+      isPRRequired: false,
       isCitizenRequired: false,
       securityClearance: null,
       confidence: 'low',
@@ -131,7 +131,7 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
     }
   });
 
-  const isRPRequired = isCitizenRequired || prRequiredScore > prNotRequiredScore;
+  const isPRRequired = isCitizenRequired || prRequiredScore > prNotRequiredScore;
 
   let confidence: 'high' | 'medium' | 'low';
   if (isCitizenRequired || prRequiredScore >= 4) {
@@ -145,7 +145,7 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
   let reasoning = '';
   if (isCitizenRequired) {
     reasoning = `Citizenship required${securityClearance ? ` with ${securityClearance} clearance` : ''}`;
-  } else if (isRPRequired) {
+  } else if (isPRRequired) {
     reasoning = `PR likely required - found ${prRequiredScore} positive indicators`;
     if (prNotRequiredScore > 0) {
       reasoning += ` and ${prNotRequiredScore} negative indicators`;
@@ -157,7 +157,7 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
   }
 
   return {
-    isRPRequired,
+    isPRRequired,
     isCitizenRequired,
     securityClearance,
     confidence,
@@ -172,14 +172,14 @@ export const detectCitizenshipRequirements = (jobText: string): CitizenshipRequi
 export const detectPRRequirement = (
   jobText: string,
 ): {
-  isRPRequired: boolean;
+  isPRRequired: boolean;
   confidence: 'high' | 'medium' | 'low';
   matchedPatterns: string[];
   reasoning: string;
 } => {
   const result = detectCitizenshipRequirements(jobText);
   return {
-    isRPRequired: result.isRPRequired,
+    isPRRequired: result.isPRRequired,
     confidence: result.confidence,
     matchedPatterns: result.matchedPatterns,
     reasoning: result.reasoning,
@@ -191,7 +191,7 @@ export const detectPRRequirement = (
  */
 export const isPRRequired = (jobText: string): boolean => {
   const result = detectPRRequirement(jobText);
-  return result.isRPRequired && result.confidence !== 'low';
+  return result.isPRRequired && result.confidence !== 'low';
 };
 
 /**
@@ -200,7 +200,7 @@ export const isPRRequired = (jobText: string): boolean => {
 export const getPRAnalysisSummary = (jobText: string): string => {
   const result = detectCitizenshipRequirements(jobText);
 
-  let summary = `PR Required: ${result.isRPRequired ? 'Yes' : 'No'} (${result.confidence} confidence)\n`;
+  let summary = `PR Required: ${result.isPRRequired ? 'Yes' : 'No'} (${result.confidence} confidence)\n`;
   if (result.isCitizenRequired) {
     summary += `Citizenship Required: Yes\n`;
   }

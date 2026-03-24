@@ -76,7 +76,7 @@ Service-oriented architecture with dependency injection via `setDependencies()`:
 Two scraper types in `pages/content/src/matches/jobsites/`:
 - **Bulk scrapers**: LinkedIn, Indeed, SEEK, Jora — scrape search result pages
 - **Single-job scrapers**: Extend `BaseSingleJobScraper` — extract data from individual job pages (LinkedIn, Indeed, SEEK, Jora, Reed, Atlassian, Canva, Macquarie, Westpac)
-- **Save Button Manager** (`save-button-manager/`): Modular DI system — SaveButtonManager, PlatformDetector, JobDataExtractor, InsertionPointFinder, ButtonComponent, RPRequirementDetector, AppliedStatusDetector
+- **Save Button Manager** (`save-button-manager/`): Modular DI system — SaveButtonManager, PlatformDetector, JobDataExtractor, InsertionPointFinder, ButtonComponent, PRRequirementDetector, AppliedStatusDetector
 
 ### Side Panel
 
@@ -96,7 +96,7 @@ Two scraper types in `pages/content/src/matches/jobsites/`:
 All shared types live in `packages/types/` — never define types inline or in service files:
 - `MessageType` and `EventType` are **enums** (not hardcoded strings)
 - `PlatformId` is a union type: `'linkedin' | 'indeed' | 'seek' | 'jora' | 'reed' | ...`
-- Boolean properties use `is` prefix: `isRPRequired`, `isAlreadyApplied`
+- Boolean properties use `is` prefix: `isPRRequired`, `isAlreadyApplied`
 - Key type files: `job.ts`, `auth.ts`, `platform.ts`, `scraping.ts`, `messages.ts`, `api.ts`, `storage.ts`
 
 ### Dependency Injection

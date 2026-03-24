@@ -1,13 +1,13 @@
 // API service for saving jobs
 import { MessageType } from '@extension/types';
 import type { JobData, PlatformId } from '@extension/types';
-import { RPRequirementDetector } from './rp-requirement-detector';
+import { PRRequirementDetector } from './pr-requirement-detector';
 
 export class ApiService {
   static async saveJob(jobData: JobData, platform: PlatformId): Promise<{ success: boolean; error?: string }> {
     try {
-      // Determine IsRPRequired based on platform type
-      const isRPRequired = RPRequirementDetector.determineRPRequirement(jobData, platform);
+      // Determine IsPRRequired based on platform type
+      const isPRRequired = PRRequirementDetector.determinePRRequirement(jobData, platform);
 
       // Prepare job data for API
       // Status: 1 = Saved, 2 = Applied
@@ -24,7 +24,7 @@ export class ApiService {
         PlatformName: jobData.platform || platform,
         Status: jobData.isAlreadyApplied ? 2 : 1, // 2 = Applied, 1 = Saved
         IsStarred: false,
-        IsRPRequired: isRPRequired,
+        IsPRRequired: isPRRequired,
         // Already applied detection
         IsAlreadyApplied: jobData.isAlreadyApplied || false,
         AppliedDateUtc: jobData.appliedDateUtc || null,

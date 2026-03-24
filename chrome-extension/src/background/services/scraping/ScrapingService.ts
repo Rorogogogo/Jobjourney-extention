@@ -596,7 +596,7 @@ export class ScrapingService {
               platform: platform.id,
               // Ensure postedDate is explicitly null when empty, not undefined
               postedDate: job.postedDate && job.postedDate.trim() ? job.postedDate.trim() : undefined,
-              isRPRequired: job.isRPRequired !== undefined ? job.isRPRequired : isPRRequired(job.description || ''),
+              isPRRequired: job.isPRRequired !== undefined ? job.isPRRequired : isPRRequired(job.description || ''),
             }));
 
             session.jobs.push(...platformJobs);
@@ -1231,7 +1231,7 @@ export class ScrapingService {
             description: `Mock job description for testing. Position: ${titles[i % titles.length]} at ${companies[i % companies.length]}, ${cities[i % cities.length]}. `,
             salary: `$${80 + (i % 120)}k - $${100 + (i % 120)}k`,
             postedDate: new Date(Date.now() - i * 3600000).toISOString(),
-            isRPRequired: i % 5 === 0,
+            isPRRequired: i % 5 === 0,
             companyLogoUrl: null,
             isAlreadyApplied: i % 20 === 0,
             appliedDateUtc: i % 20 === 0 ? new Date().toISOString() : null,

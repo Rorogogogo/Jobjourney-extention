@@ -10,7 +10,7 @@ export class ButtonComponent {
     if (prDetection.reasoning === 'Detecting PR requirements...') {
       badgeColor = '#3b82f6'; // Blue for detecting state
       badgeText = 'PR Detecting';
-    } else if (prDetection.isRPRequired) {
+    } else if (prDetection.isPRRequired) {
       // PR is required - show warning colors
       badgeColor =
         prDetection.confidence === 'high' ? '#ef4444' : prDetection.confidence === 'medium' ? '#f59e0b' : '#6b7280';
@@ -246,7 +246,7 @@ export class ButtonComponent {
         bg = '#eff6ff'; // blue-50
         border = '#bfdbfe'; // blue-200
         text = 'PR Detecting';
-      } else if (prDetection.isRPRequired) {
+      } else if (prDetection.isPRRequired) {
         if (prDetection.confidence === 'high') {
           color = '#b91c1c'; // red-700
           bg = '#fef2f2'; // red-50

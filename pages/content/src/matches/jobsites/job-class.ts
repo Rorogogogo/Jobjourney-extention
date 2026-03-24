@@ -24,7 +24,7 @@ export class Job {
   public jobType: string;
   public workArrangement: string;
   public applicantCount: string;
-  public isRPRequired: boolean;
+  public isPRRequired: boolean;
 
   // Already applied detection
   public isAlreadyApplied: boolean;
@@ -66,7 +66,7 @@ export class Job {
 
     // Analyze description for PR requirement using utility function
     const prResult = detectPRRequirement(this.description);
-    this.isRPRequired = prResult.isRPRequired;
+    this.isPRRequired = prResult.isPRRequired;
 
     // Perform comprehensive analysis
     this.analysis = analyzeJobDescription(this.description);
@@ -88,7 +88,7 @@ export class Job {
       workArrangement: this.workArrangement || this.analysis.workArrangement?.type || '',
       requiredSkills: this.analysis.techStack?.technologies?.join(', ') || '',
       applicantCount: this.applicantCount,
-      isRPRequired: this.isRPRequired,
+      isPRRequired: this.isPRRequired,
       isAlreadyApplied: this.isAlreadyApplied,
       appliedDateUtc: this.appliedDateUtc,
       id: `${this.platform.toLowerCase()}_${Date.now()}_${Math.floor(Math.random() * 1000)}`,

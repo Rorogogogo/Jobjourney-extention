@@ -879,24 +879,24 @@ class SaveJobButton {
     this.setButtonLoading(true);
 
     try {
-      // Determine IsRPRequired based on platform type
-      let isRPRequired = false;
+      // Determine IsPRRequired based on platform type
+      let isPRRequired = false;
       const platform = this.currentJobData.platform;
 
       // Job aggregator websites - always run PR detection
       const jobAggregatorSites = ['LinkedIn', 'Indeed', 'SEEK', 'Reed'];
       if (jobAggregatorSites.includes(platform)) {
-        isRPRequired = detectPRRequirement(this.currentJobData.description || '').isRPRequired;
+        isPRRequired = detectPRRequirement(this.currentJobData.description || '').isPRRequired;
       }
       // Company-specific websites - use predefined company policies
       else if (platform === 'Atlassian' || platform === 'Canva' || platform === 'Westpac') {
-        isRPRequired = true; // These companies require RP
+        isPRRequired = true; // These companies require RP
       } else if (platform === 'Macquarie Group') {
-        isRPRequired = false; // Macquarie doesn't require RP
+        isPRRequired = false; // Macquarie doesn't require RP
       }
       // Default fallback for any other platforms
       else {
-        isRPRequired = detectPRRequirement(this.currentJobData.description || '').isRPRequired;
+        isPRRequired = detectPRRequirement(this.currentJobData.description || '').isPRRequired;
       }
 
       // Prepare job data for API
@@ -912,7 +912,7 @@ class SaveJobButton {
         CompanyLogoUrl: this.currentJobData.companyLogoUrl || null,
         Status: 1, // Default to "Saved" status
         IsStarred: false,
-        IsRPRequired: isRPRequired,
+        IsPRRequired: isPRRequired,
       };
 
       // Send request to background script

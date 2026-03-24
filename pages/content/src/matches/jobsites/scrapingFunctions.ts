@@ -201,7 +201,7 @@ export const scrapingFunctions = {
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
-            isRPRequired: job.isRPRequired,
+            isPRRequired: job.isPRRequired,
             companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
@@ -282,7 +282,7 @@ export const scrapingFunctions = {
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
-              isRPRequired: job.isRPRequired,
+              isPRRequired: job.isPRRequired,
               companyLogoUrl: job.companyLogoUrl || undefined,
             });
             continue;
@@ -336,7 +336,7 @@ export const scrapingFunctions = {
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
-            isRPRequired: job.isRPRequired,
+            isPRRequired: job.isPRRequired,
             companyLogoUrl: job.companyLogoUrl || undefined,
           });
 
@@ -553,7 +553,7 @@ export const scrapingFunctions = {
           description: jobDetail.description,
           salary: jobDetail.salary,
           postedDate: jobDetail.postedDate,
-          isRPRequired: jobDetail.isRPRequired,
+          isPRRequired: jobDetail.isPRRequired,
           companyLogoUrl: jobDetail.companyLogoUrl || undefined,
         });
       }
@@ -650,7 +650,7 @@ export const scrapingFunctions = {
               description: jobDetail.description,
               salary: jobDetail.salary,
               postedDate: jobDetail.postedDate,
-              isRPRequired: jobDetail.isRPRequired,
+              isPRRequired: jobDetail.isPRRequired,
               companyLogoUrl: jobDetail.companyLogoUrl || undefined,
             });
             console.log(`Successfully scraped detailed job: ${jobDetail.title}`);
@@ -668,7 +668,7 @@ export const scrapingFunctions = {
               description: job.description,
               salary: job.salary,
               postedDate: job.postedDate,
-              isRPRequired: job.isRPRequired,
+              isPRRequired: job.isPRRequired,
               companyLogoUrl: job.companyLogoUrl || undefined,
             });
           }
@@ -686,7 +686,7 @@ export const scrapingFunctions = {
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
-            isRPRequired: job.isRPRequired,
+            isPRRequired: job.isPRRequired,
             companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
@@ -737,7 +737,7 @@ export const scrapingFunctions = {
           description,
           postedDate: postedElement?.textContent?.trim() || '',
           salary: badgeElement?.textContent?.trim() || '',
-          isRPRequired: detectPRRequirement(description || '').isRPRequired,
+          isPRRequired: detectPRRequirement(description || '').isPRRequired,
           platform: 'Jora',
         });
       } catch (error) {
@@ -825,7 +825,7 @@ export const scrapingFunctions = {
             description: jobDetail.description,
             salary: jobDetail.salary,
             postedDate: jobDetail.postedDate,
-            isRPRequired: jobDetail.isRPRequired,
+            isPRRequired: jobDetail.isPRRequired,
             companyLogoUrl: jobDetail.companyLogoUrl || undefined,
           });
           console.log(`Scraped standalone job: ${jobDetail.title}`);
@@ -948,7 +948,7 @@ export const scrapingFunctions = {
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
-            isRPRequired: job.isRPRequired,
+            isPRRequired: job.isPRRequired,
             companyLogoUrl: job.companyLogoUrl || undefined,
           });
           continue;
@@ -990,7 +990,7 @@ export const scrapingFunctions = {
           description: job.description,
           salary: job.salary,
           postedDate: job.postedDate,
-          isRPRequired: job.isRPRequired,
+          isPRRequired: job.isPRRequired,
         });
 
         // Delay between jobs
@@ -1012,7 +1012,7 @@ export const scrapingFunctions = {
             description: job.description,
             salary: job.salary,
             postedDate: job.postedDate,
-            isRPRequired: job.isRPRequired,
+            isPRRequired: job.isPRRequired,
             companyLogoUrl: job.companyLogoUrl || undefined,
           });
         }
@@ -1055,7 +1055,7 @@ export const scrapingFunctions = {
               salary,
               description: '',
               postedDate: '',
-              isRPRequired: detectPRRequirement('').isRPRequired,
+              isPRRequired: detectPRRequirement('').isPRRequired,
               companyLogoUrl: undefined,
             });
           }

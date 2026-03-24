@@ -293,7 +293,7 @@ export class ApiService {
       PostedDate: jobData.PostedDate?.trim() || '',
       Platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
       CompanyLogoUrl: jobData.CompanyLogoUrl || null,
-      IsRPRequired: jobData.IsRPRequired === true || jobData.IsRPRequired === 'true',
+      IsPRRequired: jobData.IsPRRequired === true || jobData.IsPRRequired === 'true',
       IsAlreadyApplied: jobData.IsAlreadyApplied === true,
       AppliedDateUtc: jobData.AppliedDateUtc || null,
     };

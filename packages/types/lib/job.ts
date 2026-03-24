@@ -16,7 +16,7 @@ export interface JobData {
   jobType?: string; // matches backend JobMarketDto.JobType
   workArrangement?: string; // matches backend ManualCreateJobDto.WorkArrangement
   requiredSkills?: string; // matches backend ManualCreateJobDto.RequiredSkills
-  isRPRequired?: boolean;
+  isPRRequired?: boolean;
   isAlreadyApplied?: boolean;
   appliedDateUtc?: string | null;
   applicantCount?: string;

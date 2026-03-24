@@ -142,7 +142,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     // If analysis exists and has PR detection, use it; otherwise create a default one
     if (jobData.analysis?.prDetection) {
       this.currentPRDetection = {
-        isRPRequired: jobData.analysis.prDetection.isRPRequired,
+        isPRRequired: jobData.analysis.prDetection.isPRRequired,
         confidence: jobData.analysis.prDetection.confidence,
         matchedPatterns: jobData.analysis.prDetection.matchedPatterns,
         reasoning: jobData.analysis.prDetection.reasoning,
@@ -150,7 +150,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     } else {
       // Fallback if no analysis available (shouldn't normally happen)
       this.currentPRDetection = {
-        isRPRequired: false,
+        isPRRequired: false,
         confidence: 'low',
         matchedPatterns: [],
         reasoning: 'No analysis available',

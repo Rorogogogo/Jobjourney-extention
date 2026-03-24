@@ -1,7 +1,7 @@
 // Job description analysis types
 
 export interface PrRequirementResult {
-  isRPRequired: boolean;
+  isPRRequired: boolean;
   isCitizenRequired: boolean;
   securityClearance: string | null;
   confidence: 'high' | 'medium' | 'low';
@@ -10,7 +10,7 @@ export interface PrRequirementResult {
 }
 
 export interface PrDetectionResult {
-  isRPRequired: boolean;
+  isPRRequired: boolean;
   confidence: 'high' | 'medium' | 'low';
   matchedPatterns: string[];
   reasoning: string;
