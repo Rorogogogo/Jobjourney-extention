@@ -69,7 +69,7 @@ const manifest = {
         '*://*.au.jora.com/*',
         '*://*.reed.co.uk/*',
       ],
-      js: ['content-ui/all.iife.js'],
+      js: ['content/all.iife.js'],
       run_at: 'document_idle',
     },
   ],
