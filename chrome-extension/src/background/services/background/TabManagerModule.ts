@@ -135,7 +135,13 @@ export class TabManagerModule {
 
         try {
           const tabs = await chrome.tabs.query({
-            url: ['*://www.linkedin.com/*', '*://www.indeed.com/*', '*://www.seek.com.au/*', '*://www.seek.co.nz/*'],
+            url: [
+              '*://www.linkedin.com/*',
+              '*://www.indeed.com/*',
+              '*://www.seek.com.au/*',
+              '*://www.seek.co.nz/*',
+              '*://nz.seek.com/*',
+            ],
           });
           const targetTab = tabs.find(tab => tab.id === tabId);
 

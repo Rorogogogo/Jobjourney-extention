@@ -14,7 +14,7 @@ export const PLATFORMS: Partial<Record<PlatformId, Platform>> = {
     id: 'seek',
     name: 'SEEK',
     icon: '🔍',
-    domains: ['seek.com.au', 'seek.co.nz'],
+    domains: ['seek.com.au', 'seek.co.nz', 'nz.seek.com'],
     color: '#0d3880',
     enabled: true,
   },

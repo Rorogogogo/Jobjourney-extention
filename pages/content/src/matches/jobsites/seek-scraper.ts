@@ -205,7 +205,8 @@ const seekScraper = {
         hostname === 'seek.com.au' ||
         hostname.endsWith('.seek.com.au') ||
         hostname === 'seek.co.nz' ||
-        hostname.endsWith('.seek.co.nz')
+        hostname.endsWith('.seek.co.nz') ||
+        hostname === 'nz.seek.com'
       );
     } catch {
       return false;

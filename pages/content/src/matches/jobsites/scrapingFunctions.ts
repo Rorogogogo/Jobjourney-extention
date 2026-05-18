@@ -1081,7 +1081,8 @@ export const getCurrentPlatform = (): string | null => {
     hostname === 'seek.com.au' ||
     hostname.endsWith('.seek.com.au') ||
     hostname === 'seek.co.nz' ||
-    hostname.endsWith('.seek.co.nz')
+    hostname.endsWith('.seek.co.nz') ||
+    hostname === 'nz.seek.com'
   )
     return 'seek';
   if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';

@@ -271,6 +271,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     if (
       hostname === 'seek.com.au' ||
       hostname === 'seek.co.nz' ||
+      hostname === 'nz.seek.com' ||
       hostname.endsWith('.seek.com.au') ||
       hostname.endsWith('.seek.co.nz')
     ) {

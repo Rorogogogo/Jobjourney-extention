@@ -17,7 +17,7 @@ export const PLATFORMS: Partial<Record<PlatformId, Platform>> = {
     id: 'seek',
     name: 'SEEK',
     icon: '🔍',
-    domains: ['seek.com.au', 'seek.co.nz'],
+    domains: ['seek.com.au', 'seek.co.nz', 'nz.seek.com'],
     color: '#e60278',
     enabled: true,
   },
@@ -312,7 +312,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     ],
     urls: {
       linkedin: 'https://www.linkedin.com/jobs/search/',
-      seek: 'https://www.seek.co.nz',
+      seek: 'https://nz.seek.com',
     },
   },
 };
@@ -365,14 +365,14 @@ export const buildSearchUrl = (
     }
 
     case 'seek': {
-      // SEEK uses format: https://www.seek.com.au/job-title-jobs/in-All-Location
-      // Convert keywords to URL-friendly format and add location
+      // SEEK AU: https://www.seek.com.au/<keywords>-jobs/in-All-<City>-<STATE>
+      // SEEK NZ: https://nz.seek.com/<keywords>-jobs/in-<City>
       const seekKeywords = keywords.toLowerCase().replace(/\s+/g, '-');
       let seekUrl = `${baseUrl}/${seekKeywords}-jobs`;
       if (location) {
-        // Format location for SEEK: "in-All-Hobart-TAS" format
         const seekLocation = location.replace(/,?\s+/g, '-');
-        seekUrl += `/in-All-${seekLocation}`;
+        const locationPrefix = country === 'NZ' ? 'in' : 'in-All';
+        seekUrl += `/${locationPrefix}-${seekLocation}`;
       }
       return seekUrl;
     }

@@ -15,6 +15,7 @@
     "clean": "pnpm clean:bundle && pnpm clean:turbo && pnpm clean:node_modules",
     "build": "tsx build.mts",
     "dev": "tsx build.mts",
+    "test": "node --test test/**/*.test.mjs",
     "lint": "eslint .",
     "lint:fix": "pnpm lint --fix",
     "format": "prettier . --write --ignore-path ../../.prettierignore",
