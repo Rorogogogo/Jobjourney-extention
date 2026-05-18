@@ -6,7 +6,7 @@
 ### The Ultimate AI-Powered Job Search Companion
 
 [![Star on GitHub](https://img.shields.io/github/stars/Rorogogogo/Jobjourney-extention.svg?style=social)](https://github.com/Rorogogogo/Jobjourney-extention/stargazers)
-[![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
+[![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg?style=flat-square)](LICENSE) [![Commercial License](https://img.shields.io/badge/license-Commercial-orange.svg?style=flat-square)](COMMERCIAL.md)
 [![Chrome Web Store](https://img.shields.io/badge/Chrome_Web_Store-v3.0.4-4285F4?style=flat-square&logo=google-chrome&logoColor=white)](https://chromewebstore.google.com/detail/jobjourney-assistant/YOUR_EXTENSION_ID)
 
 ![](https://img.shields.io/badge/React-18-61DAFB?style=flat-square&logo=react&logoColor=black)
@@ -202,10 +202,6 @@ Contributions are welcome! Please follow these steps:
 - Node.js 18+ and pnpm
 - Basic understanding of Chrome Extension APIs (Manifest V3)
 - Familiarity with React, TypeScript, and Vite
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## 🆘 Support
 

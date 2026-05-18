@@ -1,48 +1,86 @@
 /**
  * Returns the Chrome extension path.
+ *
+ * Instead of scraping the chrome://extensions shadow DOM (which keeps breaking
+ * across Chrome versions), we use the Chrome DevTools Protocol via Puppeteer
+ * to find the loaded extension's service-worker target. The target URL is
+ * `chrome-extension://<id>/...`, so the id can be read directly.
+ *
  * @param browser
- * @returns path to the Chrome extension
+ * @returns path to the Chrome extension (chrome-extension://<id>)
  */
 export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
-  await browser.url('chrome://extensions/');
-  /**
-   * https://webdriver.io/docs/extension-testing/web-extensions/#test-popup-modal-in-chrome
-   * ```ts
-   * const extensionItem = await $('extensions-item').getElement();
-   * ```
-   * The above code is not working. I guess it's because the shadow root is not accessible.
-   * So I used the following code to access the shadow root manually.
-   *
-   *  @url https://github.com/webdriverio/webdriverio/issues/13521
-   *  @url https://github.com/Jonghakseo/chrome-extension-boilerplate-react-vite/issues/786
-   */
-  const extensionItem = await (async () => {
-    const extensionsManager = await $('extensions-manager').getElement();
-    const itemList = await extensionsManager.shadow$('#container > #viewManager > extensions-item-list');
-    return itemList.shadow$('extensions-item');
-  })();
+  const puppeteer = await browser.getPuppeteer();
 
-  const extensionId = await extensionItem.getAttribute('id');
+  const findExtensionTarget = () =>
+    puppeteer
+      .targets()
+      .find(
+        (t: { type: () => string; url: () => string }) =>
+          (t.type() === 'service_worker' || t.type() === 'background_page') &&
+          t.url().startsWith('chrome-extension://'),
+      );
 
-  if (!extensionId) {
-    throw new Error('Extension ID not found');
+  let extensionTarget = findExtensionTarget();
+
+  // The service worker may not be registered the instant the browser opens.
+  // Poll for up to ~10s.
+  for (let i = 0; !extensionTarget && i < 20; i++) {
+    await browser.pause(500);
+    extensionTarget = findExtensionTarget();
   }
 
-  return `chrome-extension://${extensionId}`;
+  if (!extensionTarget) {
+    throw new Error(
+      'Could not locate the loaded extension via CDP. ' +
+        'Expected a service_worker or background_page target with a chrome-extension:// URL.',
+    );
+  }
+
+  const url = new URL(extensionTarget.url());
+  return `chrome-extension://${url.hostname}`;
 };
 
 /**
  * Returns the Firefox extension path.
+ *
+ * Reads the Internal UUID from about:debugging. Mozilla has reshuffled this
+ * page across releases, so we wait for the target row to render and try a
+ * couple of selector variants before giving up.
+ *
  * @param browser
- * @returns path to the Firefox extension
+ * @returns path to the Firefox extension (moz-extension://<uuid>)
  */
 export const getFirefoxExtensionPath = async (browser: WebdriverIO.Browser) => {
   await browser.url('about:debugging#/runtime/this-firefox');
-  const uuidElement = await browser.$('//dt[contains(text(), "Internal UUID")]/following-sibling::dd').getElement();
-  const internalUUID = await uuidElement.getText();
+
+  // Wait for the page to actually render the extension list. Each row holds
+  // a definition list with "Internal UUID" as the <dt> text. Selector variants
+  // cover both the historical and current about:debugging layouts.
+  const selectors = [
+    '//dt[contains(text(), "Internal UUID")]/following-sibling::dd',
+    '//*[contains(normalize-space(text()), "Internal UUID")]/following-sibling::*[1]',
+  ];
+
+  let internalUUID = '';
+  for (let attempt = 0; attempt < 20 && !internalUUID; attempt++) {
+    for (const sel of selectors) {
+      const el = await browser.$(sel);
+      if (await el.isExisting()) {
+        const text = (await el.getText()).trim();
+        if (text) {
+          internalUUID = text;
+          break;
+        }
+      }
+    }
+    if (!internalUUID) {
+      await browser.pause(500);
+    }
+  }
 
   if (!internalUUID) {
-    throw new Error('Internal UUID not found');
+    throw new Error('Internal UUID not found on about:debugging');
   }
 
   return `moz-extension://${internalUUID}`;
