@@ -52,6 +52,12 @@ const chromeCapabilities = {
       ...(IS_CI ? ['--headless=new'] : []),
     ],
     prefs: { 'extensions.ui.developer_mode': true },
+    // ChromeDriver injects --enable-automation by default. With Chrome 137+'s
+    // enterprise policies this hides extensions loaded via --load-extension.
+    // Remove the switch and disable the automation extension so our unpacked
+    // extension actually loads.
+    excludeSwitches: ['enable-automation'],
+    useAutomationExtension: false,
   },
 };
 
