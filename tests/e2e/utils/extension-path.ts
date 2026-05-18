@@ -31,9 +31,13 @@ export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
   }
 
   if (!extensionTarget) {
+    const allTargets = puppeteer
+      .targets()
+      .map((t: { type: () => string; url: () => string }) => ({ type: t.type(), url: t.url() }));
     throw new Error(
       'Could not locate the loaded extension via CDP. ' +
-        'Expected a service_worker or background_page target with a chrome-extension:// URL.',
+        'Expected a service_worker or background_page target with a chrome-extension:// URL. ' +
+        `Targets seen: ${JSON.stringify(allTargets)}`,
     );
   }
 
