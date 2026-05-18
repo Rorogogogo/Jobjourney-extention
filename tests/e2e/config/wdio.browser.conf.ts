@@ -2,13 +2,22 @@ import { config as baseConfig } from './wdio.conf.js';
 import { getChromeExtensionPath, getFirefoxExtensionPath } from '../utils/extension-path.js';
 import { IS_CI, IS_FIREFOX } from '@extension/env';
 import { readdir, readFile } from 'node:fs/promises';
-import { extname, join } from 'node:path';
+import { extname, join, resolve } from 'node:path';
 
-const extName = IS_FIREFOX ? '.xpi' : '.zip';
-const extensions = await readdir(join(import.meta.dirname, '../../../dist-zip'));
-const latestExtension = extensions.filter(file => extname(file) === extName).at(-1);
-const extPath = join(import.meta.dirname, `../../../dist-zip/${latestExtension}`);
-const bundledExtension = (await readFile(extPath)).toString('base64');
+// Firefox is loaded from the built .xpi via the WebDriver Install Add-on command.
+// Chrome is loaded unpacked from the dist/ directory via --load-extension, because
+// ChromeDriver's `extensions` capability expects CRX-format files (zip + signature
+// header) — a plain .zip is silently ignored, especially under --headless=new.
+const firefoxXpiBase64 = IS_FIREFOX
+  ? await (async () => {
+      const files = await readdir(join(import.meta.dirname, '../../../dist-zip'));
+      const latest = files.filter(file => extname(file) === '.xpi').at(-1);
+      if (!latest) throw new Error('No .xpi found in dist-zip/. Did `pnpm zip:firefox` run?');
+      return (await readFile(join(import.meta.dirname, `../../../dist-zip/${latest}`))).toString('base64');
+    })()
+  : '';
+
+const unpackedExtensionDir = resolve(import.meta.dirname, '../../../dist');
 
 const chromeCapabilities = {
   browserName: 'chrome',
@@ -19,13 +28,13 @@ const chromeCapabilities = {
       '--disable-gpu',
       '--no-sandbox',
       '--disable-dev-shm-usage',
+      `--load-extension=${unpackedExtensionDir}`,
+      `--disable-extensions-except=${unpackedExtensionDir}`,
       // Chrome 109+ requires the "new" headless mode for extensions to load.
-      // The legacy "--headless" flag silently runs without any installed extensions,
-      // which used to make every extension E2E spec fail with "extension not found".
+      // The legacy "--headless" flag silently runs without any installed extensions.
       ...(IS_CI ? ['--headless=new'] : []),
     ],
     prefs: { 'extensions.ui.developer_mode': true },
-    extensions: [bundledExtension],
   },
 };
 
@@ -46,7 +55,7 @@ export const config: WebdriverIO.Config = {
   execArgv: IS_CI ? [] : ['--inspect'],
   before: async ({ browserName }: WebdriverIO.Capabilities, _specs, browser: WebdriverIO.Browser) => {
     if (browserName === 'firefox') {
-      await browser.installAddOn(bundledExtension, true);
+      await browser.installAddOn(firefoxXpiBase64, true);
 
       browser.addCommand('getExtensionPath', async () => getFirefoxExtensionPath(browser));
     } else if (browserName === 'chrome') {

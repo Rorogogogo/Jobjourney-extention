@@ -37,7 +37,8 @@ export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
     throw new Error(
       'Could not locate the loaded extension via CDP. ' +
         'Expected a service_worker or background_page target with a chrome-extension:// URL. ' +
-        `Targets seen: ${JSON.stringify(allTargets)}`,
+        `Got targets: ${JSON.stringify(allTargets)}. ` +
+        'Check that the unpacked extension at dist/ exists and Chrome was launched with --load-extension.',
     );
   }
 
