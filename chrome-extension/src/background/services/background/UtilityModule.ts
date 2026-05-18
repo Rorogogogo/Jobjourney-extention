@@ -1,4 +1,6 @@
-import { Logger } from '../../utils/Logger';
+import { Logger } from '@extension/shared';
+import { MessageType } from '@extension/types';
+import type { ChromeMessage } from '@extension/types';
 import type { AuthService } from '../AuthService';
 import type { StorageService } from '../StorageService';
 
@@ -36,7 +38,7 @@ export class UtilityModule {
     }
   }
 
-  broadcastToSidebars(message: { type: string; data?: unknown }): void {
+  broadcastToSidebars(message: ChromeMessage): void {
     Logger.info(`📢 Broadcasting message to sidebars: ${message.type}`, message.data);
     try {
       chrome.runtime.sendMessage(message).catch(() => {
@@ -46,7 +48,7 @@ export class UtilityModule {
       // Ignore context errors
     }
 
-    if (message.type === 'SCRAPING_COMPLETE' || message.type === 'SCRAPING_ERROR') {
+    if (message.type === MessageType.SCRAPING_COMPLETE || message.type === MessageType.SCRAPING_ERROR) {
       chrome.tabs.query({}, tabs => {
         tabs.forEach(tab => {
           if (tab.id) {

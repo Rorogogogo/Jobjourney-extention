@@ -1,28 +1,27 @@
-import { Logger } from '../../utils/Logger';
+import { Logger } from '@extension/shared';
+import { MessageType } from '@extension/types';
+import type { ChromeMessage, EventData } from '@extension/types';
 
 export class ToastModule {
   private lastToastTime = 0;
   private lastToastType = '';
   private readonly TOAST_DEBOUNCE_MS = 2000;
 
-  private broadcastToSidebars?: (message: unknown) => void;
+  private broadcastToSidebars?: (message: ChromeMessage) => void;
 
-  setBroadcastHandler(broadcastHandler: (message: unknown) => void) {
+  setBroadcastHandler(broadcastHandler: (message: ChromeMessage) => void) {
     this.broadcastToSidebars = broadcastHandler;
   }
 
-  handleAuthStatusChange(data: {
-    isAuthenticated: boolean;
-    shouldShowToast?: boolean;
-    reason?: string;
-    [key: string]: unknown;
-  }): void {
+  handleAuthStatusChange(data: EventData): void {
     Logger.info('Auth status changed', data);
 
+    const isAuthenticated = data.isAuthenticated === true;
     const shouldShowToast = data.shouldShowToast !== false;
+    const reason = typeof data.reason === 'string' ? data.reason : undefined;
 
     const now = Date.now();
-    const toastType = data.isAuthenticated ? 'SIGN_IN' : data.reason === 'token_expired' ? 'TOKEN_EXPIRED' : 'SIGN_OUT';
+    const toastType = isAuthenticated ? 'SIGN_IN' : reason === 'token_expired' ? 'TOKEN_EXPIRED' : 'SIGN_OUT';
     const timeSinceLastToast = now - this.lastToastTime;
     const isDuplicateToast = this.lastToastType === toastType && timeSinceLastToast < this.TOAST_DEBOUNCE_MS;
 
@@ -31,12 +30,12 @@ export class ToastModule {
       this.lastToastType = toastType;
 
       this.broadcastToSidebars?.({
-        type: 'AUTH_STATUS_CHANGED',
+        type: MessageType.AUTH_STATUS_CHANGED,
         data: { ...data, shouldShowToast: true },
       });
     } else {
       this.broadcastToSidebars?.({
-        type: 'AUTH_STATUS_CHANGED',
+        type: MessageType.AUTH_STATUS_CHANGED,
         data: { ...data, shouldShowToast: false },
       });
 

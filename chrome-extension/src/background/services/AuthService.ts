@@ -1,7 +1,7 @@
 // Authentication Service for JobJourney Extension
-import { getJobJourneyBaseUrl, getJobMarketUrl, getAuthUrl } from '../utils/environment';
-import { Logger } from '../utils/Logger';
-import type { AuthStatus } from '../types';
+import { getJobJourneyBaseUrl, getJobMarketUrl, getAuthUrl, Logger } from '@extension/shared';
+import { EventType } from '@extension/types';
+import type { AuthStatus } from '@extension/types';
 import { STORAGE_KEYS } from './StorageService';
 import type { ConfigService } from './ConfigService';
 import type { EventManager } from './EventManager';
@@ -117,8 +117,8 @@ export class AuthService {
   async getAuthStatus(): Promise<AuthStatus> {
     return {
       isAuthenticated: this.isAuthenticated,
-      user: this.user,
-      token: this.token,
+      user: this.user ?? undefined,
+      token: this.token ?? undefined,
       expiresAt: this.user ? Date.now() + 24 * 60 * 60 * 1000 : undefined, // 24 hours from now
     };
   }
@@ -349,7 +349,7 @@ export class AuthService {
               userData = authObject;
             }
           }
-        } catch (e) {
+        } catch {
           // Not JSON, might be just a token string or username/email
           if (userDataStr.length > 50) {
             // Probably a JWT token
@@ -419,7 +419,7 @@ export class AuthService {
    * Emit authentication status change event
    */
   private emitAuthStatusChange(shouldShowToast: boolean = true, reason: 'manual' | 'token_expired' = 'manual'): void {
-    this.eventManager.emit('AUTH_STATUS', {
+    this.eventManager.emit(EventType.AUTH_STATUS, {
       isAuthenticated: this.isAuthenticated,
       user: this.user,
       token: this.token,

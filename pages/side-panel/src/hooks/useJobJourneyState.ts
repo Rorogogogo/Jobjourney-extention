@@ -1,66 +1,31 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { AuthStatus, SearchConfig, SearchResults, ScrapingProgress, PlatformProgress } from '@extension/types';
+import { MessageType } from '@extension/types';
 
-interface AuthStatus {
-  isAuthenticated: boolean;
-  user?: {
-    id: string;
-    email: string;
-    name: string;
-    avatar?: string;
-    isPro?: boolean;
-  };
-  token?: string;
-}
-
-interface SearchProgress {
+export interface SearchProgressState {
   sessionId: string;
   status: string;
-  progress?: {
-    totalPlatforms: number;
-    completedPlatforms: number;
-    currentPlatform?: string;
-    jobsFound: number;
-    errors: string[];
-  };
-  platformProgress?: Record<
-    string,
-    {
-      platform: string;
-      status: 'pending' | 'active' | 'completed' | 'error';
-      current: number;
-      total: number;
-      jobsFound: number;
-      error?: string;
-    }
-  >;
+  progress?: ScrapingProgress;
+  platformProgress?: Record<string, PlatformProgress>;
 }
 
-interface SearchResults {
-  sessionId: string;
-  jobs: any[];
-  totalJobs: number;
-  duration?: number;
-}
-
-interface SearchConfig {
-  keywords: string;
-  location?: string;
-  country?: string;
-  platforms: string[];
-}
+export type { SearchConfig };
 
 export const useJobJourneyState = () => {
   const [authStatus, setAuthStatus] = useState<AuthStatus>({ isAuthenticated: false });
-  const [searchProgress, setSearchProgress] = useState<SearchProgress | null>(null);
+  const [searchProgress, setSearchProgress] = useState<SearchProgressState | null>(null);
   const [searchResults, setSearchResults] = useState<SearchResults | null>(null);
   const [searchError, setSearchError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [isSendingJobs, setIsSendingJobs] = useState(false);
+  const [sendingJobCount, setSendingJobCount] = useState(0);
+  const currentSessionId = searchProgress?.sessionId;
 
   // Check authentication status
   const checkAuthStatus = useCallback(async () => {
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'GET_AUTH_STATUS',
+        type: MessageType.GET_AUTH_STATUS,
       });
 
       if (response?.success) {
@@ -82,13 +47,13 @@ export const useJobJourneyState = () => {
       setSearchResults(null);
 
       const response = await chrome.runtime.sendMessage({
-        type: 'START_JOB_SEARCH',
+        type: MessageType.START_JOB_SEARCH,
         data: config,
       });
 
       if (response?.success) {
         // Create platform progress for only selected platforms
-        const platformProgress: Record<string, any> = {};
+        const platformProgress: Record<string, PlatformProgress> = {};
         config.platforms.forEach(platformId => {
           platformProgress[platformId] = {
             platform: platformId,
@@ -126,7 +91,7 @@ export const useJobJourneyState = () => {
 
     try {
       await chrome.runtime.sendMessage({
-        type: 'STOP_SCRAPING',
+        type: MessageType.STOP_SCRAPING,
         data: { sessionId: searchProgress.sessionId },
       });
 
@@ -136,34 +101,17 @@ export const useJobJourneyState = () => {
     }
   }, [searchProgress?.sessionId]);
 
-  // Get search progress
-  const getSearchProgress = useCallback(async (sessionId: string) => {
-    try {
-      const response = await chrome.runtime.sendMessage({
-        type: 'GET_SEARCH_PROGRESS',
-        data: { sessionId },
-      });
-
-      if (response?.success) {
-        return response.data;
-      }
-    } catch (error) {
-      console.error('Failed to get search progress:', error);
-    }
-    return null;
-  }, []);
-
   // Listen for Chrome runtime messages
   useEffect(() => {
-    const messageListener = (message: any, sender: chrome.runtime.MessageSender) => {
+    const messageListener = (message: any) => {
       console.log('🎯 Side panel received message:', message.type, message.data);
       switch (message.type) {
-        case 'AUTH_STATUS_CHANGED':
+        case MessageType.AUTH_STATUS_CHANGED:
           setAuthStatus(message.data);
           break;
 
-        case 'SCRAPING_PROGRESS':
-          if (message.data.sessionId === searchProgress?.sessionId) {
+        case MessageType.SCRAPING_PROGRESS:
+          if (message.data.sessionId === currentSessionId) {
             setSearchProgress(prev =>
               prev
                 ? {
@@ -176,11 +124,11 @@ export const useJobJourneyState = () => {
           }
           break;
 
-        case 'SCRAPING_PROGRESS_UPDATE':
+        case MessageType.SCRAPING_PROGRESS_UPDATE:
           // Always update progress for active sessions (more permissive matching)
           if (
-            searchProgress &&
-            (message.data.sessionId === searchProgress.sessionId ||
+            currentSessionId &&
+            (message.data.sessionId === currentSessionId ||
               message.data.sessionId === 'current' ||
               message.data.sessionId === 'initializing')
           ) {
@@ -202,8 +150,8 @@ export const useJobJourneyState = () => {
           }
           break;
 
-        case 'SCRAPING_COMPLETE':
-          if (message.data.sessionId === searchProgress?.sessionId) {
+        case MessageType.SCRAPING_COMPLETE:
+          if (message.data.sessionId === currentSessionId) {
             setSearchProgress(null);
             setSearchResults({
               sessionId: message.data.sessionId,
@@ -214,8 +162,8 @@ export const useJobJourneyState = () => {
           }
           break;
 
-        case 'SCRAPING_ERROR':
-          if (message.data.sessionId === searchProgress?.sessionId) {
+        case MessageType.SCRAPING_ERROR:
+          if (message.data.sessionId === currentSessionId) {
             setSearchProgress(null);
             setSearchError(message.data.error || 'Scraping failed');
 
@@ -229,6 +177,16 @@ export const useJobJourneyState = () => {
             }
           }
           break;
+
+        case MessageType.JOBS_SENDING:
+          setIsSendingJobs(true);
+          setSendingJobCount(message.data.totalJobs || 0);
+          break;
+
+        case MessageType.JOBS_SENT:
+          setIsSendingJobs(false);
+          setSendingJobCount(0);
+          break;
       }
     };
 
@@ -237,41 +195,24 @@ export const useJobJourneyState = () => {
     return () => {
       chrome.runtime.onMessage.removeListener(messageListener);
     };
-  }, [searchProgress?.sessionId]);
+  }, [currentSessionId]);
 
-  // Check auth status on mount and periodically
+  // Check auth status on mount and when the side panel becomes visible
   useEffect(() => {
     checkAuthStatus();
 
-    const interval = setInterval(checkAuthStatus, 30000); // Safety net check every 30 seconds
-
-    return () => clearInterval(interval);
-  }, [checkAuthStatus]);
-
-  // Poll for search progress if we have an active session
-  useEffect(() => {
-    if (!searchProgress?.sessionId) return;
-
-    const pollProgress = async () => {
-      const progress = await getSearchProgress(searchProgress.sessionId);
-      if (progress) {
-        setSearchProgress(prev =>
-          prev
-            ? {
-                ...prev,
-                progress: progress.progress,
-                status: progress.status,
-                platformProgress: progress.platformProgress, // Include platform progress in polling updates
-              }
-            : null,
-        );
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        checkAuthStatus();
       }
     };
 
-    const interval = setInterval(pollProgress, 2000); // Poll every 2 seconds
+    document.addEventListener('visibilitychange', handleVisibilityChange);
 
-    return () => clearInterval(interval);
-  }, [searchProgress?.sessionId, getSearchProgress]);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [checkAuthStatus]);
 
   return {
     authStatus,
@@ -280,6 +221,8 @@ export const useJobJourneyState = () => {
     searchResults,
     searchError,
     loading,
+    isSendingJobs,
+    sendingJobCount,
     startJobSearch,
     stopJobSearch,
     checkAuthStatus,

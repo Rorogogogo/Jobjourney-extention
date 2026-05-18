@@ -1,6 +1,10 @@
-import { Logger } from '../../utils/Logger';
+import { Logger } from '@extension/shared';
+import { MessageType } from '@extension/types';
 import type { AuthService } from '../AuthService';
-import type { ScrapingService } from '../ScrapingService';
+import type { ScrapingService } from '../scraping/ScrapingService';
+
+const getErrorMessage = (error: unknown): string =>
+  error instanceof Error ? error.message : 'Unknown tab manager error';
 
 export class TabManagerModule {
   private authService: AuthService;
@@ -50,7 +54,7 @@ export class TabManagerModule {
             await chrome.windows.update(tab.windowId!, { focused: true });
 
             await chrome.tabs.sendMessage(tab.id!, {
-              type: 'EXTENSION_SIGN_OUT_COMMAND',
+              type: MessageType.EXTENSION_SIGN_OUT_COMMAND,
             });
             Logger.success(`✅ Sign-out command sent to: ${tab.url}`);
             commandSent = true;
@@ -79,7 +83,7 @@ export class TabManagerModule {
           setTimeout(async () => {
             try {
               await chrome.tabs.sendMessage(tab.id!, {
-                type: 'EXTENSION_SIGN_OUT_COMMAND',
+                type: MessageType.EXTENSION_SIGN_OUT_COMMAND,
               });
               Logger.success(`✅ Sign-out command sent to newly opened tab`);
 
@@ -103,7 +107,7 @@ export class TabManagerModule {
       }
     } catch (error) {
       Logger.error('Failed to handle sign out', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -131,7 +135,13 @@ export class TabManagerModule {
 
         try {
           const tabs = await chrome.tabs.query({
-            url: ['*://www.linkedin.com/*', '*://www.indeed.com/*', '*://www.seek.com.au/*', '*://www.seek.co.nz/*'],
+            url: [
+              '*://www.linkedin.com/*',
+              '*://www.indeed.com/*',
+              '*://www.seek.com.au/*',
+              '*://www.seek.co.nz/*',
+              '*://nz.seek.com/*',
+            ],
           });
           const targetTab = tabs.find(tab => tab.id === tabId);
 
@@ -153,7 +163,7 @@ export class TabManagerModule {
       }
     } catch (error) {
       Logger.error('Failed to make tab active', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -192,7 +202,7 @@ export class TabManagerModule {
       sendResponse({ success: true, message: 'Jobs sent to JobJourney' });
     } catch (error) {
       Logger.error('Failed to show jobs in JobJourney', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -211,7 +221,7 @@ export class TabManagerModule {
       }
     } catch (error) {
       Logger.error('Failed to open side panel', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 }

@@ -1,5 +1,7 @@
 // JobJourney Content Script for Job Sites
 // Import modularized functions
+import { MessageType } from '@extension/types';
+import type { JobData } from '@extension/types';
 import { initializeAuthMonitoring } from './authMonitoring';
 import { createJobJourneyIndicator } from './indicator';
 import { SaveButtonManager } from './save-button-manager';
@@ -94,20 +96,6 @@ function checkAndCleanupLocalStorage() {
 
 // Run cleanup check when content script loads
 checkAndCleanupLocalStorage();
-
-// Interface for job data (legacy compatibility)
-interface JobData {
-  id: string;
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  salary?: string;
-  postedDate?: string;
-  isRPRequired?: boolean;
-  companyLogoUrl?: string;
-}
 
 // Overlay functionality
 function showDiscoverOverlay(message: string, submessage?: string) {
@@ -261,7 +249,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       sendResponse({ success: true });
     } catch (error) {
       console.error('Failed to clear scraped jobs:', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to clear scraped jobs',
+      });
     }
     return false;
   }
@@ -304,10 +295,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
-              isRPRequired: job.isRPRequired || false,
+              isPRRequired: job.isPRRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'linkedin',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else if (platform === 'indeed' && (window as any).indeedScraper) {
             const result = await (window as any).indeedScraper.scrapeJobList();
@@ -323,10 +318,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
-              isRPRequired: job.isRPRequired || false,
+              isPRRequired: job.isPRRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'indeed',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else if (platform === 'seek' && (window as any).seekScraper) {
             const result = await (window as any).seekScraper.scrapeJobList();
@@ -342,10 +341,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
-              isRPRequired: job.isRPRequired || false,
+              isPRRequired: job.isPRRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'seek',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else if (platform === 'jora' && (window as any).joraScraper) {
             const result = await (window as any).joraScraper.scrapeJobList();
@@ -360,10 +363,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               description: job.description || '',
               salary: job.salary || '',
               postedDate: job.postedDate || '',
-              isRPRequired: job.isRPRequired || false,
+              isPRRequired: job.isPRRequired || false,
               companyLogoUrl: job.companyLogoUrl || null,
               platform: 'jora',
-              extracted_at: job.postedDate || null,
+              jobType: job.jobType || '',
+              workArrangement: job.workArrangement || '',
+              requiredSkills: job.requiredSkills || '',
+              isAlreadyApplied: job.isAlreadyApplied || false,
+              appliedDateUtc: job.appliedDateUtc || null,
             }));
           } else {
             jobs = (scrapingFunctions[platform as keyof typeof scrapingFunctions] as () => JobData[])();
@@ -372,14 +379,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           console.log(`✅ Scraped ${jobs.length} jobs from ${platform}`);
 
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_RESULT',
+            type: MessageType.SCRAPING_RESULT,
             data: { jobs, platform, nextUrl },
           });
         } catch (error) {
           console.error(`❌ Error during ${platform} scraping:`, error);
 
           chrome.runtime.sendMessage({
-            type: 'SCRAPING_RESULT',
+            type: MessageType.SCRAPING_RESULT,
             data: { jobs: [], error: (error as Error).message, platform },
           });
         }
@@ -400,6 +407,29 @@ if (platform === 'jobjourney') {
   console.log(`📍 Detected platform: ${platform}`);
   console.log('🎯 Ready to scrape jobs when requested');
 }
+
+// Listen for messages from the web app (e.g. "Open Extension" button, extension detection ping)
+window.addEventListener('message', event => {
+  // We only accept messages from ourselves
+  if (event.source !== window) return;
+
+  // Respond to extension detection ping from the web app
+  if (event.data.type && event.data.type === 'JOBJOURNEY_EXTENSION_PING') {
+    window.postMessage({ type: 'JOBJOURNEY_EXTENSION_PONG', source: 'JOBJOURNEY_EXTENSION' }, '*');
+    return;
+  }
+
+  if (event.data.type && event.data.type === 'JOBJOURNEY_OPEN_EXTENSION') {
+    console.log('📨 Received request to open extension from web app');
+    chrome.runtime
+      .sendMessage({
+        type: MessageType.OPEN_SIDE_PANEL,
+      })
+      .catch(err => {
+        console.error('Failed to open side panel:', err);
+      });
+  }
+});
 
 // Export for potential use by other scripts
 (window as any).jobJourneyContentScript = {

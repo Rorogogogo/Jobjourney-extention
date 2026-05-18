@@ -1,8 +1,8 @@
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseSingleJobScraper } from './base-single-job-scraper';
 
 export class WestpacScraper extends BaseSingleJobScraper {
-  protected platformName = 'Westpac';
+  protected platform = 'Westpac';
   protected companyLogoUrl = 'https://1000logos.net/wp-content/uploads/2019/10/Westpac-Logo.jpg';
 
   isOnJobDetailPage(): boolean {
@@ -10,10 +10,10 @@ export class WestpacScraper extends BaseSingleJobScraper {
     return url.includes('/job/');
   }
 
-  extractJobData(): JobData | undefined {
+  extractJobData(): JobData | null {
     if (!this.isOnJobDetailPage()) {
       console.log('Westpac: Not on a job detail page');
-      return undefined;
+      return null;
     }
 
     // Extract job information based on the Oracle HCM structure
@@ -21,7 +21,7 @@ export class WestpacScraper extends BaseSingleJobScraper {
 
     if (!titleElement) {
       console.warn('Westpac: Could not find job title');
-      return undefined;
+      return null;
     }
 
     // Company is always Westpac for this domain
@@ -69,14 +69,14 @@ export class WestpacScraper extends BaseSingleJobScraper {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: jobSchedule, // Use job schedule as employment type
+      jobType: jobSchedule, // Use job schedule as employment type
       workArrangement: undefined,
-      platform: this.platformName,
+      platform: this.platform,
       companyLogoUrl: this.companyLogoUrl,
     };
   }
 
-  findInsertionPoint(): HTMLElement | undefined {
+  findInsertionPoint(): HTMLElement | null {
     // Find the subtitle/location area and insert after it
     const subtitle = document.querySelector('.job-details__subtitle');
     if (subtitle && subtitle.parentElement) {
@@ -91,6 +91,6 @@ export class WestpacScraper extends BaseSingleJobScraper {
 
     // Final fallback to main content area
     const mainContent = document.querySelector('.job-details');
-    return (mainContent as HTMLElement) || undefined;
+    return (mainContent as HTMLElement) || null;
   }
 }

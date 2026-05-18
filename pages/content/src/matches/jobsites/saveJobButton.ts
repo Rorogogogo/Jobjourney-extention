@@ -1,20 +1,9 @@
 // Save Job Button functionality for job detail pages
-import { detectPRRequirement } from './prDetection';
+import { MessageType } from '@extension/types';
+import type { JobData } from '@extension/types';
+import { detectPRRequirement } from '@extension/shared';
 
 export {};
-
-interface JobData {
-  title: string;
-  company: string;
-  location: string;
-  jobUrl: string;
-  description?: string;
-  requiredSkills?: string;
-  employmentTypes?: string;
-  workArrangement?: string;
-  platform: string;
-  companyLogoUrl?: string;
-}
 
 class SaveJobButton {
   private button: HTMLElement | null = null;
@@ -38,7 +27,7 @@ class SaveJobButton {
   private async checkAuthStatus() {
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'GET_AUTH_STATUS',
+        type: MessageType.GET_AUTH_STATUS,
       });
 
       this.isAuthenticated = response.success && response.data?.isAuthenticated;
@@ -105,7 +94,8 @@ class SaveJobButton {
       hostname === 'seek.com.au' ||
       hostname.endsWith('.seek.com.au') ||
       hostname === 'seek.co.nz' ||
-      hostname.endsWith('.seek.co.nz')
+      hostname.endsWith('.seek.co.nz') ||
+      hostname === 'nz.seek.com'
     )
       return 'seek';
     if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';
@@ -230,7 +220,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: descriptionElement?.textContent?.trim() || '',
-      employmentTypes: jobTypeElement?.textContent?.trim() || '',
+      jobType: jobTypeElement?.textContent?.trim() || '',
       platform: 'Indeed',
       companyLogoUrl: companyLogoUrl,
     };
@@ -295,7 +285,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: descriptionElement?.textContent?.trim() || '',
-      employmentTypes: workTypeElement?.textContent?.trim() || '',
+      jobType: workTypeElement?.textContent?.trim() || '',
       platform: 'SEEK',
       companyLogoUrl: companyLogoUrl,
     };
@@ -364,7 +354,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
-      employmentTypes: employmentTypeElement?.textContent?.trim() || '',
+      jobType: employmentTypeElement?.textContent?.trim() || '',
       platform: 'Macquarie Group',
       companyLogoUrl: 'https://upload.wikimedia.org/wikipedia/commons/8/86/Macquarie_Group_logo.jpg',
     };
@@ -420,7 +410,7 @@ class SaveJobButton {
       location,
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
-      employmentTypes: department, // Use department as employment type
+      jobType: department, // Use department as employment type
       platform: 'Atlassian',
       companyLogoUrl: 'https://wac-cdn.atlassian.com/assets/img/favicons/atlassian/favicon-32x32.png',
     };
@@ -486,7 +476,7 @@ class SaveJobButton {
       location: locationElement?.textContent?.trim() || '',
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
-      employmentTypes: jobSchedule, // Use job schedule as employment type
+      jobType: jobSchedule, // Use job schedule as employment type
       platform: 'Westpac',
       companyLogoUrl: 'https://1000logos.net/wp-content/uploads/2019/10/Westpac-Logo.jpg',
     };
@@ -551,7 +541,7 @@ class SaveJobButton {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: jobSchedule,
+      jobType: jobSchedule,
       workArrangement: undefined,
       platform: 'Canva',
       companyLogoUrl: 'https://www.pngmart.com/files/23/Canva-Logo-PNG-Picture.png',
@@ -890,24 +880,24 @@ class SaveJobButton {
     this.setButtonLoading(true);
 
     try {
-      // Determine IsRPRequired based on platform type
-      let isRPRequired = false;
+      // Determine IsPRRequired based on platform type
+      let isPRRequired = false;
       const platform = this.currentJobData.platform;
 
       // Job aggregator websites - always run PR detection
       const jobAggregatorSites = ['LinkedIn', 'Indeed', 'SEEK', 'Reed'];
       if (jobAggregatorSites.includes(platform)) {
-        isRPRequired = detectPRRequirement(this.currentJobData.description || '');
+        isPRRequired = detectPRRequirement(this.currentJobData.description || '').isPRRequired;
       }
       // Company-specific websites - use predefined company policies
       else if (platform === 'Atlassian' || platform === 'Canva' || platform === 'Westpac') {
-        isRPRequired = true; // These companies require RP
+        isPRRequired = true; // These companies require RP
       } else if (platform === 'Macquarie Group') {
-        isRPRequired = false; // Macquarie doesn't require RP
+        isPRRequired = false; // Macquarie doesn't require RP
       }
       // Default fallback for any other platforms
       else {
-        isRPRequired = detectPRRequirement(this.currentJobData.description || '');
+        isPRRequired = detectPRRequirement(this.currentJobData.description || '').isPRRequired;
       }
 
       // Prepare job data for API
@@ -918,17 +908,17 @@ class SaveJobButton {
         JobUrl: this.currentJobData.jobUrl,
         Description: this.currentJobData.description || '',
         RequiredSkills: this.currentJobData.requiredSkills || '',
-        EmploymentTypes: this.currentJobData.employmentTypes || '',
+        EmploymentTypes: this.currentJobData.jobType || '',
         WorkArrangement: this.currentJobData.workArrangement || '',
         CompanyLogoUrl: this.currentJobData.companyLogoUrl || null,
         Status: 1, // Default to "Saved" status
         IsStarred: false,
-        IsRPRequired: isRPRequired,
+        IsPRRequired: isPRRequired,
       };
 
       // Send request to background script
       const response = await chrome.runtime.sendMessage({
-        type: 'SAVE_JOB_MANUALLY',
+        type: MessageType.SAVE_JOB_MANUALLY,
         data: jobData,
       });
 

@@ -1,13 +1,142 @@
 // Authentication monitoring for JobJourney domains
+import { MessageType } from '@extension/types';
 
 // Extend Window interface to include custom properties
 declare global {
   interface Window {
     authMonitoringActive?: boolean;
-    lastAuthState?: boolean | null;
+    lastAuthState?: string | null;
     lastAuthData?: Record<string, unknown> | null;
     isAuthPageInitialCheck?: boolean;
     jobJourneyLogout?: () => void;
+  }
+}
+
+// Pending chunked transfers: transferId → { chunks, totalChunks, config, timestamp, source, totalJobs, receivedAt }
+interface PendingChunkTransfer {
+  chunks: Map<number, any[]>;
+  totalChunks: number;
+  config: any;
+  timestamp: string;
+  source: string;
+  totalJobs: number;
+  receivedAt: number;
+}
+
+const pendingTransfers = new Map<string, PendingChunkTransfer>();
+
+// Stale transfer cleanup interval (30 seconds)
+let staleCleanupInterval: ReturnType<typeof setInterval> | null = null;
+
+function startStaleTransferCleanup(): void {
+  if (staleCleanupInterval) return;
+
+  staleCleanupInterval = setInterval(() => {
+    const now = Date.now();
+    const STALE_THRESHOLD = 30_000; // 30 seconds
+
+    for (const [transferId, transfer] of pendingTransfers.entries()) {
+      if (now - transfer.receivedAt > STALE_THRESHOLD) {
+        console.warn(
+          `⚠️ Stale transfer ${transferId}: received ${transfer.chunks.size}/${transfer.totalChunks} chunks. Dispatching partial data.`,
+        );
+
+        // Reassemble whatever we have
+        const allJobs: any[] = [];
+        const sortedKeys = [...transfer.chunks.keys()].sort((a, b) => a - b);
+        for (const key of sortedKeys) {
+          allJobs.push(...transfer.chunks.get(key)!);
+        }
+
+        if (allJobs.length > 0) {
+          const customEvent = new CustomEvent('extension-jobs-processed', {
+            detail: {
+              jobs: allJobs,
+              config: transfer.config,
+              timestamp: transfer.timestamp,
+              source: transfer.source,
+            },
+          });
+          window.dispatchEvent(customEvent);
+          console.log(`📋 Dispatched ${allJobs.length} partial jobs from stale transfer ${transferId}`);
+        }
+
+        pendingTransfers.delete(transferId);
+      }
+    }
+
+    // Stop interval if no pending transfers remain
+    if (pendingTransfers.size === 0 && staleCleanupInterval) {
+      clearInterval(staleCleanupInterval);
+      staleCleanupInterval = null;
+    }
+  }, 5_000); // Check every 5 seconds
+}
+
+function handleJobsChunk(message: any, sendResponse: (response: any) => void): void {
+  try {
+    const { transferId, chunkIndex, totalChunks, jobs, config, timestamp, source, totalJobs } = message.data;
+    console.log(`📦 Received chunk ${chunkIndex + 1}/${totalChunks} (${jobs.length} jobs) for transfer ${transferId}`);
+
+    // Initialize transfer if needed
+    if (!pendingTransfers.has(transferId)) {
+      pendingTransfers.set(transferId, {
+        chunks: new Map(),
+        totalChunks,
+        config,
+        timestamp,
+        source,
+        totalJobs,
+        receivedAt: Date.now(),
+      });
+      startStaleTransferCleanup();
+    }
+
+    const transfer = pendingTransfers.get(transferId)!;
+    transfer.chunks.set(chunkIndex, jobs);
+    transfer.receivedAt = Date.now(); // Reset staleness timer on each chunk
+
+    // Dispatch progress event for frontend UI
+    const progressEvent = new CustomEvent('extension-jobs-chunk-progress', {
+      detail: {
+        transferId,
+        received: transfer.chunks.size,
+        totalChunks,
+        totalJobs,
+      },
+    });
+    window.dispatchEvent(progressEvent);
+
+    // Check if all chunks received
+    if (transfer.chunks.size === totalChunks) {
+      // Reassemble in order
+      const allJobs: any[] = [];
+      for (let i = 0; i < totalChunks; i++) {
+        allJobs.push(...transfer.chunks.get(i)!);
+      }
+
+      console.log(
+        `✅ All ${totalChunks} chunks received. Reassembled ${allJobs.length} jobs for transfer ${transferId}`,
+      );
+
+      // Dispatch the same event the frontend already listens for
+      const customEvent = new CustomEvent('extension-jobs-processed', {
+        detail: {
+          jobs: allJobs,
+          config: transfer.config,
+          timestamp: transfer.timestamp,
+          source: transfer.source,
+        },
+      });
+      window.dispatchEvent(customEvent);
+
+      pendingTransfers.delete(transferId);
+    }
+
+    sendResponse({ success: true, message: `Chunk ${chunkIndex + 1}/${totalChunks} received` });
+  } catch (error) {
+    console.error('❌ Error handling jobs chunk:', error);
+    sendResponse({ success: false, error: (error as Error).message });
   }
 }
 
@@ -127,12 +256,12 @@ export const initializeAuthMonitoring = () => {
     chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       console.log('🔵 JobJourney page received message:', message.type);
 
-      if (message.type === 'EXTENSION_SIGN_OUT_COMMAND') {
+      if (message.type === MessageType.EXTENSION_SIGN_OUT_COMMAND) {
         handleExtensionSignOutCommand(sendResponse);
         return true; // Keep message channel open for async response
       }
 
-      if (message.type === 'EXTENSION_JOBS_PROCESSED') {
+      if (message.type === MessageType.EXTENSION_JOBS_PROCESSED) {
         try {
           const { jobs, config, timestamp, source } = message.data;
           console.log(`📋 Received ${jobs.length} jobs directly from extension`);
@@ -155,6 +284,10 @@ export const initializeAuthMonitoring = () => {
           console.error('❌ Error handling extension jobs:', error);
           sendResponse({ success: false, error: (error as Error).message });
         }
+      }
+
+      if (message.type === MessageType.EXTENSION_JOBS_CHUNK) {
+        handleJobsChunk(message, sendResponse);
       }
 
       return true; // Keep message channel open for async response
@@ -230,7 +363,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_DETECTED',
+              type: MessageType.AUTH_DETECTED,
               data: authData,
               shouldShowToast: shouldShowToast,
             },
@@ -259,7 +392,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_DETECTED',
+              type: MessageType.AUTH_DETECTED,
               data: authData,
               shouldShowToast: false, // Silent sync, no toast
             },
@@ -299,7 +432,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_CLEARED',
+              type: MessageType.AUTH_CLEARED,
               shouldShowToast: true, // Real sign-out, show toast
             },
             response => {
@@ -325,7 +458,7 @@ const checkAndSyncAuthStatus = () => {
         try {
           chrome.runtime.sendMessage(
             {
-              type: 'AUTH_CLEARED',
+              type: MessageType.AUTH_CLEARED,
               shouldShowToast: false, // Silent sync, no toast for initial check
             },
             response => {

@@ -1,34 +1,11 @@
 import type React from 'react';
-
-interface PlatformProgress {
-  platform: string;
-  platformName?: string;
-  status: 'pending' | 'active' | 'scraping' | 'completed' | 'error';
-  current: number;
-  total: number;
-  jobsFound: number;
-  currentPage?: number;
-  totalPages?: number;
-  hasNextPage?: boolean;
-  totalJobsFromPreviousPages?: number;
-  error?: string;
-}
-
-interface ProgressData {
-  sessionId: string;
-  status: string;
-  progress?: {
-    totalPlatforms: number;
-    completedPlatforms: number;
-    currentPlatform?: string;
-    jobsFound: number;
-    errors: string[];
-  };
-  platformProgress?: Record<string, PlatformProgress>;
-}
+import { Card, CardContent, CardHeader, CardTitle, Progress, Badge, Button } from '@extension/ui';
+import { Loader2, CheckCircle2, XCircle, AlertCircle, StopCircle, Briefcase } from 'lucide-react';
+import type { PlatformProgress } from '@extension/types';
+import type { SearchProgressState } from '../hooks/useJobJourneyState';
 
 interface ProgressSectionProps {
-  progress: ProgressData | null;
+  progress: SearchProgressState | null;
   onStop: () => void;
 }
 
@@ -36,101 +13,93 @@ const PlatformCard: React.FC<{ platform: PlatformProgress }> = ({ platform }) =>
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending':
-        return '⏳';
+        return <Loader2 className="text-muted-foreground h-4 w-4 animate-spin" />;
       case 'active':
-        return '🔄';
       case 'scraping':
-        return '🔄';
+        return <Loader2 className="h-4 w-4 animate-spin text-blue-500" />;
       case 'completed':
-        return '✅';
+        return <CheckCircle2 className="h-4 w-4 text-green-500" />;
       case 'error':
-        return '❌';
+        return <XCircle className="text-destructive h-4 w-4" />;
       default:
-        return '⏳';
+        return <Loader2 className="text-muted-foreground h-4 w-4" />;
     }
   };
 
-  const getStatusColor = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'pending':
-        return 'text-gray-400';
       case 'active':
-        return 'text-blue-400';
       case 'scraping':
-        return 'text-blue-400';
+        return (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-700 hover:bg-blue-100">
+            Processing
+          </Badge>
+        );
       case 'completed':
-        return 'text-green-400';
+        return (
+          <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-100">
+            Done
+          </Badge>
+        );
       case 'error':
-        return 'text-red-400';
+        return <Badge variant="destructive">Error</Badge>;
       default:
-        return 'text-gray-400';
+        return <Badge variant="outline">Pending</Badge>;
     }
   };
 
   const getProgressPercentage = () => {
-    // If total is 0, return 0
     if (platform.total === 0) return 0;
-
-    // Calculate percentage based on current/total
     const percentage = (platform.current / platform.total) * 100;
     return Math.min(100, Math.max(0, percentage));
   };
 
-  const getPlatformIcon = (platformName: string) => {
-    switch (platformName.toLowerCase()) {
-      case 'linkedin':
-        return '🔗';
-      case 'indeed':
-        return '🔍';
-      case 'seek':
-        return '🎯';
-      case 'jora':
-        return '🧭';
-      case 'reed':
-        return '📰';
-      default:
-        return '💼';
-    }
+  const getPlatformName = (id: string) => {
+    const names: Record<string, string> = {
+      linkedin: 'LinkedIn',
+      indeed: 'Indeed',
+      seek: 'Seek',
+      jora: 'Jora',
+      reed: 'Reed',
+    };
+    return names[id.toLowerCase()] || id;
   };
 
   return (
-    <div className="rounded-lg border border-white/10 bg-white/5 p-3 transition-all duration-300">
+    <div className="bg-card rounded-lg border p-3 shadow-sm transition-all">
       <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-lg">{getPlatformIcon(platform.platform)}</span>
-          <span className="text-sm font-semibold capitalize">{platform.platform}</span>
-          <span className={`text-lg ${getStatusColor(platform.status)}`}>{getStatusIcon(platform.status)}</span>
+          {getStatusIcon(platform.status)}
+          <span className="font-semibold capitalize">{getPlatformName(platform.platform)}</span>
         </div>
-        <div className="flex items-center gap-2">
-          {platform.status === 'scraping' && platform.currentPage && (
-            <span className="text-xs text-white/50">Page {platform.currentPage}</span>
-          )}
-          <div className="text-xs text-white/70">{platform.jobsFound} jobs</div>
-        </div>
+        <div className="flex items-center gap-2">{getStatusBadge(platform.status)}</div>
       </div>
 
       {(platform.status === 'active' || platform.status === 'scraping') && (
-        <>
-          <div className="mb-2 h-1.5 w-full overflow-hidden rounded-full bg-white/10">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-blue-500 to-cyan-400 transition-all duration-300"
-              style={{ width: `${getProgressPercentage()}%` }}></div>
+        <div className="space-y-1.5">
+          <Progress value={getProgressPercentage()} className="h-1.5" />
+          <div className="text-muted-foreground flex justify-between text-xs">
+            <span>
+              Processing... {platform.current} / {platform.total}
+            </span>
+            {platform.currentPage && <span>Page {platform.currentPage}</span>}
           </div>
-          <div className="text-xs text-white/70">
-            Processing: {platform.current || 0} / {platform.total || 0}
-          </div>
-        </>
+        </div>
       )}
 
       {platform.status === 'completed' && (
-        <div className="text-xs text-green-400">✓ Completed • Found {platform.jobsFound} jobs</div>
+        <div className="flex items-center gap-1.5 text-xs font-medium text-green-600">
+          <Briefcase className="h-3.5 w-3.5" />
+          Found {platform.jobsFound} jobs
+        </div>
       )}
 
       {platform.status === 'error' && platform.error && (
-        <div className="mt-1 text-xs text-red-400">⚠️ {platform.error}</div>
+        <div className="text-destructive mt-1 flex items-start gap-1 text-xs">
+          <AlertCircle className="mt-0.5 h-3 w-3 shrink-0" />
+          <span>{platform.error}</span>
+        </div>
       )}
-
-      {platform.status === 'pending' && <div className="text-xs text-gray-400">Waiting to start...</div>}
     </div>
   );
 };
@@ -140,82 +109,64 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({ progress, onSt
 
   const { totalPlatforms = 0, completedPlatforms = 0, jobsFound = 0 } = progress.progress || {};
   const progressPercentage = totalPlatforms > 0 ? (completedPlatforms / totalPlatforms) * 100 : 0;
-
-  // Debug logging to see what values we're getting
-  console.log('🔍 ProgressSection received:', {
-    totalPlatforms,
-    completedPlatforms,
-    jobsFound,
-    platformProgressCount: Object.keys(progress.platformProgress || {}).length,
-    platformProgressStatuses: Object.values(progress.platformProgress || {}).map(
-      (p: any) => `${p.platform}: ${p.status}`,
-    ),
-  });
-
-  // Only use actual platform data, no defaults
   const platformProgress = progress.platformProgress || {};
   const allPlatforms = Object.values(platformProgress);
 
   return (
-    <div className="flex flex-col gap-4">
-      {/* Header */}
-      <div className="flex items-center gap-3">
-        <div className="animate-pulse text-2xl">⚡</div>
-        <div className="flex-1">
-          <div className="mb-1 text-base font-semibold">Discovering jobs...</div>
-          <div className="text-xs text-white/70">{progress.status || 'Starting search across platforms'}</div>
-        </div>
-      </div>
+    <div className="space-y-4">
+      <Card className="border-0 shadow-none">
+        <CardHeader className="px-0 pb-2 pt-0">
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Loader2 className="text-primary h-5 w-5 animate-spin" />
+              Searching Jobs...
+            </CardTitle>
+            <Badge variant="outline" className="font-medium">
+              {completedPlatforms} / {totalPlatforms} Platforms
+            </Badge>
+          </div>
+          <p className="text-muted-foreground text-sm">{progress.status || 'Initializing search...'}</p>
+        </CardHeader>
+        <CardContent className="px-0 pb-0">
+          <Progress value={progressPercentage} className="h-2" />
 
-      {/* Overall Progress Bar */}
-      <div className="h-2 w-full overflow-hidden rounded-md bg-white/10">
-        <div
-          className="h-full bg-gradient-to-r from-blue-600 to-cyan-400 transition-all duration-500"
-          style={{ width: `${progressPercentage}%` }}></div>
-      </div>
-
-      {/* Overall Stats */}
-      <div className="flex justify-between gap-4">
-        <div className="flex flex-col items-center text-center">
-          <span className="text-xs text-white/70">Platforms:</span>
-          <span className="text-base font-semibold text-white">
-            {completedPlatforms} / {totalPlatforms}
-          </span>
-        </div>
-        <div className="flex flex-col items-center text-center">
-          <span className="text-xs text-white/70">Jobs Found:</span>
-          <span className="text-lg font-bold text-cyan-400">{jobsFound}</span>
-        </div>
-      </div>
-
-      {/* Platform-specific Progress Cards */}
-      <div className="space-y-2">
-        <div className="mb-2 flex items-center justify-between">
-          <div className="text-xs font-semibold text-white/80">Platform Progress:</div>
-          {progress.progress?.currentPlatform && (
-            <div className="text-xs capitalize text-blue-400">Currently: {progress.progress.currentPlatform}</div>
-          )}
-        </div>
-        {allPlatforms.length > 0 ? (
-          allPlatforms.map(platform => <PlatformCard key={platform.platform} platform={platform} />)
-        ) : (
-          <div className="flex items-center justify-center rounded-lg border border-gray-500/30 bg-gray-500/10 px-3 py-4">
-            <div className="flex items-center gap-2 text-white/60">
-              <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/20 border-t-white/60"></div>
-              <span className="text-xs">Initializing platforms...</span>
+          <div className="mt-4 grid grid-cols-2 gap-4">
+            <div className="bg-secondary/50 rounded-lg p-3 text-center">
+              <div className="text-muted-foreground text-xs font-medium">Jobs Found</div>
+              <div className="text-primary text-2xl font-bold">{jobsFound}</div>
+            </div>
+            <div className="bg-secondary/50 rounded-lg p-3 text-center">
+              <div className="text-muted-foreground text-xs font-medium">Status</div>
+              <div className="text-sm font-semibold capitalize">
+                {progress.status === 'starting' ? 'Starting' : 'Active'}
+              </div>
             </div>
           </div>
-        )}
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <h3 className="text-muted-foreground text-xs font-semibold uppercase tracking-wider">Platform Progress</h3>
+        <div className="space-y-2">
+          {allPlatforms.length > 0 ? (
+            allPlatforms.map(platform => <PlatformCard key={platform.platform} platform={platform} />)
+          ) : (
+            <div className="text-muted-foreground flex items-center justify-center rounded-lg border border-dashed p-4 text-sm">
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Preparing platforms...
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Errors Section */}
       {progress.progress?.errors && progress.progress.errors.length > 0 && (
-        <div className="rounded-lg border border-red-500/30 bg-red-500/10 p-3">
-          <div className="mb-2 flex items-center gap-1 text-xs font-semibold text-red-400">⚠️ Issues Encountered:</div>
+        <div className="border-destructive/20 bg-destructive/10 rounded-lg border p-3">
+          <div className="text-destructive mb-2 flex items-center gap-2 text-sm font-semibold">
+            <AlertCircle className="h-4 w-4" /> Issues Encountered
+          </div>
           <div className="space-y-1">
             {progress.progress.errors.map((error, index) => (
-              <div key={index} className="flex items-start gap-2 text-xs text-white/80">
-                <span className="mt-0.5 text-red-400">•</span>
+              <div key={index} className="text-destructive/80 flex items-start gap-2 text-xs">
+                <span className="bg-destructive mt-1 h-1 w-1 rounded-full" />
                 <span>{error}</span>
               </div>
             ))}
@@ -223,15 +174,9 @@ export const ProgressSection: React.FC<ProgressSectionProps> = ({ progress, onSt
         </div>
       )}
 
-      {/* Control Buttons */}
-      <div className="mt-4 flex gap-2">
-        <button
-          className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-semibold text-red-400 transition-all duration-300 hover:bg-red-500/15"
-          onClick={onStop}>
-          <span>⏹</span>
-          Stop & Save Current Jobs
-        </button>
-      </div>
+      <Button variant="destructive" className="w-full" onClick={onStop} size="lg">
+        <StopCircle className="mr-2 h-4 w-4" /> Stop Search
+      </Button>
     </div>
   );
 };

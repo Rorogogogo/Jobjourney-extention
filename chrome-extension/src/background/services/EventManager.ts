@@ -1,6 +1,7 @@
 // Event management and messaging system for JobJourney Extension
-import { Logger } from '../utils/Logger';
-import type { EventType, EventData } from '../types';
+import { Logger } from '@extension/shared';
+import { EventType } from '@extension/types';
+import type { EventData } from '@extension/types';
 
 export class EventManager {
   private listeners = new Map<

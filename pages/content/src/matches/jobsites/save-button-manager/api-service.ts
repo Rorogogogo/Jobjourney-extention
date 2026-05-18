@@ -1,14 +1,16 @@
 // API service for saving jobs
-import { RPRequirementDetector } from './rp-requirement-detector';
-import type { JobData, Platform } from './types';
+import { MessageType } from '@extension/types';
+import type { JobData, PlatformId } from '@extension/types';
+import { PRRequirementDetector } from './pr-requirement-detector';
 
 export class ApiService {
-  static async saveJob(jobData: JobData, platform: Platform): Promise<{ success: boolean; error?: string }> {
+  static async saveJob(jobData: JobData, platform: PlatformId): Promise<{ success: boolean; error?: string }> {
     try {
-      // Determine IsRPRequired based on platform type
-      const isRPRequired = RPRequirementDetector.determineRPRequirement(jobData, platform);
+      // Determine IsPRRequired based on platform type
+      const isPRRequired = PRRequirementDetector.determinePRRequirement(jobData, platform);
 
       // Prepare job data for API
+      // Status: 1 = Saved, 2 = Applied
       const apiJobData = {
         Name: jobData.title,
         CompanyName: jobData.company,
@@ -16,18 +18,21 @@ export class ApiService {
         JobUrl: jobData.jobUrl,
         Description: jobData.description || '',
         RequiredSkills: jobData.requiredSkills || '',
-        EmploymentTypes: jobData.employmentTypes || '',
+        EmploymentTypes: jobData.jobType || '',
         WorkArrangement: jobData.workArrangement || '',
         CompanyLogoUrl: jobData.companyLogoUrl || null,
         PlatformName: jobData.platform || platform,
-        Status: 1, // Default to "Saved" status
+        Status: jobData.isAlreadyApplied ? 2 : 1, // 2 = Applied, 1 = Saved
         IsStarred: false,
-        IsRPRequired: isRPRequired,
+        IsPRRequired: isPRRequired,
+        // Already applied detection
+        IsAlreadyApplied: jobData.isAlreadyApplied || false,
+        AppliedDateUtc: jobData.appliedDateUtc || null,
       };
 
       // Send request to background script
       const response = await chrome.runtime.sendMessage({
-        type: 'SAVE_JOB_MANUALLY',
+        type: MessageType.SAVE_JOB_MANUALLY,
         data: apiJobData,
       });
 

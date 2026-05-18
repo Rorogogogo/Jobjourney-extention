@@ -1,11 +1,13 @@
 // Authentication management for save button
+import { MessageType } from '@extension/types';
+
 export class AuthManager {
   private static isAuthenticated = false;
 
   static async checkAuthStatus(): Promise<boolean> {
     try {
       const response = await chrome.runtime.sendMessage({
-        type: 'GET_AUTH_STATUS',
+        type: MessageType.GET_AUTH_STATUS,
       });
 
       AuthManager.isAuthenticated = response.success && response.data?.isAuthenticated;

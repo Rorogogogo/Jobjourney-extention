@@ -1,5 +1,5 @@
 // Jora single job scraper
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseScraper } from './base-single-job-scraper';
 
 export class JoraScraper extends BaseScraper {
@@ -23,7 +23,7 @@ export class JoraScraper extends BaseScraper {
 
     const linkElement =
       activeCard?.querySelector<HTMLAnchorElement>('.job-title a.job-link, .job-title a') ||
-      (titleElement as HTMLAnchorElement);
+      (titleElement instanceof HTMLAnchorElement ? titleElement : titleElement?.querySelector<HTMLAnchorElement>('a'));
 
     let jobUrl = window.location.href;
     if (linkElement?.href) {

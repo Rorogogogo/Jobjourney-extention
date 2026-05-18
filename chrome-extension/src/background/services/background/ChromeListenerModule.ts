@@ -1,5 +1,5 @@
-import { Logger } from '../../utils/Logger';
-import type { ChromeMessage } from '../../types';
+import { Logger } from '@extension/shared';
+import type { ChromeMessage } from '@extension/types';
 
 export class ChromeListenerModule {
   private onActionClick?: (tab: chrome.tabs.Tab) => Promise<void>;

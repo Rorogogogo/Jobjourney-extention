@@ -1,36 +1,10 @@
 // Constants for JobJourney Extension
+import type { CountryConfig, Platform, PlatformId, PlatformUrls } from '@extension/types';
+
 export const EXTENSION_NAME = 'JobJourney Assistant';
-export const VERSION = '3.0.0';
+export const VERSION = '3.2.0';
 
-// Country configurations with icons and platform mappings
-export interface CountryConfig {
-  name: string;
-  code: string;
-  icon: string;
-  platforms: string[];
-  locations: string[];
-  urls: PlatformUrls;
-}
-
-export interface PlatformUrls {
-  linkedin?: string;
-  seek?: string;
-  indeed?: string;
-  jora?: string;
-  reed?: string;
-}
-
-// Platform configurations
-export interface Platform {
-  id: string;
-  name: string;
-  icon: string;
-  domains: string[];
-  color: string;
-  enabled: boolean;
-}
-
-export const PLATFORMS: Record<string, Platform> = {
+export const PLATFORMS: Partial<Record<PlatformId, Platform>> = {
   linkedin: {
     id: 'linkedin',
     name: 'LinkedIn',
@@ -43,7 +17,7 @@ export const PLATFORMS: Record<string, Platform> = {
     id: 'seek',
     name: 'SEEK',
     icon: '🔍',
-    domains: ['seek.com.au', 'seek.co.nz'],
+    domains: ['seek.com.au', 'seek.co.nz', 'nz.seek.com'],
     color: '#e60278',
     enabled: true,
   },
@@ -338,7 +312,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     ],
     urls: {
       linkedin: 'https://www.linkedin.com/jobs/search/',
-      seek: 'https://www.seek.co.nz',
+      seek: 'https://nz.seek.com',
     },
   },
 };
@@ -369,7 +343,7 @@ export const JOB_SUGGESTIONS = [
 
 // Build search URLs with proper encoding and parameters
 export const buildSearchUrl = (
-  platform: string,
+  platform: keyof PlatformUrls,
   config: { keywords: string; location?: string; country?: string },
 ): string => {
   const { keywords, location, country } = config;
@@ -377,7 +351,7 @@ export const buildSearchUrl = (
   const encodedLocation = location ? encodeURIComponent(location) : '';
 
   const countryConfig = country ? COUNTRIES[country] : null;
-  const baseUrl = countryConfig?.urls[platform as keyof PlatformUrls];
+  const baseUrl = countryConfig?.urls[platform];
 
   if (!baseUrl) {
     throw new Error(`No URL configured for platform ${platform} in country ${country}`);
@@ -391,14 +365,14 @@ export const buildSearchUrl = (
     }
 
     case 'seek': {
-      // SEEK uses format: https://www.seek.com.au/job-title-jobs/in-All-Location
-      // Convert keywords to URL-friendly format and add location
+      // SEEK AU: https://www.seek.com.au/<keywords>-jobs/in-All-<City>-<STATE>
+      // SEEK NZ: https://nz.seek.com/<keywords>-jobs/in-<City>
       const seekKeywords = keywords.toLowerCase().replace(/\s+/g, '-');
       let seekUrl = `${baseUrl}/${seekKeywords}-jobs`;
       if (location) {
-        // Format location for SEEK: "in-All-Hobart-TAS" format
         const seekLocation = location.replace(/,?\s+/g, '-');
-        seekUrl += `/in-All-${seekLocation}`;
+        const locationPrefix = country === 'NZ' ? 'in' : 'in-All';
+        seekUrl += `/${locationPrefix}-${seekLocation}`;
       }
       return seekUrl;
     }
@@ -425,29 +399,6 @@ export const buildSearchUrl = (
       throw new Error(`Unknown platform: ${platform}`);
   }
 };
-
-// Message types for Chrome messaging
-export const MESSAGE_TYPES = {
-  START_SCRAPING: 'START_SCRAPING',
-  SCRAPING_PROGRESS: 'SCRAPING_PROGRESS',
-  SCRAPING_COMPLETE: 'SCRAPING_COMPLETE',
-  SCRAPING_ERROR: 'SCRAPING_ERROR',
-  AUTH_STATUS: 'AUTH_STATUS',
-  TOKEN_UPDATE: 'TOKEN_UPDATE',
-  SCRAPE_JOBS: 'SCRAPE_JOBS',
-  SHOW_OVERLAY: 'SHOW_OVERLAY',
-  HIDE_OVERLAY: 'HIDE_OVERLAY',
-  API_REQUEST: 'API_REQUEST',
-  API_RESPONSE: 'API_RESPONSE',
-} as const;
-
-// Storage keys
-export const STORAGE_KEYS = {
-  AUTH_TOKEN: 'jobjourney_auth_token',
-  USER_DATA: 'jobjourney_user_data',
-  SEARCH_PREFERENCES: 'search_preferences',
-  LAST_SCRAPE: 'last_scrape_data',
-} as const;
 
 // Centralized timeout configuration for all scraping operations
 export const TIMEOUT_CONFIG = {
@@ -479,7 +430,7 @@ export const SCRAPING_CONFIG = {
   RATE_LIMIT_DELAY: 1000,
   MAX_RETRIES: 3,
   TIMEOUT: TIMEOUT_CONFIG.PLATFORM_SCRAPING_TOTAL, // Use centralized timeout
-  USER_AGENT: 'JobJourney-Assistant/3.0.0',
+  USER_AGENT: 'JobJourney-Assistant/3.2.0',
 } as const;
 
 // UI states

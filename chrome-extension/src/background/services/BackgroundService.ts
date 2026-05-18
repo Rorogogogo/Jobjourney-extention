@@ -1,6 +1,6 @@
 // Background Service Worker - Main Entry Point
-import { Logger } from '../utils/Logger';
-import type { ScrapingSession, ChromeMessage } from '../types';
+import { Logger } from '@extension/shared';
+import { EventType } from '@extension/types';
 import { ApiService } from './ApiService';
 import { AuthService } from './AuthService';
 
@@ -14,7 +14,7 @@ import { ToastModule } from './background/ToastModule';
 import { UtilityModule } from './background/UtilityModule';
 import { ConfigService } from './ConfigService';
 import { EventManager } from './EventManager';
-import { ScrapingService } from './ScrapingService';
+import { ScrapingService } from './scraping/ScrapingService';
 import { StorageService } from './StorageService';
 
 export class BackgroundService {
@@ -48,7 +48,7 @@ export class BackgroundService {
 
     // Set up dependencies for core services
     this.authService.setDependencies(this.storageService, this.eventManager, this.configService);
-    this.apiService.setDependencies(this.configService, this.authService);
+    this.apiService.setDependencies(this.configService, this.authService, this.eventManager);
     this.scrapingService.setDependencies(this.eventManager, this.apiService, this.storageService);
 
     // Initialize modules
@@ -88,10 +88,8 @@ export class BackgroundService {
       onSignOutUser: this.tabManagerModule.handleSignOutUser.bind(this.tabManagerModule),
       onScrapingProgressMessage: this.scrapingModule.handleScrapingProgressMessage.bind(this.scrapingModule),
       onScrapingResult: this.scrapingModule.handleScrapingResult.bind(this.scrapingModule),
-      onPlatformCompleted: (
-        data: { sessionId: string; platform: string; result: unknown },
-        sendResponse: (response: unknown) => void,
-      ) => this.scrapingModule.handlePlatformCompleted(data),
+      onPlatformCompleted: (data: { sessionId: string; platform: string; result: unknown }) =>
+        this.scrapingModule.handlePlatformCompleted(data),
       onMakeTabActive: this.tabManagerModule.handleMakeTabActive.bind(this.tabManagerModule),
       onShowJobsInJobJourney: this.tabManagerModule.handleShowJobsInJobJourney.bind(this.tabManagerModule),
       onOpenSidePanel: this.tabManagerModule.handleOpenSidePanel.bind(this.tabManagerModule),
@@ -103,7 +101,7 @@ export class BackgroundService {
     this.scrapingModule.setBroadcastHandler(this.utilityModule.broadcastToSidebars.bind(this.utilityModule));
 
     // Set up auth status change handler with toast module
-    this.eventManager.on('AUTH_STATUS', this.toastModule.handleAuthStatusChange.bind(this.toastModule));
+    this.eventManager.on(EventType.AUTH_STATUS, this.toastModule.handleAuthStatusChange.bind(this.toastModule));
   }
 
   /**
@@ -149,7 +147,11 @@ export class BackgroundService {
     this.scrapingModule.setupEventListeners();
 
     // API events (keeping this in main service for now)
-    this.eventManager.on('API_REQUEST', this.handleApiRequest.bind(this));
+    this.eventManager.on(EventType.API_REQUEST, this.handleApiRequest.bind(this));
+    this.eventManager.on(EventType.UNAUTHORIZED, async () => {
+      await this.authService.clearAuthData(true, 'token_expired');
+      await this.tabManagerModule.handleSignOutUser(() => {});
+    });
   }
 
   /**
@@ -230,7 +232,7 @@ export class BackgroundService {
       Logger.error('❌ Error saving job manually:', error);
       sendResponse({
         success: false,
-        error: error.message || 'Failed to save job',
+        error: error instanceof Error ? error.message : 'Failed to save job',
       });
     }
   }

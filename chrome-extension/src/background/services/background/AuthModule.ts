@@ -1,6 +1,10 @@
-import { Logger } from '../../utils/Logger';
+import { Logger } from '@extension/shared';
+import { EventType } from '@extension/types';
+import type { EventData } from '@extension/types';
 import type { AuthService } from '../AuthService';
 import type { EventManager } from '../EventManager';
+
+const getErrorMessage = (error: unknown): string => (error instanceof Error ? error.message : 'Unknown auth error');
 
 export class AuthModule {
   private authService: AuthService;
@@ -12,9 +16,9 @@ export class AuthModule {
   }
 
   setupEventListeners(): void {
-    this.eventManager.on('AUTH_STATUS', this.handleAuthStatusChange.bind(this));
-    this.eventManager.on('TOKEN_UPDATE', this.handleTokenUpdate.bind(this));
-    this.eventManager.on('AUTH_CHECK_REQUIRED', this.handleAuthCheckRequired.bind(this));
+    this.eventManager.on(EventType.AUTH_STATUS, this.handleAuthStatusChange.bind(this));
+    this.eventManager.on(EventType.TOKEN_UPDATE, this.handleTokenUpdate.bind(this));
+    this.eventManager.on(EventType.AUTH_CHECK_REQUIRED, this.handleAuthCheckRequired.bind(this));
   }
 
   handleTabUpdate(tabId: number, changeInfo: chrome.tabs.TabChangeInfo, tab: chrome.tabs.Tab): void {
@@ -30,29 +34,37 @@ export class AuthModule {
 
         if (isJobJourneyDomain) {
           Logger.info('🔐 JobJourney domain detected for auth monitoring');
-          this.eventManager.emit('AUTH_CHECK_REQUIRED', { tabId, url: tab.url });
+          void this.eventManager.emit(EventType.AUTH_CHECK_REQUIRED, { tabId, url: tab.url });
         }
-      } catch (error) {
+      } catch {
         // Invalid URL, skip
       }
     }
   }
 
-  private async handleAuthCheckRequired(data: { tabId: number; url: string }): Promise<void> {
+  private async handleAuthCheckRequired(data: EventData): Promise<void> {
+    const tabId = typeof data.tabId === 'number' ? data.tabId : undefined;
+    const url = typeof data.url === 'string' ? data.url : undefined;
+
+    if (tabId === undefined || !url) {
+      Logger.warning('Invalid auth check payload', data);
+      return;
+    }
+
     try {
-      Logger.info(`🔍 Checking auth from tab: ${data.url}`);
-      await this.authService.detectAuthenticationFromTab(data.tabId);
+      Logger.info(`🔍 Checking auth from tab: ${url}`);
+      await this.authService.detectAuthenticationFromTab(tabId);
     } catch (error) {
       Logger.warning('Failed to check auth from tab', error);
     }
   }
 
-  private handleTokenUpdate(data: any): void {
+  private handleTokenUpdate(): void {
     Logger.info('Token updated');
-    this.eventManager.emit('AUTH_STATUS_REFRESH');
+    void this.eventManager.emit(EventType.AUTH_STATUS_REFRESH, {});
   }
 
-  private handleAuthStatusChange(data: any): void {
+  private handleAuthStatusChange(data: EventData): void {
     Logger.info('Auth status changed', data);
   }
 
@@ -88,7 +100,7 @@ export class AuthModule {
       }
     } catch (error) {
       Logger.error('Failed to handle auth detected', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 
@@ -99,7 +111,7 @@ export class AuthModule {
       sendResponse({ success: true, message: 'Auth cleared' });
     } catch (error) {
       Logger.error('Failed to handle auth cleared', error);
-      sendResponse({ success: false, error: error.message });
+      sendResponse({ success: false, error: getErrorMessage(error) });
     }
   }
 }

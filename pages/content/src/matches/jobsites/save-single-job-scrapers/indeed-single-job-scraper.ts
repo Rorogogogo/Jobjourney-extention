@@ -1,5 +1,5 @@
 // Indeed job scraper
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseScraper } from './base-single-job-scraper';
 
 export class IndeedScraper extends BaseScraper {
@@ -40,7 +40,7 @@ export class IndeedScraper extends BaseScraper {
       location: this.extractText(locationElement),
       jobUrl: window.location.href,
       description: this.extractText(descriptionElement),
-      employmentTypes: this.extractText(jobTypeElement),
+      jobType: this.extractText(jobTypeElement),
       platform: this.platform,
       companyLogoUrl: companyLogoUrl || undefined,
     };

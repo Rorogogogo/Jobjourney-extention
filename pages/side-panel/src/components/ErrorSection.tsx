@@ -1,4 +1,6 @@
 import type React from 'react';
+import { AlertCircle, RotateCcw, WifiOff, Lock } from 'lucide-react';
+import { Card, CardContent, Button } from '@extension/ui';
 
 interface ErrorSectionProps {
   error: string | null;
@@ -9,53 +11,49 @@ export const ErrorSection: React.FC<ErrorSectionProps> = ({ error, onRetry }) =>
   if (!error) return null;
 
   const getErrorDetails = (errorMessage: string) => {
-    // Parse different types of errors and provide helpful details
     if (errorMessage.includes('Authentication required')) {
       return {
+        icon: <Lock className="h-10 w-10 text-orange-500" />,
         title: 'Authentication Required',
         message: 'Please sign in to JobJourney to search for jobs.',
-        suggestion: 'Click the "Sign In" button to authenticate your account.',
+        suggestion: 'Click the "Sign In" button in the header.',
       };
     }
 
     if (errorMessage.includes('Network') || errorMessage.includes('fetch')) {
       return {
+        icon: <WifiOff className="h-10 w-10 text-red-500" />,
         title: 'Connection Error',
         message: 'Unable to connect to JobJourney servers.',
-        suggestion: 'Please check your internet connection and try again.',
-      };
-    }
-
-    if (errorMessage.includes('timeout') || errorMessage.includes('Timeout')) {
-      return {
-        title: 'Request Timeout',
-        message: 'The search request took too long to complete.',
-        suggestion: 'Try searching with fewer platforms or check your connection.',
+        suggestion: 'Please check your internet connection.',
       };
     }
 
     return {
+      icon: <AlertCircle className="text-destructive h-10 w-10" />,
       title: 'Search Error',
       message: errorMessage,
-      suggestion: 'Please try again or contact support if the problem persists.',
+      suggestion: 'Please try again or contact support.',
     };
   };
 
-  const errorDetails = getErrorDetails(error);
+  const details = getErrorDetails(error);
 
   return (
-    <div className="flex flex-col items-center gap-4 px-4 py-8 text-center">
-      <div className="flex flex-col items-center gap-3">
-        <div className="text-5xl">⚠️</div>
-        <div className="text-lg font-semibold text-red-400">{errorDetails.title}</div>
-        <div className="text-sm text-white/80">{errorDetails.message}</div>
-        {errorDetails.suggestion && <div className="mb-2 text-xs text-white/60">{errorDetails.suggestion}</div>}
-        <button
-          className="min-w-30 cursor-pointer rounded-lg border border-white/20 bg-white/10 px-6 py-2 text-sm font-semibold text-white transition-all duration-300 hover:border-white/30 hover:bg-white/15"
-          onClick={onRetry}>
-          Try Again
-        </button>
-      </div>
-    </div>
+    <Card className="border-destructive/20 shadow-sm">
+      <CardContent className="flex flex-col items-center justify-center p-6 text-center">
+        <div className="bg-destructive/10 mb-4 rounded-full p-3">{details.icon}</div>
+        <h3 className="mb-2 text-lg font-semibold tracking-tight">{details.title}</h3>
+        <p className="text-muted-foreground mb-4 text-sm">{details.message}</p>
+
+        {details.suggestion && (
+          <div className="bg-secondary text-secondary-foreground mb-6 rounded-md p-3 text-xs">{details.suggestion}</div>
+        )}
+
+        <Button onClick={onRetry} variant="outline" className="w-full gap-2 sm:w-auto">
+          <RotateCcw className="h-4 w-4" /> Try Again
+        </Button>
+      </CardContent>
+    </Card>
   );
 };

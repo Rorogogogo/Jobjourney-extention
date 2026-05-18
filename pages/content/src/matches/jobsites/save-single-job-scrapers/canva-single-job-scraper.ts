@@ -1,8 +1,8 @@
-import type { JobData } from '../types';
+import type { JobData } from '@extension/types';
 import { BaseSingleJobScraper } from './base-single-job-scraper';
 
 export class CanvaScraper extends BaseSingleJobScraper {
-  protected platformName = 'Canva';
+  protected platform = 'Canva';
   protected companyLogoUrl = 'https://www.pngmart.com/files/23/Canva-Logo-PNG-Picture.png';
 
   isOnJobDetailPage(): boolean {
@@ -10,10 +10,10 @@ export class CanvaScraper extends BaseSingleJobScraper {
     return url.includes('/jobs/');
   }
 
-  extractJobData(): JobData | undefined {
+  extractJobData(): JobData | null {
     if (!this.isOnJobDetailPage()) {
       console.log('Canva: Not on a job detail page');
-      return undefined;
+      return null;
     }
 
     // Extract job information based on the Canva structure
@@ -21,7 +21,7 @@ export class CanvaScraper extends BaseSingleJobScraper {
 
     if (!titleElement) {
       console.warn('Canva: Could not find job title');
-      return undefined;
+      return null;
     }
 
     // Company is always Canva for this domain
@@ -67,14 +67,14 @@ export class CanvaScraper extends BaseSingleJobScraper {
       jobUrl: window.location.href.split('?')[0],
       description: description.trim(),
       requiredSkills: undefined,
-      employmentTypes: jobSchedule,
+      jobType: jobSchedule,
       workArrangement: undefined,
-      platform: this.platformName,
+      platform: this.platform,
       companyLogoUrl: this.companyLogoUrl,
     };
   }
 
-  findInsertionPoint(): HTMLElement | undefined {
+  findInsertionPoint(): HTMLElement | null {
     // Find the job meta area and insert after it
     const jobMeta = document.querySelector('.job-meta');
     if (jobMeta && jobMeta.parentElement) {
@@ -89,6 +89,6 @@ export class CanvaScraper extends BaseSingleJobScraper {
 
     // Final fallback to main content
     const canvaMain = document.querySelector('main#content');
-    return (canvaMain as HTMLElement) || undefined;
+    return (canvaMain as HTMLElement) || null;
   }
 }

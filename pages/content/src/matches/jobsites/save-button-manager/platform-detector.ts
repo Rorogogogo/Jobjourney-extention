@@ -1,8 +1,8 @@
 // Platform detection utilities
-import type { Platform } from './types';
+import type { PlatformId } from '@extension/types';
 
 export class PlatformDetector {
-  static getCurrentPlatform(): Platform | null {
+  static getCurrentPlatform(): PlatformId | null {
     const hostname = window.location.hostname.toLowerCase();
 
     // Use exact hostname or subdomain matching to prevent injection attacks
@@ -11,7 +11,8 @@ export class PlatformDetector {
       hostname === 'seek.com.au' ||
       hostname.endsWith('.seek.com.au') ||
       hostname === 'seek.co.nz' ||
-      hostname.endsWith('.seek.co.nz')
+      hostname.endsWith('.seek.co.nz') ||
+      hostname === 'nz.seek.com'
     )
       return 'seek';
     if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';
