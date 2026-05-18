@@ -19,7 +19,10 @@ const chromeCapabilities = {
       '--disable-gpu',
       '--no-sandbox',
       '--disable-dev-shm-usage',
-      ...(IS_CI ? ['--headless'] : []),
+      // Chrome 109+ requires the "new" headless mode for extensions to load.
+      // The legacy "--headless" flag silently runs without any installed extensions,
+      // which used to make every extension E2E spec fail with "extension not found".
+      ...(IS_CI ? ['--headless=new'] : []),
     ],
     prefs: { 'extensions.ui.developer_mode': true },
     extensions: [bundledExtension],
