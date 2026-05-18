@@ -38,21 +38,14 @@ const computeExtensionIdFromPath = (absPath: string): string => {
  * @returns path to the Chrome extension (chrome-extension://<id>)
  */
 export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
-  // Same path the wdio config passes to --load-extension.
   const unpackedDir = resolve(import.meta.dirname, '../../../dist');
   const computedId = computeExtensionIdFromPath(unpackedDir);
-  const computedUrl = `chrome-extension://${computedId}`;
 
-  // Quick sanity check: try fetching the side panel index from the computed URL.
-  // If Chrome actually loaded the extension at this ID, the request will succeed.
-  try {
-    await browser.url(`${computedUrl}/side-panel/index.html`);
-    return computedUrl;
-  } catch {
-    // fall through to CDP discovery
-  }
-
-  // Fallback: look the extension up via CDP through puppeteer.
+  // Look the extension up via CDP through puppeteer. We do NOT trust the
+  // computed id without verification: if --load-extension was silently
+  // dropped, the extension is not actually loaded, and just navigating to
+  // the computed URL would "succeed" against a non-existent extension and
+  // make later assertions fail in confusing ways.
   const puppeteer = await browser.getPuppeteer();
   const findExtensionTarget = () =>
     puppeteer
@@ -69,20 +62,20 @@ export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
     extensionTarget = findExtensionTarget();
   }
 
-  if (!extensionTarget) {
-    const allTargets = puppeteer
-      .targets()
-      .map((t: { type: () => string; url: () => string }) => ({ type: t.type(), url: t.url() }));
-    throw new Error(
-      `Could not locate the loaded chrome extension. Computed ID was ${computedId}. ` +
-        `CDP targets seen: ${JSON.stringify(allTargets)}. ` +
-        'Verify that <repo>/dist exists with a valid manifest.json and that Chrome was launched ' +
-        'with --load-extension and --disable-features=DisableLoadExtensionCommandLineSwitch.',
-    );
+  if (extensionTarget) {
+    const url = new URL(extensionTarget.url());
+    return `chrome-extension://${url.hostname}`;
   }
 
-  const url = new URL(extensionTarget.url());
-  return `chrome-extension://${url.hostname}`;
+  const allTargets = puppeteer
+    .targets()
+    .map((t: { type: () => string; url: () => string }) => ({ type: t.type(), url: t.url() }));
+  throw new Error(
+    `Could not locate the loaded chrome extension. ` +
+      `Expected ID from sha256(${unpackedDir}) is ${computedId}. ` +
+      `CDP targets seen: ${JSON.stringify(allTargets)}. ` +
+      'Verify dist/manifest.json exists and Chrome was launched with --load-extension.',
+  );
 };
 
 /**
