@@ -1,17 +1,59 @@
+import { createHash } from 'node:crypto';
+import { resolve } from 'node:path';
+
+/**
+ * Compute the deterministic extension ID Chrome assigns to an unpacked
+ * extension loaded via --load-extension=<absPath>.
+ *
+ * Algorithm (from chromium/extensions/common/extension_id.cc):
+ *   sha256(absolute_path) → take the first 16 bytes (32 hex chars) →
+ *   map each nibble 0..15 to 'a'..'p'.
+ *
+ * Assumes the manifest has no `key` field; if a `key` is added in the future,
+ * Chrome derives the ID from the public key in `key` instead and this helper
+ * would need updating.
+ */
+const computeExtensionIdFromPath = (absPath: string): string => {
+  const hash = createHash('sha256').update(absPath).digest('hex');
+  return hash
+    .slice(0, 32)
+    .split('')
+    .map(c => String.fromCharCode(parseInt(c, 16) + 97))
+    .join('');
+};
+
 /**
  * Returns the Chrome extension path.
  *
- * Instead of scraping the chrome://extensions shadow DOM (which keeps breaking
- * across Chrome versions), we use the Chrome DevTools Protocol via Puppeteer
- * to find the loaded extension's service-worker target. The target URL is
- * `chrome-extension://<id>/...`, so the id can be read directly.
+ * Primary strategy: compute the deterministic ID that Chrome assigns to the
+ * unpacked extension at <repo>/dist when launched with --load-extension=<abs>.
+ * This avoids any dependency on CDP target discovery, which has been flaky
+ * across Chrome / ChromeDriver releases.
+ *
+ * Fallback: scan puppeteer targets for a chrome-extension:// service worker
+ * (in case the manifest grows a `key` field in the future and the computed
+ * ID stops matching).
  *
  * @param browser
  * @returns path to the Chrome extension (chrome-extension://<id>)
  */
 export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
-  const puppeteer = await browser.getPuppeteer();
+  // Same path the wdio config passes to --load-extension.
+  const unpackedDir = resolve(import.meta.dirname, '../../../dist');
+  const computedId = computeExtensionIdFromPath(unpackedDir);
+  const computedUrl = `chrome-extension://${computedId}`;
 
+  // Quick sanity check: try fetching the side panel index from the computed URL.
+  // If Chrome actually loaded the extension at this ID, the request will succeed.
+  try {
+    await browser.url(`${computedUrl}/side-panel/index.html`);
+    return computedUrl;
+  } catch {
+    // fall through to CDP discovery
+  }
+
+  // Fallback: look the extension up via CDP through puppeteer.
+  const puppeteer = await browser.getPuppeteer();
   const findExtensionTarget = () =>
     puppeteer
       .targets()
@@ -22,9 +64,6 @@ export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
       );
 
   let extensionTarget = findExtensionTarget();
-
-  // The service worker may not be registered the instant the browser opens.
-  // Poll for up to ~10s.
   for (let i = 0; !extensionTarget && i < 20; i++) {
     await browser.pause(500);
     extensionTarget = findExtensionTarget();
@@ -35,10 +74,10 @@ export const getChromeExtensionPath = async (browser: WebdriverIO.Browser) => {
       .targets()
       .map((t: { type: () => string; url: () => string }) => ({ type: t.type(), url: t.url() }));
     throw new Error(
-      'Could not locate the loaded extension via CDP. ' +
-        'Expected a service_worker or background_page target with a chrome-extension:// URL. ' +
-        `Got targets: ${JSON.stringify(allTargets)}. ` +
-        'Check that the unpacked extension at dist/ exists and Chrome was launched with --load-extension.',
+      `Could not locate the loaded chrome extension. Computed ID was ${computedId}. ` +
+        `CDP targets seen: ${JSON.stringify(allTargets)}. ` +
+        'Verify that <repo>/dist exists with a valid manifest.json and that Chrome was launched ' +
+        'with --load-extension and --disable-features=DisableLoadExtensionCommandLineSwitch.',
     );
   }
 

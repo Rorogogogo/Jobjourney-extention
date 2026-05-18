@@ -1,7 +1,7 @@
 import { config as baseConfig } from './wdio.conf.js';
 import { getChromeExtensionPath, getFirefoxExtensionPath } from '../utils/extension-path.js';
 import { IS_CI, IS_FIREFOX } from '@extension/env';
-import { readdir, readFile } from 'node:fs/promises';
+import { readdir, readFile, stat } from 'node:fs/promises';
 import { extname, join, resolve } from 'node:path';
 
 // Firefox is loaded from the built .xpi via the WebDriver Install Add-on command.
@@ -19,6 +19,20 @@ const firefoxXpiBase64 = IS_FIREFOX
 
 const unpackedExtensionDir = resolve(import.meta.dirname, '../../../dist');
 
+if (!IS_FIREFOX) {
+  try {
+    const manifest = await stat(join(unpackedExtensionDir, 'manifest.json'));
+    if (!manifest.isFile()) throw new Error('manifest.json is not a file');
+  } catch (err) {
+    throw new Error(
+      `Chrome E2E requires an unpacked extension at ${unpackedExtensionDir} ` +
+        `with a manifest.json at its root. ` +
+        `Run \`pnpm build\` (or \`pnpm zip\`, which builds before zipping) first. ` +
+        `Underlying error: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+}
+
 const chromeCapabilities = {
   browserName: 'chrome',
   acceptInsecureCerts: true,
@@ -30,6 +44,9 @@ const chromeCapabilities = {
       '--disable-dev-shm-usage',
       `--load-extension=${unpackedExtensionDir}`,
       `--disable-extensions-except=${unpackedExtensionDir}`,
+      // Chrome 137+ disables --load-extension by default in automation contexts.
+      // Opt out so the unpacked extension actually loads under chromedriver.
+      '--disable-features=DisableLoadExtensionCommandLineSwitch',
       // Chrome 109+ requires the "new" headless mode for extensions to load.
       // The legacy "--headless" flag silently runs without any installed extensions.
       ...(IS_CI ? ['--headless=new'] : []),
