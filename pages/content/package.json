@@ -31,5 +31,6 @@
     "@extension/tsconfig": "workspace:*",
     "@extension/types": "workspace:*",
     "@extension/vite-config": "workspace:*"
-  }
+  },
+  "license": "AGPL-3.0-only"
 }
