@@ -3,5 +3,6 @@
   "version": "3.0.7",
   "description": "chrome extension - tsconfig",
   "private": true,
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "AGPL-3.0-only"
 }

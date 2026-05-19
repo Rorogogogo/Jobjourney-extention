@@ -2,7 +2,7 @@
   "name": "chrome-extension-boilerplate-react-vite",
   "version": "3.2.7",
   "description": "chrome extension boilerplate",
-  "license": "MIT",
+  "license": "AGPL-3.0-only",
   "private": true,
   "sideEffects": false,
   "repository": {
