@@ -23,5 +23,6 @@
   },
   "devDependencies": {
     "@extension/tsconfig": "workspace:*"
-  }
+  },
+  "license": "AGPL-3.0-only"
 }
