@@ -21,5 +21,6 @@
     "@extension/hmr": "workspace:*",
     "@extension/tsconfig": "workspace:*",
     "@vitejs/plugin-react-swc": "^3.9.0"
-  }
+  },
+  "license": "AGPL-3.0-only"
 }
