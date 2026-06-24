@@ -19,6 +19,8 @@
 **Supercharge your job hunt with intelligent automation.**
 JobJourney Assistant seamlessly integrates with your browser to scrape, track, and organize job listings from LinkedIn, Indeed, SEEK, and more—all in one place.
 
+_Repository maintenance note: documentation wording is kept intentionally lightweight._
+
 <br/>
 
 <img src="chrome-extension/public/Global_dasboard.png" alt="JobJourney Global Dashboard" width="100%" style="border-radius: 10px; box-shadow: 0 4px 8px rgba(0,0,0,0.1);" />
