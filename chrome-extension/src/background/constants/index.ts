@@ -17,7 +17,7 @@ export const PLATFORMS: Partial<Record<PlatformId, Platform>> = {
     id: 'seek',
     name: 'SEEK',
     icon: '🔍',
-    domains: ['seek.com.au', 'seek.co.nz', 'nz.seek.com'],
+    domains: ['seek.com.au', 'seek.co.nz', 'au.seek.com', 'nz.seek.com'],
     color: '#e60278',
     enabled: true,
   },
@@ -160,7 +160,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
     ],
     urls: {
       linkedin: 'https://www.linkedin.com/jobs/search/',
-      seek: 'https://www.seek.com.au',
+      seek: 'https://au.seek.com',
       indeed: 'https://au.indeed.com/jobs',
       jora: 'https://au.jora.com/',
     },
@@ -365,7 +365,7 @@ export const buildSearchUrl = (
     }
 
     case 'seek': {
-      // SEEK AU: https://www.seek.com.au/<keywords>-jobs/in-All-<City>-<STATE>
+      // SEEK AU: https://au.seek.com/<keywords>-jobs/in-All-<City>-<STATE>
       // SEEK NZ: https://nz.seek.com/<keywords>-jobs/in-<City>
       const seekKeywords = keywords.toLowerCase().replace(/\s+/g, '-');
       let seekUrl = `${baseUrl}/${seekKeywords}-jobs`;

@@ -123,6 +123,14 @@ export default config(
   },
   // Overrides Rules
   {
+    // Node scripts and tests (.mjs/.cjs/.js) run outside the browser, so they
+    // need the node globals the TS block above only grants to .ts/.tsx.
+    files: ['**/*.{js,mjs,cjs}'],
+    languageOptions: {
+      globals: { ...node },
+    },
+  },
+  {
     files: ['**/packages/shared/**/*.ts'],
     rules: {
       'no-restricted-imports': 'off',
