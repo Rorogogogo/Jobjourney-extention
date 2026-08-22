@@ -140,6 +140,7 @@ export class TabManagerModule {
               '*://www.indeed.com/*',
               '*://www.seek.com.au/*',
               '*://www.seek.co.nz/*',
+              '*://au.seek.com/*',
               '*://nz.seek.com/*',
             ],
           });

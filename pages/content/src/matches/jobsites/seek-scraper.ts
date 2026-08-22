@@ -1,4 +1,5 @@
 // SEEK scraper from working version
+import { isSeekHostname } from '@extension/shared';
 import { MessageType } from '@extension/types';
 
 export {};
@@ -201,13 +202,7 @@ const seekScraper = {
   isMatch: (url: string) => {
     try {
       const hostname = new URL(url).hostname.toLowerCase();
-      return (
-        hostname === 'seek.com.au' ||
-        hostname.endsWith('.seek.com.au') ||
-        hostname === 'seek.co.nz' ||
-        hostname.endsWith('.seek.co.nz') ||
-        hostname === 'nz.seek.com'
-      );
+      return isSeekHostname(hostname);
     } catch {
       return false;
     }

@@ -1,4 +1,5 @@
 // Factory for creating platform-specific scrapers
+import { isSeekHostname } from '@extension/shared';
 import type { JobScraper } from '@extension/types';
 import { AtlassianScraper } from './save-single-job-scrapers/atlassian-single-job-scraper';
 import { CanvaScraper } from './save-single-job-scrapers/canva-single-job-scraper';
@@ -41,14 +42,7 @@ export class ScraperFactory {
 
     // Use exact hostname or subdomain matching to prevent injection attacks
     if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) return 'linkedin';
-    if (
-      hostname === 'seek.com.au' ||
-      hostname.endsWith('.seek.com.au') ||
-      hostname === 'seek.co.nz' ||
-      hostname.endsWith('.seek.co.nz') ||
-      hostname === 'nz.seek.com'
-    )
-      return 'seek';
+    if (isSeekHostname(hostname)) return 'seek';
     if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';
     if (hostname === 'jora.com' || hostname.endsWith('.jora.com')) return 'jora';
     if (hostname === 'reed.co.uk' || hostname.endsWith('.reed.co.uk')) return 'reed';

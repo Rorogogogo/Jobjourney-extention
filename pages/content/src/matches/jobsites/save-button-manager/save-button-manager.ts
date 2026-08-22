@@ -1,4 +1,5 @@
 // Main Save Button Manager
+import { isSeekHostname } from '@extension/shared';
 import type { JobData, PlatformId, PrDetectionResult } from '@extension/types';
 import { ApiService } from './api-service';
 import { AuthManager } from './auth-manager';
@@ -268,13 +269,7 @@ export class SaveButtonManager implements ISaveButtonManager {
     }
 
     // SEEK job ID extraction
-    if (
-      hostname === 'seek.com.au' ||
-      hostname === 'seek.co.nz' ||
-      hostname === 'nz.seek.com' ||
-      hostname.endsWith('.seek.com.au') ||
-      hostname.endsWith('.seek.co.nz')
-    ) {
+    if (isSeekHostname(hostname)) {
       const jobIdMatch = url.match(/\/job\/(\d+)/);
       return jobIdMatch ? jobIdMatch[1] : '';
     }

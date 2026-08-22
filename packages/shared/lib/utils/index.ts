@@ -4,4 +4,5 @@ export * from './environment.js';
 export * from './init-app-with-shadow.js';
 export * from './logger.js';
 export * from './pr-detection.js';
+export * from './seek-hostname.js';
 export type * from './types.js';

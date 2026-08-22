@@ -1,7 +1,7 @@
 // Save Job Button functionality for job detail pages
 import { MessageType } from '@extension/types';
 import type { JobData } from '@extension/types';
-import { detectPRRequirement } from '@extension/shared';
+import { detectPRRequirement, isSeekHostname } from '@extension/shared';
 
 export {};
 
@@ -90,14 +90,7 @@ class SaveJobButton {
 
     // Use exact hostname or subdomain matching to prevent injection attacks
     if (hostname === 'linkedin.com' || hostname.endsWith('.linkedin.com')) return 'linkedin';
-    if (
-      hostname === 'seek.com.au' ||
-      hostname.endsWith('.seek.com.au') ||
-      hostname === 'seek.co.nz' ||
-      hostname.endsWith('.seek.co.nz') ||
-      hostname === 'nz.seek.com'
-    )
-      return 'seek';
+    if (isSeekHostname(hostname)) return 'seek';
     if (hostname === 'indeed.com' || hostname.endsWith('.indeed.com')) return 'indeed';
     if (hostname === 'reed.co.uk' || hostname.endsWith('.reed.co.uk')) return 'reed';
     if (hostname === 'recruitment.macquarie.com') return 'macquarie';
