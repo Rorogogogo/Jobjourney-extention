@@ -125,7 +125,7 @@ Environment variables in `.env` use `CEB_` prefix:
 
 Two manifest files in `chrome-extension/`:
 - `manifest.ts` — production (Chrome Web Store ready)
-- `manifest.dev.ts` — development (adds localhost permissions for ports 3000, 5001, 5014, 5000)
+- `manifest.dev.ts` — development (adds localhost permissions for ports 3000, 5001, 5015, 5000)
 
 `pnpm manifest:dev` copies dev → production. **Always run `pnpm manifest:prod` before Chrome Web Store builds.**
 

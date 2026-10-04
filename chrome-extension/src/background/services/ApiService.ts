@@ -7,13 +7,10 @@ import type { ConfigService } from './ConfigService';
 import type { EventManager } from './EventManager';
 
 // API Endpoints
+// Paths under the API's `/api/v2`.
 export const API_ENDPOINTS = {
-  JOBS: '/jobs',
-  AUTH: '/auth',
-  WEBHOOK: '/job-market/process',
-  USER: '/user/profile',
-  VALIDATE: '/auth/validate',
-  REFRESH: '/auth/refresh',
+  PROCESS_JOBS: '/job-market/process',
+  SAVE_JOB: '/job-market/save',
 } as const;
 
 export class ApiService {
@@ -48,7 +45,7 @@ export class ApiService {
    */
   private async makeRequest<T = any>(endpoint: string, options: RequestInit = {}): Promise<ApiResponse<T>> {
     try {
-      const url = `${this.configService.getApiUrl()}${endpoint}`;
+      const url = `${this.configService.getApiUrl()}/v2${endpoint}`;
 
       // Default headers
       const defaultHeaders = {
@@ -138,7 +135,7 @@ export class ApiService {
       platforms: searchConfig.platforms,
     });
 
-    return this.makeRequest(API_ENDPOINTS.WEBHOOK, {
+    return this.makeRequest(API_ENDPOINTS.PROCESS_JOBS, {
       method: 'POST',
       body: JSON.stringify(requestBody),
       headers: {
@@ -168,112 +165,6 @@ export class ApiService {
   }
 
   /**
-   * Get user profile
-   */
-  async getUserProfile(): Promise<ApiResponse> {
-    if (!this.authService.isUserAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
-
-    return this.makeRequest(API_ENDPOINTS.USER);
-  }
-
-  /**
-   * Validate authentication token
-   */
-  async validateToken(): Promise<ApiResponse> {
-    const token = this.authService.getCurrentToken();
-    if (!token) {
-      return { success: false, error: 'No token available' };
-    }
-
-    return this.makeRequest(API_ENDPOINTS.VALIDATE);
-  }
-
-  /**
-   * Refresh authentication token
-   */
-  async refreshToken(): Promise<ApiResponse> {
-    const token = this.authService.getCurrentToken();
-    if (!token) {
-      return { success: false, error: 'No token available' };
-    }
-
-    return this.makeRequest(API_ENDPOINTS.REFRESH, {
-      method: 'POST',
-    });
-  }
-
-  /**
-   * Get jobs from API
-   */
-  async getJobs(
-    params: {
-      page?: number;
-      limit?: number;
-      search?: string;
-      platform?: string;
-    } = {},
-  ): Promise<ApiResponse<JobData[]>> {
-    if (!this.authService.isUserAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
-
-    const queryParams = new URLSearchParams();
-    if (params.page) queryParams.set('page', params.page.toString());
-    if (params.limit) queryParams.set('limit', params.limit.toString());
-    if (params.search) queryParams.set('search', params.search);
-    if (params.platform) queryParams.set('platform', params.platform);
-
-    const endpoint = `${API_ENDPOINTS.JOBS}?${queryParams.toString()}`;
-    return this.makeRequest<JobData[]>(endpoint);
-  }
-
-  /**
-   * Delete jobs from API
-   */
-  async deleteJobs(jobIds: string[]): Promise<ApiResponse> {
-    if (!this.authService.isUserAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
-
-    return this.makeRequest(API_ENDPOINTS.JOBS, {
-      method: 'DELETE',
-      body: JSON.stringify({ jobIds }),
-    });
-  }
-
-  /**
-   * Update job status
-   */
-  async updateJobStatus(jobId: string, status: string): Promise<ApiResponse> {
-    if (!this.authService.isUserAuthenticated()) {
-      return { success: false, error: 'Authentication required' };
-    }
-
-    return this.makeRequest(`${API_ENDPOINTS.JOBS}/${jobId}`, {
-      method: 'PATCH',
-      body: JSON.stringify({ status }),
-    });
-  }
-
-  /**
-   * Send analytics event
-   */
-  async sendAnalytics(event: string, data: any): Promise<ApiResponse> {
-    // Don't require auth for analytics
-    return this.makeRequest('/analytics', {
-      method: 'POST',
-      body: JSON.stringify({
-        event,
-        data,
-        timestamp: new Date().toISOString(),
-        source: 'chrome_extension',
-      }),
-    });
-  }
-
-  /**
    * Manually save a single job
    */
   async saveJobManually(jobData: any): Promise<ApiResponse> {
@@ -298,30 +189,10 @@ export class ApiService {
       AppliedDateUtc: jobData.AppliedDateUtc || null,
     };
 
-    return this.makeRequest('/job-market/save', {
+    return this.makeRequest(API_ENDPOINTS.SAVE_JOB, {
       method: 'POST',
       body: JSON.stringify(payload),
     });
-  }
-
-  /**
-   * Check API health
-   */
-  async checkHealth(): Promise<ApiResponse> {
-    return this.makeRequest('/health');
-  }
-
-  /**
-   * Test API connection
-   */
-  async testConnection(): Promise<boolean> {
-    try {
-      const response = await this.checkHealth();
-      return response.success;
-    } catch (error) {
-      Logger.error('API connection test failed', error);
-      return false;
-    }
   }
 
   /**
@@ -332,17 +203,15 @@ export class ApiService {
   }
 
   /**
-   * Check if API is available
+   * Check if API is available. `/health` is at the API's origin, not under `/api`.
    */
   async isApiAvailable(): Promise<boolean> {
     try {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
+      const origin = this.configService.getApiUrl().replace(/\/api\/?$/, '');
 
-      const response = await fetch(`${this.configService.getApiUrl()}/health`, {
-        method: 'HEAD',
-        signal: controller.signal,
-      });
+      const response = await fetch(`${origin}/health`, { signal: controller.signal });
 
       clearTimeout(timeoutId);
       return response.ok;

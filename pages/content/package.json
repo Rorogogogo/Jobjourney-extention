@@ -1,6 +1,6 @@
 {
   "name": "@extension/content-script",
-  "version": "3.0.7",
+  "version": "3.2.9",
   "description": "chrome extension - content script",
   "type": "module",
   "private": true,

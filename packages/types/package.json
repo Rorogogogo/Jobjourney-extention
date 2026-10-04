@@ -1,6 +1,6 @@
 {
   "name": "@extension/types",
-  "version": "1.0.0",
+  "version": "3.2.9",
   "description": "Shared type definitions for JobJourney extension",
   "type": "module",
   "private": true,
