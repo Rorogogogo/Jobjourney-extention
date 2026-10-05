@@ -1,0 +1,109 @@
+name: Publish to the Chrome Web Store
+
+# Releases when the version in chrome-extension/package.json is newer than the one the store
+# has: bump the version in a pull request, and merging it submits the build for review.
+#
+# Needs four repository secrets, from a Google Cloud project with the Chrome Web Store API
+# enabled: CWS_EXTENSION_ID, CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN.
+# Without them the workflow does nothing.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: chrome-web-store
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
+  CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
+  CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
+  CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
+  CWS_API: https://www.googleapis.com/chromewebstore/v1.1/items
+  CWS_UPLOAD_API: https://www.googleapis.com/upload/chromewebstore/v1.1/items
+
+# Named, so a failing curl fails the step even when its output is piped (pipefail).
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compare with the version in the store
+        id: store
+        run: |
+          if [ -z "$CWS_EXTENSION_ID" ] || [ -z "$CWS_REFRESH_TOKEN" ]; then
+            echo "::notice::The Chrome Web Store secrets are not set; nothing to do."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          token=$(curl -sS --fail-with-body https://oauth2.googleapis.com/token \
+            -d client_id="$CWS_CLIENT_ID" -d client_secret="$CWS_CLIENT_SECRET" \
+            -d refresh_token="$CWS_REFRESH_TOKEN" -d grant_type=refresh_token | jq -r .access_token)
+          echo "::add-mask::$token"
+          echo "$token" > "$RUNNER_TEMP/cws-token"
+
+          ours=$(node -p "require('./chrome-extension/package.json').version")
+          theirs=$(curl -sS --fail-with-body -H "Authorization: Bearer $token" \
+            -H "x-goog-api-version: 2" "$CWS_API/$CWS_EXTENSION_ID?projection=DRAFT" | jq -r '.crxVersion // "0"')
+          echo "chrome-extension/package.json: $ours, store: $theirs"
+          newest=$(printf '%s\n%s\n' "$ours" "$theirs" | sort -V | tail -n 1)
+          if [ "$ours" != "$theirs" ] && [ "$newest" = "$ours" ]; then
+            echo "release=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::The store already has $theirs; bump the version to release."
+            echo "release=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        if: steps.store.outputs.release == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.store.outputs.release == 'true'
+        with:
+          node-version-file: '.nvmrc'
+          cache: pnpm
+
+      - name: Build the production zip
+        if: steps.store.outputs.release == 'true'
+        run: |
+          pnpm install --frozen-lockfile --prefer-offline
+          [ -f .env ] || cp .example.env .env
+          pnpm manifest:prod
+          pnpm zip
+          ls -l dist-zip
+
+      - uses: actions/upload-artifact@v4
+        if: steps.store.outputs.release == 'true'
+        with:
+          name: extension-zip
+          path: dist-zip/*.zip
+
+      - name: Upload and submit for review
+        if: steps.store.outputs.release == 'true'
+        run: |
+          token=$(cat "$RUNNER_TEMP/cws-token")
+          zip=$(ls dist-zip/*.zip | head -n 1)
+
+          uploaded=$(curl -sS -X PUT -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
+            -T "$zip" "$CWS_UPLOAD_API/$CWS_EXTENSION_ID")
+          echo "$uploaded" | jq '{uploadState, itemError}'
+          [ "$(echo "$uploaded" | jq -r .uploadState)" = "SUCCESS" ]
+
+          published=$(curl -sS -X POST -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
+            -H "Content-Length: 0" "$CWS_API/$CWS_EXTENSION_ID/publish")
+          echo "$published" | jq '{status, statusDetail}'
+          echo "$published" | jq -e '.status | index("OK") or index("ITEM_PENDING_REVIEW")' > /dev/null
+
+      - name: Forget the access token
+        if: always()
+        run: rm -f "$RUNNER_TEMP/cws-token"
