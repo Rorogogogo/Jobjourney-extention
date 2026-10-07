@@ -74,44 +74,6 @@ export class AuthService {
   }
 
   /**
-   * Validate current token with the API
-   */
-  private async validateCurrentToken(): Promise<void> {
-    if (!this.token) return;
-
-    try {
-      const response = await fetch(`${this.configService.getApiUrl()}/auth/validate`, {
-        method: 'GET',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-
-        if (data.valid) {
-          this.isAuthenticated = true;
-          if (data.user) {
-            this.user = data.user;
-          }
-          Logger.info('✅ Token validation successful');
-        } else {
-          Logger.warning('⚠️ Token is invalid, clearing auth data');
-          await this.clearAuthData();
-        }
-      } else {
-        Logger.warning('⚠️ Token validation failed, clearing auth data');
-        await this.clearAuthData();
-      }
-    } catch (error) {
-      Logger.error('Failed to validate token', error);
-      // Don't clear auth data on network errors, might be temporary
-    }
-  }
-
-  /**
    * Get current authentication status
    */
   async getAuthStatus(): Promise<AuthStatus> {
@@ -211,7 +173,7 @@ export class AuthService {
     }
 
     try {
-      const response = await fetch(`${this.configService.getApiUrl()}/auth/refresh`, {
+      const response = await fetch(`${this.configService.getApiUrl()}/v2/auth/refresh-token`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.token}`,
@@ -220,22 +182,27 @@ export class AuthService {
       });
 
       if (response.ok) {
-        const data = await response.json();
+        // { data: { token, expiresAt } }, expiresAt as an ISO timestamp.
+        const { data } = await response.json();
 
-        if (data.token) {
+        if (data?.token) {
+          const expiresAt = Date.parse(data.expiresAt);
           const authData: AuthStatus = {
             isAuthenticated: true,
-            user: data.user || this.user,
+            user: this.user ?? undefined,
             token: data.token,
-            expiresAt: data.expiresAt || Date.now() + 24 * 60 * 60 * 1000,
+            expiresAt: Number.isNaN(expiresAt) ? Date.now() + 24 * 60 * 60 * 1000 : expiresAt,
           };
 
           await this.setAuthData(authData);
           Logger.info('🔄 Token refreshed successfully');
         }
-      } else {
-        Logger.warning('Token refresh failed, clearing auth data');
+      } else if (response.status === 401) {
+        Logger.warning('Token refresh refused, clearing auth data');
         await this.clearAuthData();
+      } else {
+        // The token may still be good; a server error is no reason to sign out.
+        Logger.warning(`Token refresh failed with ${response.status}`);
       }
     } catch (error) {
       Logger.error('Failed to refresh token', error);

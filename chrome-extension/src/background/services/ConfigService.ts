@@ -65,7 +65,7 @@ export class ConfigService {
     this.config.baseUrl = await getJobJourneyBaseUrl();
 
     if (this.config.environment === 'development') {
-      this.config.apiUrl = 'http://localhost:5014/api';
+      this.config.apiUrl = 'http://localhost:5015/api';
     } else {
       this.config.apiUrl = 'https://server.jobjourney.me/api';
     }

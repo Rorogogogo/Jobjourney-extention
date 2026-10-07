@@ -9,5 +9,5 @@ export const JOBJOURNEY_FRONTEND_URL = IS_DEV
   : process.env['CEB_JOBJOURNEY_FRONTEND_PROD'] || 'https://jobjourney.me';
 
 export const JOBJOURNEY_API_URL = IS_DEV
-  ? process.env['CEB_JOBJOURNEY_API_DEV'] || 'http://localhost:5014'
+  ? process.env['CEB_JOBJOURNEY_API_DEV'] || 'http://localhost:5015'
   : process.env['CEB_JOBJOURNEY_API_PROD'] || 'https://server.jobjourney.me';
