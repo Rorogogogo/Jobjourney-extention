@@ -3,9 +3,12 @@ name: Publish to the Chrome Web Store
 # Releases when the version in chrome-extension/package.json is newer than the one the store
 # has: bump the version in a pull request, and merging it submits the build for review.
 #
-# Needs four repository secrets, from a Google Cloud project with the Chrome Web Store API
-# enabled: CWS_EXTENSION_ID, CWS_CLIENT_ID, CWS_CLIENT_SECRET, CWS_REFRESH_TOKEN.
-# Without them the workflow does nothing.
+# There are no secrets. Google trusts this repository's main branch (workload identity
+# federation, project jobjourney-extension) to act as a service account, and that service
+# account is the one the store's developer dashboard lists under Account.
+#
+# Needs one repository variable, CWS_PUBLISHER_ID (dashboard, Publisher > Settings).
+# Without it the workflow does nothing.
 
 on:
   push:
@@ -18,14 +21,12 @@ concurrency:
 
 permissions:
   contents: read
+  id-token: write
 
 env:
-  CWS_EXTENSION_ID: ${{ secrets.CWS_EXTENSION_ID }}
-  CWS_CLIENT_ID: ${{ secrets.CWS_CLIENT_ID }}
-  CWS_CLIENT_SECRET: ${{ secrets.CWS_CLIENT_SECRET }}
-  CWS_REFRESH_TOKEN: ${{ secrets.CWS_REFRESH_TOKEN }}
-  CWS_API: https://www.googleapis.com/chromewebstore/v1.1/items
-  CWS_UPLOAD_API: https://www.googleapis.com/upload/chromewebstore/v1.1/items
+  ITEM: publishers/${{ vars.CWS_PUBLISHER_ID }}/items/ehphmfcbcohognocpopclafhildkiedd
+  CWS_API: https://chromewebstore.googleapis.com/v2
+  CWS_UPLOAD_API: https://chromewebstore.googleapis.com/upload/v2
 
 # Named, so a failing curl fails the step even when its output is piped (pipefail).
 defaults:
@@ -35,26 +36,31 @@ defaults:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    if: vars.CWS_PUBLISHER_ID != ''
     steps:
       - uses: actions/checkout@v4
 
+      - name: Sign in to Google
+        id: google
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/303950999386/locations/global/workloadIdentityPools/github/providers/github-actions
+          service_account: cws-publisher@jobjourney-extension.iam.gserviceaccount.com
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore
+
       - name: Compare with the version in the store
         id: store
+        env:
+          TOKEN: ${{ steps.google.outputs.access_token }}
         run: |
-          if [ -z "$CWS_EXTENSION_ID" ] || [ -z "$CWS_REFRESH_TOKEN" ]; then
-            echo "::notice::The Chrome Web Store secrets are not set; nothing to do."
-            echo "release=false" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          token=$(curl -sS --fail-with-body https://oauth2.googleapis.com/token \
-            -d client_id="$CWS_CLIENT_ID" -d client_secret="$CWS_CLIENT_SECRET" \
-            -d refresh_token="$CWS_REFRESH_TOKEN" -d grant_type=refresh_token | jq -r .access_token)
-          echo "::add-mask::$token"
-          echo "$token" > "$RUNNER_TEMP/cws-token"
-
           ours=$(node -p "require('./chrome-extension/package.json').version")
-          theirs=$(curl -sS --fail-with-body -H "Authorization: Bearer $token" \
-            -H "x-goog-api-version: 2" "$CWS_API/$CWS_EXTENSION_ID?projection=DRAFT" | jq -r '.crxVersion // "0"')
+          status=$(curl -sS --fail-with-body -H "Authorization: Bearer $TOKEN" "$CWS_API/$ITEM:fetchStatus")
+          # The newest version the store knows: published, or submitted and in review.
+          theirs=$(echo "$status" | jq -r '
+            [.publishedItemRevisionStatus, .submittedItemRevisionStatus]
+            | map(.distributionChannels // [] | .[].crxVersion) | .[]' | sort -V | tail -n 1)
+          theirs=${theirs:-0}
           echo "chrome-extension/package.json: $ours, store: $theirs"
           newest=$(printf '%s\n%s\n' "$ours" "$theirs" | sort -V | tail -n 1)
           if [ "$ours" != "$theirs" ] && [ "$newest" = "$ours" ]; then
@@ -90,20 +96,29 @@ jobs:
 
       - name: Upload and submit for review
         if: steps.store.outputs.release == 'true'
+        env:
+          TOKEN: ${{ steps.google.outputs.access_token }}
         run: |
-          token=$(cat "$RUNNER_TEMP/cws-token")
           zip=$(ls dist-zip/*.zip | head -n 1)
 
-          uploaded=$(curl -sS -X PUT -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
-            -T "$zip" "$CWS_UPLOAD_API/$CWS_EXTENSION_ID")
-          echo "$uploaded" | jq '{uploadState, itemError}'
-          [ "$(echo "$uploaded" | jq -r .uploadState)" = "SUCCESS" ]
+          uploaded=$(curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" \
+            -T "$zip" "$CWS_UPLOAD_API/$ITEM:upload")
+          echo "$uploaded" | jq '{uploadState, crxVersion}'
+          state=$(echo "$uploaded" | jq -r .uploadState)
 
-          published=$(curl -sS -X POST -H "Authorization: Bearer $token" -H "x-goog-api-version: 2" \
-            -H "Content-Length: 0" "$CWS_API/$CWS_EXTENSION_ID/publish")
-          echo "$published" | jq '{status, statusDetail}'
-          echo "$published" | jq -e '.status | index("OK") or index("ITEM_PENDING_REVIEW")' > /dev/null
+          # A large package is processed after the request returns.
+          for _ in $(seq 1 30); do
+            [[ "$state" == *IN_PROGRESS* ]] || break
+            sleep 10
+            state=$(curl -sS --fail-with-body -H "Authorization: Bearer $TOKEN" "$CWS_API/$ITEM:fetchStatus" \
+              | jq -r .lastAsyncUploadState)
+            echo "upload: $state"
+          done
+          if [[ "$state" != *SUCCE* ]]; then
+            echo "::error::The store did not accept the package: $state"
+            exit 1
+          fi
 
-      - name: Forget the access token
-        if: always()
-        run: rm -f "$RUNNER_TEMP/cws-token"
+          published=$(curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" \
+            -H "Content-Type: application/json" -d '{}' "$CWS_API/$ITEM:publish")
+          echo "$published" | jq '{state, warningInfo}'
