@@ -1,18 +1,28 @@
 name: Publish to the Chrome Web Store
 
-# Releases when the version in chrome-extension/package.json is newer than the one the store
-# has: bump the version in a pull request, and merging it submits the build for review.
+# Every merge to main that changes the extension is released: the build is uploaded and
+# submitted for review, and the store publishes it by itself when the review passes.
+#
+# The version is chosen here, not committed: one patch above the newest version the store
+# has. For a minor or major release, set that version in chrome-extension/package.json (and
+# package.json); it is used as it is while it is ahead of the store. Each release is tagged
+# v<version>. A build that is still in review is withdrawn and replaced by the new one.
+#
+# Nothing is released for changes to workflows or Markdown only, or when the merged
+# commit's message contains [skip release].
 #
 # There are no secrets. Google trusts this repository's main branch (workload identity
 # federation, project jobjourney-extension) to act as a service account, and that service
-# account is the one the store's developer dashboard lists under Account.
+# account is the one the store's developer dashboard lists under Publisher > Settings.
 #
-# Needs one repository variable, CWS_PUBLISHER_ID (dashboard, Publisher > Settings).
-# Without it the workflow does nothing.
+# Needs one repository variable, CWS_PUBLISHER_ID (same page). Without it nothing runs.
 
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - '.github/**'
+      - '**/*.md'
   workflow_dispatch:
 
 concurrency:
@@ -20,7 +30,8 @@ concurrency:
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  # To push the release tag.
+  contents: write
   id-token: write
 
 env:
@@ -36,7 +47,7 @@ defaults:
 jobs:
   publish:
     runs-on: ubuntu-latest
-    if: vars.CWS_PUBLISHER_ID != ''
+    if: "vars.CWS_PUBLISHER_ID != '' && !contains(github.event.head_commit.message, '[skip release]')"
     steps:
       - uses: actions/checkout@v4
 
@@ -49,39 +60,43 @@ jobs:
           token_format: access_token
           access_token_scopes: https://www.googleapis.com/auth/chromewebstore
 
-      - name: Compare with the version in the store
-        id: store
+      - name: Choose the version
+        id: version
         env:
           TOKEN: ${{ steps.google.outputs.access_token }}
         run: |
-          ours=$(node -p "require('./chrome-extension/package.json').version")
+          ours=$(jq -r .version chrome-extension/package.json)
           status=$(curl -sS --fail-with-body -H "Authorization: Bearer $TOKEN" "$CWS_API/$ITEM:fetchStatus")
           # The newest version the store knows: published, or submitted and in review.
           theirs=$(echo "$status" | jq -r '
             [.publishedItemRevisionStatus, .submittedItemRevisionStatus]
             | map(.distributionChannels // [] | .[].crxVersion) | .[]' | sort -V | tail -n 1)
-          theirs=${theirs:-0}
-          echo "chrome-extension/package.json: $ours, store: $theirs"
+          theirs=${theirs:-0.0.0}
           newest=$(printf '%s\n%s\n' "$ours" "$theirs" | sort -V | tail -n 1)
           if [ "$ours" != "$theirs" ] && [ "$newest" = "$ours" ]; then
-            echo "release=true" >> "$GITHUB_OUTPUT"
+            next=$ours
           else
-            echo "::notice::The store already has $theirs; bump the version to release."
-            echo "release=false" >> "$GITHUB_OUTPUT"
+            IFS=. read -r major minor patch <<< "$theirs"
+            next="$major.$minor.$((patch + 1))"
           fi
+          echo "chrome-extension/package.json: $ours, store: $theirs, releasing: $next"
+          echo "next=$next" >> "$GITHUB_OUTPUT"
+          echo "in_review=$(echo "$status" | jq -r '.submittedItemRevisionStatus.state // ""')" >> "$GITHUB_OUTPUT"
 
       - uses: pnpm/action-setup@v4
-        if: steps.store.outputs.release == 'true'
 
       - uses: actions/setup-node@v4
-        if: steps.store.outputs.release == 'true'
         with:
           node-version-file: '.nvmrc'
           cache: pnpm
 
       - name: Build the production zip
-        if: steps.store.outputs.release == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.next }}
         run: |
+          for file in package.json chrome-extension/package.json; do
+            jq --arg version "$VERSION" '.version = $version' "$file" > "$file.tmp" && mv "$file.tmp" "$file"
+          done
           pnpm install --frozen-lockfile --prefer-offline
           [ -f .env ] || cp .example.env .env
           pnpm manifest:prod
@@ -89,17 +104,24 @@ jobs:
           ls -l dist-zip
 
       - uses: actions/upload-artifact@v4
-        if: steps.store.outputs.release == 'true'
         with:
-          name: extension-zip
+          name: extension-${{ steps.version.outputs.next }}
           path: dist-zip/*.zip
 
       - name: Upload and submit for review
-        if: steps.store.outputs.release == 'true'
         env:
           TOKEN: ${{ steps.google.outputs.access_token }}
+          VERSION: ${{ steps.version.outputs.next }}
+          IN_REVIEW: ${{ steps.version.outputs.in_review }}
         run: |
           zip=$(ls dist-zip/*.zip | head -n 1)
+
+          # The store takes no new package while one is in review.
+          if [ "$IN_REVIEW" = "PENDING_REVIEW" ]; then
+            echo "Withdrawing the build that is in review."
+            curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" \
+              -H "Content-Type: application/json" -d '{}' "$CWS_API/$ITEM:cancelSubmission"
+          fi
 
           uploaded=$(curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" \
             -T "$zip" "$CWS_UPLOAD_API/$ITEM:upload")
@@ -122,3 +144,11 @@ jobs:
           published=$(curl -sS --fail-with-body -X POST -H "Authorization: Bearer $TOKEN" \
             -H "Content-Type: application/json" -d '{}' "$CWS_API/$ITEM:publish")
           echo "$published" | jq '{state, warningInfo}'
+          echo "::notice::Version $VERSION is submitted for review."
+
+      - name: Tag the release
+        env:
+          VERSION: ${{ steps.version.outputs.next }}
+        run: |
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
