@@ -20,6 +20,10 @@ export interface JobData {
   isAlreadyApplied?: boolean;
   appliedDateUtc?: string | null;
   applicantCount?: string;
+  /** intern, graduate, junior, mid, senior or lead; empty when unknown. */
+  experienceLevel?: string;
+  /** Years of experience the job asks for (the lower end of a range). */
+  experienceYears?: number | null;
   analysis?: JobAnalysisResult;
 }
 

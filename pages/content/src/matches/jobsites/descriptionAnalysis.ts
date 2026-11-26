@@ -174,82 +174,102 @@ export const detectEmploymentType = (text: string): EmploymentTypeResult => {
   return { type: 'unknown', confidence: 'low', reasoning: 'No clear employment type found.' };
 };
 
-export const detectExperienceLevel = (text: string): ExperienceLevelResult => {
-  let level: ExperienceLevelResult['level'] = 'unknown';
-  let years: number | null = null;
-  let confidence: ExperienceLevelResult['confidence'] = 'low';
-  let reasoning = '';
+type Level = ExperienceLevelResult['level'];
 
-  // Detect years of experience
-  const yearsMatch = text.match(/(\d+)(\+)?\s*(?:-\s*\d+\s*)?years?/i);
-  if (yearsMatch) {
-    years = parseInt(yearsMatch[1], 10);
-  }
+// In a job title the words are about the role itself, so plain keywords are enough.
+// "Manager" alone is left out: a Product Manager isn't a people lead.
+const TITLE_LEVELS: Array<[Level, RegExp]> = [
+  ['intern', /\b(intern|internship)\b/i],
+  ['graduate', /\b(graduate|grad)\b/i],
+  ['junior', /\b(junior|jr\.?|entry[\s-]level)\b/i],
+  ['senior', /\b(senior|sr\.?|principal|staff)\b/i],
+  [
+    'lead',
+    /\b(lead|head\s+of|director|vp|vice\s+president|(?:engineering|development|delivery|technology)\s+manager)\b/i,
+  ],
+  ['mid', /\b(mid[\s-]level|intermediate)\b/i],
+];
 
-  // Detect level keywords
-  // Senior
-  if (/\b(senior|sr\.?|principal|staff\s+(?:engineer|developer|software))\b/i.test(text)) {
-    level = 'senior';
-    confidence = 'high';
-    reasoning = 'Explicitly mentions Senior/Principal/Staff role.';
-  }
-  // Lead / Manager
-  else if (
-    /\b((?:team|tech|technical|engineering|product)\s+lead|lead\s+(?:developer|engineer|designer|data)|manager|head\s+of|director|vp)\b/i.test(
-      text,
-    )
-  ) {
-    // Check if it says "Reporting to..." which might trigger false positives for "Head of" etc.
-    // This is a simple check, might need more robust context analysis later
-    if (!/reporting\s+to\s+(?:the\s+)?(?:head\s+of|director|vp|manager)/i.test(text)) {
-      level = 'lead';
-      confidence = 'high';
-      reasoning = 'Explicitly mentions Lead/Manager/Director role.';
+// A description mentions "senior stakeholders", "graduate degree" or "reporting to the
+// Head of…" without saying anything about the role, so only phrases about the role count.
+const DESCRIPTION_LEVELS: Array<[Level, RegExp]> = [
+  ['intern', /\b(internship|intern\s+(?:program|programme|role|position))\b/i],
+  ['graduate', /\bgraduate\s+(?:program|programme|role|position|opportunity|engineer|developer|analyst|consultant)\b/i],
+  [
+    'junior',
+    /\b(?:entry[\s-]level|junior\s+(?:level|role|position|engineer|developer|analyst|designer|consultant))\b/i,
+  ],
+  [
+    'senior',
+    /\b(?:senior|sr\.?)\s+(?:level|role|position|engineer|developer|analyst|designer|consultant|architect|[a-z]+\s+(?:engineer|developer))\b/i,
+  ],
+  ['mid', /\b(mid[\s-]level|intermediate)\b/i],
+];
+
+const YEARS = String.raw`(\d{1,2})\s*\+?\s*(?:(?:-|–|to)\s*\d{1,2}\s*)?\+?\s*(?:years?|yrs?)`;
+// "3+ years of experience", "3-5 years' commercial experience", "Experience: 5+ years",
+// "a minimum of 4 years". A number of years with no experience wording nearby
+// ("20 years in business") doesn't count.
+const YEARS_PATTERNS = [
+  new RegExp(
+    String.raw`${YEARS}['’]?(?=[^.;,\n]{0,30}?\b(?:experience|exp\b|commercial|professional|industry|hands[\s-]on))`,
+    'i',
+  ),
+  new RegExp(String.raw`\bexperience\b[^.;\n]{0,30}?${YEARS}`, 'i'),
+  new RegExp(String.raw`\b(?:minimum(?:\s+of)?|at\s+least|min\.?)\s+${YEARS}`, 'i'),
+];
+
+/** The years of experience a description asks for (the lower end of a range), or null. */
+export const detectExperienceYears = (text: string): number | null => {
+  let found: { index: number; years: number } | null = null;
+  for (const pattern of YEARS_PATTERNS) {
+    const match = pattern.exec(text);
+    if (match && (!found || match.index < found.index)) {
+      found = { index: match.index, years: parseInt(match[1], 10) };
     }
   }
-  // Junior / Entry
-  else if (/\b(junior|jr\.?|entry\s+level|entry-level)\b/i.test(text)) {
-    level = 'junior';
-    confidence = 'high';
-    reasoning = 'Explicitly mentions Junior/Entry Level.';
-  }
-  // Graduate
-  else if (/\b(graduate|grad)\b/i.test(text)) {
-    level = 'graduate';
-    confidence = 'high';
-    reasoning = 'Explicitly mentions Graduate.';
-  }
-  // Intern
-  else if (/\b(intern|internship)\b/i.test(text)) {
-    level = 'intern';
-    confidence = 'high';
-    reasoning = 'Explicitly mentions Intern.';
-  }
-  // Mid-level
-  else if (/\b(mid-level|mid\s+level|intermediate)\b/i.test(text)) {
-    level = 'mid';
-    confidence = 'high';
-    reasoning = 'Explicitly mentions Mid-level.';
-  } else {
-    // Heuristics based on years
-    if (years !== null) {
-      if (years >= 5) {
-        level = 'senior';
-        confidence = 'medium';
-        reasoning = `Inferred Senior from ${years}+ years experience.`;
-      } else if (years >= 3) {
-        level = 'mid';
-        confidence = 'medium';
-        reasoning = `Inferred Mid-level from ${years}+ years experience.`;
-      } else if (years >= 0) {
-        level = 'junior';
-        confidence = 'medium';
-        reasoning = `Inferred Junior from ${years} years experience.`;
-      }
-    }
+  return found && found.years <= 30 ? found.years : null;
+};
+
+const LEVEL_NAMES: Record<Level, string> = {
+  intern: 'Intern',
+  graduate: 'Graduate',
+  junior: 'Junior',
+  mid: 'Mid-level',
+  senior: 'Senior',
+  lead: 'Lead',
+  unknown: 'Unknown',
+};
+
+export const detectExperienceLevel = (text: string, title = ''): ExperienceLevelResult => {
+  const years = detectExperienceYears(text);
+
+  const fromTitle = TITLE_LEVELS.find(([, pattern]) => pattern.test(title));
+  if (fromTitle) {
+    return {
+      level: fromTitle[0],
+      years,
+      confidence: 'high',
+      reasoning: `The title says ${LEVEL_NAMES[fromTitle[0]]}.`,
+    };
   }
 
-  return { level, years, confidence, reasoning };
+  const fromDescription = DESCRIPTION_LEVELS.find(([, pattern]) => pattern.test(text));
+  if (fromDescription) {
+    return {
+      level: fromDescription[0],
+      years,
+      confidence: 'high',
+      reasoning: `The description asks for a ${LEVEL_NAMES[fromDescription[0]]} role.`,
+    };
+  }
+
+  if (years !== null) {
+    const level: Level = years >= 5 ? 'senior' : years >= 3 ? 'mid' : 'junior';
+    return { level, years, confidence: 'medium', reasoning: `Inferred ${LEVEL_NAMES[level]} from ${years}+ years.` };
+  }
+
+  return { level: 'unknown', years: null, confidence: 'low', reasoning: 'No level or years found.' };
 };
 
 export const extractTechStack = (text: string): TechStackResult => {
@@ -278,11 +298,12 @@ export const extractTechStack = (text: string): TechStackResult => {
   };
 };
 
-export const analyzeJobDescription = (text: string): JobAnalysisResult => {
+/** `title` is the job's title, which says more about the level than the description. */
+export const analyzeJobDescription = (text: string, title = ''): JobAnalysisResult => {
   return {
     workArrangement: detectWorkArrangement(text),
     employmentType: detectEmploymentType(text),
-    experienceLevel: detectExperienceLevel(text),
+    experienceLevel: detectExperienceLevel(text, title),
     techStack: extractTechStack(text),
     prDetection: detectCitizenshipRequirements(text),
   };

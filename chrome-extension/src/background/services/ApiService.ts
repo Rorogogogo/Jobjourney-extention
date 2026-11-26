@@ -185,6 +185,8 @@ export class ApiService {
       WorkArrangement: jobData.WorkArrangement?.trim() || '',
       RequiredSkills: jobData.RequiredSkills?.trim() || '',
       ApplicantCount: jobData.ApplicantCount?.trim() || '',
+      ExperienceLevel: jobData.ExperienceLevel?.trim() || '',
+      ExperienceYears: typeof jobData.ExperienceYears === 'number' ? jobData.ExperienceYears : null,
       PostedDate: jobData.PostedDate?.trim() || '',
       Platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
       CompanyLogoUrl: jobData.CompanyLogoUrl || null,

@@ -43,7 +43,7 @@ export class JobDataExtractor {
       }
 
       if (jobData && jobData.description) {
-        jobData.analysis = analyzeJobDescription(jobData.description);
+        jobData.analysis = analyzeJobDescription(jobData.description, jobData.title);
       }
 
       // Detect applied status for supported platforms

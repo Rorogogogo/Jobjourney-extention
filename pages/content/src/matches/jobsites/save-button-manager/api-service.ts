@@ -26,6 +26,8 @@ export class ApiService {
         Salary: jobData.salary || '',
         PostedDate: jobData.postedDate || '',
         ApplicantCount: jobData.applicantCount || '',
+        ExperienceLevel: jobData.experienceLevel || fallback.experienceLevel,
+        ExperienceYears: jobData.experienceYears ?? fallback.experienceYears,
         CompanyLogoUrl: jobData.companyLogoUrl || null,
         PlatformName: jobData.platform || platform,
         Status: jobData.isAlreadyApplied ? 2 : 1, // 2 = Applied, 1 = Saved

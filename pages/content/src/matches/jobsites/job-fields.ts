@@ -19,6 +19,8 @@ export function analysisFallbacks(analysis: JobAnalysisResult | undefined) {
     jobType: label(analysis?.employmentType?.type),
     workArrangement: label(analysis?.workArrangement?.type),
     requiredSkills: analysis?.techStack?.technologies?.join(', ') || '',
+    experienceLevel: analysis?.experienceLevel?.level === 'unknown' ? '' : analysis?.experienceLevel?.level || '',
+    experienceYears: analysis?.experienceLevel?.years ?? null,
   };
 }
 

@@ -70,7 +70,7 @@ export class Job {
     this.isPRRequired = prResult.isPRRequired;
 
     // Perform comprehensive analysis
-    this.analysis = analyzeJobDescription(this.description);
+    this.analysis = analyzeJobDescription(this.description, this.title);
   }
 
   // Custom JSON serialization to ensure proper field names
@@ -89,6 +89,8 @@ export class Job {
       jobType: this.jobType || fallback.jobType,
       workArrangement: this.workArrangement || fallback.workArrangement,
       requiredSkills: fallback.requiredSkills,
+      experienceLevel: fallback.experienceLevel,
+      experienceYears: fallback.experienceYears,
       applicantCount: this.applicantCount,
       isPRRequired: this.isPRRequired,
       isAlreadyApplied: this.isAlreadyApplied,
