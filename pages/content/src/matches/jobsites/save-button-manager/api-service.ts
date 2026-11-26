@@ -1,6 +1,7 @@
 // API service for saving jobs
 import { MessageType } from '@extension/types';
 import type { JobData, PlatformId } from '@extension/types';
+import { analysisFallbacks } from '../job-fields';
 import { PRRequirementDetector } from './pr-requirement-detector';
 
 export class ApiService {
@@ -8,6 +9,8 @@ export class ApiService {
     try {
       // Determine IsPRRequired based on platform type
       const isPRRequired = PRRequirementDetector.determinePRRequirement(jobData, platform);
+      // What the page didn't show, read from the description.
+      const fallback = analysisFallbacks(jobData.analysis);
 
       // Prepare job data for API
       // Status: 1 = Saved, 2 = Applied
@@ -17,9 +20,14 @@ export class ApiService {
         Location: jobData.location,
         JobUrl: jobData.jobUrl,
         Description: jobData.description || '',
-        RequiredSkills: jobData.requiredSkills || '',
-        EmploymentTypes: jobData.jobType || '',
-        WorkArrangement: jobData.workArrangement || '',
+        RequiredSkills: jobData.requiredSkills || fallback.requiredSkills,
+        EmploymentTypes: jobData.jobType || fallback.jobType,
+        WorkArrangement: jobData.workArrangement || fallback.workArrangement,
+        Salary: jobData.salary || '',
+        PostedDate: jobData.postedDate || '',
+        ApplicantCount: jobData.applicantCount || '',
+        ExperienceLevel: jobData.experienceLevel || fallback.experienceLevel,
+        ExperienceYears: jobData.experienceYears ?? fallback.experienceYears,
         CompanyLogoUrl: jobData.companyLogoUrl || null,
         PlatformName: jobData.platform || platform,
         Status: jobData.isAlreadyApplied ? 2 : 1, // 2 = Applied, 1 = Saved
