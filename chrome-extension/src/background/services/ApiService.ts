@@ -172,7 +172,8 @@ export class ApiService {
       return { success: false, error: 'Authentication required' };
     }
 
-    // Prepare JSON payload matching backend JobMarketDto (PascalCase)
+    // `JobMarketDto` on the API (names match ignoring case). Every field the content
+    // script read is passed on; the API keeps them all.
     const payload = {
       Title: jobData.Name?.trim() || '',
       Company: jobData.CompanyName?.trim() || '',
@@ -181,11 +182,14 @@ export class ApiService {
       Description: jobData.Description?.trim() || '',
       Salary: jobData.Salary?.trim() || '',
       JobType: jobData.EmploymentTypes?.trim() || '',
+      WorkArrangement: jobData.WorkArrangement?.trim() || '',
+      RequiredSkills: jobData.RequiredSkills?.trim() || '',
+      ApplicantCount: jobData.ApplicantCount?.trim() || '',
       PostedDate: jobData.PostedDate?.trim() || '',
       Platform: jobData.PlatformName?.trim() || 'JobJourney Extension',
       CompanyLogoUrl: jobData.CompanyLogoUrl || null,
       IsPRRequired: jobData.IsPRRequired === true || jobData.IsPRRequired === 'true',
-      IsAlreadyApplied: jobData.IsAlreadyApplied === true,
+      IsAlreadyApplied: jobData.IsAlreadyApplied === true || jobData.Status === 2,
       AppliedDateUtc: jobData.AppliedDateUtc || null,
     };
 

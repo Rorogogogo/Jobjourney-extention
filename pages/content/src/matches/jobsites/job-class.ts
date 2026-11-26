@@ -6,6 +6,7 @@
 import type { JobAnalysisResult, JobConstructorParams } from '@extension/types';
 import { detectPRRequirement } from '@extension/shared';
 import { analyzeJobDescription } from './descriptionAnalysis';
+import { analysisFallbacks } from './job-fields';
 
 /**
  * Job class - represents a scraped job listing
@@ -74,6 +75,7 @@ export class Job {
 
   // Custom JSON serialization to ensure proper field names
   toJSON() {
+    const fallback = analysisFallbacks(this.analysis);
     return {
       title: this.title,
       company: this.company,
@@ -84,9 +86,9 @@ export class Job {
       postedDate: this.postedDate,
       companyLogoUrl: this.companyLogoUrl,
       platform: this.platform,
-      jobType: this.jobType || this.analysis.employmentType?.type || '',
-      workArrangement: this.workArrangement || this.analysis.workArrangement?.type || '',
-      requiredSkills: this.analysis.techStack?.technologies?.join(', ') || '',
+      jobType: this.jobType || fallback.jobType,
+      workArrangement: this.workArrangement || fallback.workArrangement,
+      requiredSkills: fallback.requiredSkills,
       applicantCount: this.applicantCount,
       isPRRequired: this.isPRRequired,
       isAlreadyApplied: this.isAlreadyApplied,

@@ -2,6 +2,7 @@
 import type { JobData, PlatformId } from '@extension/types';
 import { analyzeJobDescription } from '../descriptionAnalysis';
 import { readLinkedInDetail } from '../linkedin-layout';
+import { leafTextMatching, workArrangementIn } from '../job-fields';
 import { AppliedStatusDetector } from './applied-status-detector';
 
 export class JobDataExtractor {
@@ -144,6 +145,11 @@ export class JobDataExtractor {
           location: detail.location,
           jobUrl: detail.jobUrl,
           description: detail.description,
+          salary: detail.salary,
+          postedDate: detail.postedDate,
+          jobType: detail.jobType,
+          workArrangement: detail.workplaceType,
+          applicantCount: detail.applicantCount,
           platform: 'LinkedIn',
           companyLogoUrl: detail.companyLogoUrl || undefined,
         };
@@ -234,7 +240,11 @@ export class JobDataExtractor {
       '[data-testid="inlineHeader-companyLocation"] div, div[data-testid="jobsearch-JobInfoHeader-companyLocation"] div:first-child',
     );
     const descriptionElement = document.querySelector('#jobDescriptionText');
-    const jobTypeElement = document.querySelector('#salaryInfoAndJobType .css-18poi35');
+    const details = document.querySelector('#jobDetailsSection, #salaryInfoAndJobType');
+    const payElement = details?.querySelector('[aria-label="Pay"] [data-testid*="-tile"] span');
+    const jobTypeElement =
+      details?.querySelector('[aria-label="Job type"] [data-testid*="-tile"] span') ||
+      document.querySelector('#salaryInfoAndJobType .css-18poi35');
 
     // Extract company logo - from actual Indeed DOM structure
     const logoElement = document.querySelector(
@@ -251,6 +261,8 @@ export class JobDataExtractor {
       jobUrl: window.location.href,
       description: descriptionElement?.textContent?.trim() || '',
       jobType: jobTypeElement?.textContent?.trim() || '',
+      salary: payElement?.textContent?.trim() || '',
+      workArrangement: workArrangementIn(locationElement?.textContent),
       platform: 'Indeed',
       companyLogoUrl: companyLogoUrl,
     };
@@ -302,6 +314,11 @@ export class JobDataExtractor {
     const locationElement = document.querySelector('[data-automation="job-detail-location"]');
     const descriptionElement = document.querySelector('[data-automation="jobAdDetails"]');
     const workTypeElement = document.querySelector('[data-automation="job-detail-work-type"]');
+    const salaryElement = document.querySelector('[data-automation="job-detail-salary"]');
+    const workArrangementElement = document.querySelector(
+      '[data-automation="job-detail-work-arrangement"], [data-testid="work-arrangement"]',
+    );
+    const postedText = leafTextMatching(document, /^Posted\s+\d+[dwhmy]\s+ago/i);
 
     // Extract company logo - from SEEK job detail page
     const logoElement = document.querySelector(
@@ -316,6 +333,10 @@ export class JobDataExtractor {
       jobUrl: window.location.href,
       description: descriptionElement?.textContent?.trim() || '',
       jobType: workTypeElement?.textContent?.trim() || '',
+      salary: salaryElement?.textContent?.trim() || '',
+      postedDate: postedText.replace(/^Posted\s+/i, ''),
+      workArrangement:
+        workArrangementIn(workArrangementElement?.textContent) || workArrangementIn(locationElement?.textContent),
       platform: 'SEEK',
       companyLogoUrl: companyLogoUrl,
     };
@@ -358,6 +379,11 @@ export class JobDataExtractor {
 
     const jobTypeBadge = badgeTexts.find(text => /full time|part time|contract|permanent|casual/i.test(text));
     const workArrangementBadge = badgeTexts.find(text => /hybrid|remote|on[- ]?site/i.test(text));
+    const salaryBadge = badgeTexts.find(text => /[$€£]\s?\d|per (hour|year|annum)|\/hr|\/yr/i.test(text));
+    const postedDate =
+      panel?.querySelector('.listed-date, .job-listed-date')?.textContent?.trim() ||
+      activeCard?.querySelector('.job-listed-date, .listed-date')?.textContent?.trim() ||
+      '';
 
     const rawDescription = descriptionElement?.textContent?.trim() || '';
     const description = rawDescription
@@ -375,7 +401,9 @@ export class JobDataExtractor {
       jobUrl,
       description,
       jobType: jobTypeBadge || '',
-      workArrangement: workArrangementBadge || '',
+      workArrangement: workArrangementIn(workArrangementBadge),
+      salary: salaryBadge || '',
+      postedDate,
       platform: 'Jora',
       companyLogoUrl,
     };
