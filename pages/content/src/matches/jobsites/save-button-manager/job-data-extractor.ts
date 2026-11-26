@@ -1,6 +1,7 @@
 // Job data extraction for different platforms
 import type { JobData, PlatformId } from '@extension/types';
 import { analyzeJobDescription } from '../descriptionAnalysis';
+import { readLinkedInDetail } from '../linkedin-layout';
 import { AppliedStatusDetector } from './applied-status-detector';
 
 export class JobDataExtractor {
@@ -134,6 +135,20 @@ export class JobDataExtractor {
     const companyLogoUrl = logoElement?.src || undefined;
 
     if (!titleElement || !companyElement) {
+      // LinkedIn's newer layout (generated class names) has none of the selectors above.
+      const detail = readLinkedInDetail();
+      if (detail?.title && detail.company) {
+        return {
+          title: detail.title,
+          company: detail.company,
+          location: detail.location,
+          jobUrl: detail.jobUrl,
+          description: detail.description,
+          platform: 'LinkedIn',
+          companyLogoUrl: detail.companyLogoUrl || undefined,
+        };
+      }
+
       // Debug: log what LinkedIn's DOM actually looks like so we can fix selectors
       console.log(
         '[JJ Debug] LinkedIn extraction failed. titleElement:',
