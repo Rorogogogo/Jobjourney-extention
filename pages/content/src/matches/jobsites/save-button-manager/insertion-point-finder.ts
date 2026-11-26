@@ -1,5 +1,6 @@
 // Button insertion point finder for different platforms
 import type { PlatformId } from '@extension/types';
+import { readLinkedInDetail } from '../linkedin-layout';
 
 export class InsertionPointFinder {
   static findInsertionPoint(platform: PlatformId): HTMLElement | null {
@@ -32,7 +33,14 @@ export class InsertionPointFinder {
           linkedinTitle = detailPanel.querySelector('h1');
         }
 
-        return linkedinTitle?.parentElement?.parentElement || linkedinTitle?.parentElement || null;
+        if (linkedinTitle) {
+          return linkedinTitle.parentElement?.parentElement || linkedinTitle.parentElement || null;
+        }
+
+        // LinkedIn's newer layout: the title is a <p> (or a link in one) under the company.
+        const newLayoutTitle = readLinkedInDetail()?.titleElement;
+        const titleBlock = newLayoutTitle?.closest('p') || newLayoutTitle;
+        return titleBlock?.parentElement || null;
       }
 
       case 'indeed':

@@ -1,5 +1,6 @@
 // Applied status detection for different platforms
 import type { PlatformId, AppliedStatusResult } from '@extension/types';
+import { readLinkedInDetail } from '../linkedin-layout';
 
 export class AppliedStatusDetector {
   /**
@@ -53,6 +54,17 @@ export class AppliedStatusDetector {
       return {
         isApplied: true,
         detectionSource: 'inferred',
+      };
+    }
+
+    // LinkedIn's newer layout: "Applied 2 days ago" in the job's top card.
+    const appliedText = readLinkedInDetail()?.appliedText;
+    if (appliedText) {
+      return {
+        isApplied: true,
+        appliedDateUtc: this.parseRelativeTimeToUtc(appliedText),
+        detectionSource: 'explicit',
+        rawText: appliedText,
       };
     }
 

@@ -107,7 +107,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'New Orleans, LA',
     ],
     urls: {
-      linkedin: 'https://www.linkedin.com/jobs/search/',
+      linkedin: 'https://www.linkedin.com/jobs/search-results/',
       indeed: 'https://www.indeed.com/jobs',
     },
   },
@@ -159,7 +159,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Goulburn, NSW',
     ],
     urls: {
-      linkedin: 'https://www.linkedin.com/jobs/search/',
+      linkedin: 'https://www.linkedin.com/jobs/search-results/',
       seek: 'https://au.seek.com',
       indeed: 'https://au.indeed.com/jobs',
       jora: 'https://au.jora.com/',
@@ -216,7 +216,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Inverness',
     ],
     urls: {
-      linkedin: 'https://www.linkedin.com/jobs/search/',
+      linkedin: 'https://www.linkedin.com/jobs/search-results/',
       reed: 'https://www.reed.co.uk/jobs',
       indeed: 'https://uk.indeed.com/jobs',
     },
@@ -269,7 +269,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Charlottetown, PE',
     ],
     urls: {
-      linkedin: 'https://www.linkedin.com/jobs/search/',
+      linkedin: 'https://www.linkedin.com/jobs/search-results/',
       indeed: 'https://ca.indeed.com/jobs',
     },
   },
@@ -311,7 +311,7 @@ export const COUNTRIES: Record<string, CountryConfig> = {
       'Rangiora',
     ],
     urls: {
-      linkedin: 'https://www.linkedin.com/jobs/search/',
+      linkedin: 'https://www.linkedin.com/jobs/search-results/',
       seek: 'https://nz.seek.com',
     },
   },
@@ -359,9 +359,16 @@ export const buildSearchUrl = (
 
   switch (platform) {
     case 'linkedin': {
-      let linkedinUrl = `${baseUrl}?keywords=${encodedKeywords}`;
-      if (location) linkedinUrl += `&location=${encodedLocation}`;
-      return linkedinUrl;
+      // LinkedIn's job search (/jobs/search-results/) drops a `location` parameter and
+      // searches near the member's own location instead, but it reads a place written
+      // into the search ("software engineer in London") and sets its filter from that.
+      const countryName = countryConfig?.name || '';
+      let place = location || countryName;
+      if (location && countryName && !location.toLowerCase().includes(countryName.toLowerCase())) {
+        place = `${location}, ${countryName}`;
+      }
+      const search = place ? `${keywords} in ${place}` : keywords;
+      return `${baseUrl}?keywords=${encodeURIComponent(search)}`;
     }
 
     case 'seek': {

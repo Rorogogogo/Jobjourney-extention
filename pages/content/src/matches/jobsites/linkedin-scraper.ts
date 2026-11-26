@@ -1,5 +1,13 @@
 // LinkedIn scraper from working version
 import { MessageType } from '@extension/types';
+import {
+  findLinkedInCards,
+  isNewLinkedInLayout,
+  linkedInNextPageButton,
+  openLinkedInJobId,
+  readLinkedInDetail,
+} from './linkedin-layout';
+import type { LinkedInDetail } from './linkedin-layout';
 
 export {};
 
@@ -643,6 +651,147 @@ const scrapeJobDetailFromPanel = (): any => {
   }
 };
 
+// A Job from what the new layout's detail panel shows.
+const jobFromLinkedInDetail = (detail: LinkedInDetail): any =>
+  (window as any).Job.createFromLinkedIn({
+    title: detail.title,
+    company: detail.company,
+    location: detail.location,
+    jobUrl: detail.jobUrl,
+    description: detail.descriptionElement
+      ? cleanAndFormatContent(detail.descriptionElement).replace(/^\s*About the job\s*/i, '')
+      : detail.description,
+    salary: detail.salary,
+    postedDate: detail.postedDate,
+    companyLogoUrl: detail.companyLogoUrl || null,
+    jobType: detail.jobType,
+    workplaceType: detail.workplaceType,
+    applicantCount: detail.applicantCount,
+    isAlreadyApplied: !!detail.appliedText,
+    appliedDateUtc: detail.appliedText ? parseRelativeTimeToUtc(detail.appliedText) : null,
+  });
+
+// One page of LinkedIn's new job search (/jobs/search-results/), or a new-layout
+// /jobs/view/ page: click each card, wait until the panel shows that job, read it.
+const scrapeNewLayoutPage = async (): Promise<{ jobs: any[]; nextUrl: string | null; stopped: boolean }> => {
+  const jobs: any[] = [];
+  const cards = findLinkedInCards();
+  console.log('Found LinkedIn job cards (new layout):', cards.length);
+
+  if (cards.length === 0) {
+    const detail = readLinkedInDetail();
+    if (detail?.title && detail.company) jobs.push(jobFromLinkedInDetail(detail));
+    return { jobs, nextUrl: null, stopped: false };
+  }
+
+  const total = Math.min(cards.length, 30);
+  for (let i = 0; i < total; i++) {
+    const card = cards[i];
+    try {
+      try {
+        chrome.runtime.sendMessage({
+          type: MessageType.SCRAPING_PROGRESS,
+          data: { platform: 'linkedin', current: i + 1, total, jobsFound: jobs.length },
+        });
+      } catch (progressError) {
+        if (progressError instanceof Error && progressError.message.includes('Extension context invalidated')) {
+          console.log('🔄 Extension reloaded, stopping scraping gracefully');
+          return { jobs, nextUrl: null, stopped: true };
+        }
+        console.warn('Failed to send progress update:', progressError);
+      }
+
+      // The list renders lazily; a card that was replaced is found again by its key.
+      const element = card.element.isConnected
+        ? card.element
+        : document.querySelector<HTMLElement>(`[componentkey="job-card-component-ref-${card.jobId}"][role="button"]`);
+      if (!element) {
+        console.warn(`LinkedIn card ${card.jobId} is no longer on the page, skipping`);
+        continue;
+      }
+
+      if (openLinkedInJobId() !== card.jobId) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await new Promise(resolve => setTimeout(resolve, 150));
+        element.click();
+      }
+
+      // Wait until the description belongs to this job.
+      let isLoaded = false;
+      for (let attempt = 0; attempt < 40; attempt++) {
+        if (openLinkedInJobId() === card.jobId) {
+          isLoaded = true;
+          break;
+        }
+        await new Promise(resolve => setTimeout(resolve, 250));
+      }
+      if (isLoaded) await new Promise(resolve => setTimeout(resolve, 400));
+
+      // The description's block can arrive empty and fill a moment later.
+      let detail = isLoaded ? readLinkedInDetail() : null;
+      for (let attempt = 0; detail && !detail.description && attempt < 12; attempt++) {
+        await new Promise(resolve => setTimeout(resolve, 250));
+        detail = readLinkedInDetail();
+      }
+      if (detail?.title && detail.company) {
+        jobs.push(jobFromLinkedInDetail({ ...detail, jobId: card.jobId }));
+        console.log(`Successfully scraped LinkedIn job: ${detail.title}`);
+      } else if (card.title) {
+        console.log(`LinkedIn details didn't load for "${card.title}", using the card`);
+        jobs.push(
+          (window as any).Job.createFromLinkedIn({
+            title: card.title,
+            company: card.company,
+            location: card.location,
+            jobUrl: `https://www.linkedin.com/jobs/view/${card.jobId}/`,
+          }),
+        );
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 800 + Math.random() * 400));
+    } catch (error) {
+      console.error(`Error processing LinkedIn card ${i + 1}:`, error);
+      await new Promise(resolve => setTimeout(resolve, 2000));
+    }
+  }
+
+  // `start` still pages through results on the new search page (25 per page).
+  let nextUrl: string | null = null;
+  if (linkedInNextPageButton()) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete('currentJobId');
+    url.searchParams.set('start', String(parseInt(url.searchParams.get('start') || '0', 10) + 25));
+    nextUrl = url.toString();
+  }
+  return { jobs, nextUrl, stopped: false };
+};
+
+// Saves scraped jobs for the side panel, keeping the most recent 1000.
+const storeScrapedJobs = (jobs: any[]) => {
+  try {
+    let existingJobs = [];
+    try {
+      existingJobs = JSON.parse(localStorage.getItem('jobjourney_scraped_jobs') || '[]');
+    } catch (parseError) {
+      console.warn('Failed to parse existing jobs, starting fresh:', parseError);
+    }
+    const trimmedJobs = [...existingJobs, ...jobs].slice(-1000);
+    localStorage.setItem('jobjourney_scraped_jobs', JSON.stringify(trimmedJobs));
+    localStorage.setItem('jobjourney_last_scrape', new Date().toISOString());
+    console.log(`💾 Stored ${jobs.length} LinkedIn jobs in localStorage (total: ${trimmedJobs.length})`);
+  } catch (error) {
+    console.error('Failed to store jobs in localStorage:', error);
+    try {
+      localStorage.removeItem('jobjourney_scraped_jobs');
+      localStorage.removeItem('jobjourney_last_scrape');
+      localStorage.setItem('jobjourney_scraped_jobs', JSON.stringify(jobs));
+      localStorage.setItem('jobjourney_last_scrape', new Date().toISOString());
+    } catch (secondError) {
+      console.error('Failed to store jobs even after clearing:', secondError);
+    }
+  }
+};
+
 // LinkedIn scraper object - exact copy from working version
 const linkedInScraper = {
   isMatch: (url: string) => {
@@ -667,6 +816,26 @@ const linkedInScraper = {
       'div.job-card-job-posting-card-wrapper, li.scaffold-layout__list-item[data-occludable-job-id]',
     );
     console.log('Found LinkedIn job nodes:', jobNodes.length);
+
+    // LinkedIn's newer layout has none of the selectors below. It renders after load, so
+    // give it a few seconds to show up before deciding which layout this is.
+    const isOldLayoutDetail = () =>
+      !!document.querySelector('.jobs-search__job-details--container, .jobs-details__main-content');
+    for (
+      let attempt = 0;
+      jobNodes.length === 0 && !isOldLayoutDetail() && !isNewLinkedInLayout() && attempt < 20;
+      attempt++
+    ) {
+      await new Promise(resolve => setTimeout(resolve, 400));
+    }
+    if (jobNodes.length === 0 && isNewLinkedInLayout()) {
+      const page = await scrapeNewLayoutPage();
+      if (page.stopped) return page.jobs;
+      storeScrapedJobs(page.jobs);
+      console.log(`=== LinkedIn Scraping Complete (new layout): ${page.jobs.length} jobs found ===`);
+      console.log('Next URL:', page.nextUrl);
+      return { jobs: page.jobs, nextUrl: page.nextUrl };
+    }
 
     // Check if we're already on a job details page with no job cards
     const alreadyOnJobDetail =
