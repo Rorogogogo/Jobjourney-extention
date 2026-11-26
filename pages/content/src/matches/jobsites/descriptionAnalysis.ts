@@ -125,32 +125,36 @@ const TECH_KEYWORDS = [
   'Shopify Liquid',
 ];
 
+// "Remote" about the job, not "remote users", "remote sites" or "remote monitoring".
+// "Work from home" and "WFH" are left to hybrid: in Australian ads they're a perk of an
+// office job ("2 days WFH", "WFH flexibility").
+const REMOTE =
+  /\b(?:fully\s+remote|100%\s+remote|remote[\s-](?:first|friendly|role|position|job|opportunity|based)|work(?:ing)?\s+(?:fully\s+)?remotely\s+(?:from|in|anywhere)|fully\s+work\s+from\s+home)\b|\(remote\)|^remote$/im;
+const NOT_REMOTE =
+  /\b(?:(?:no|not|non)(?:\s+an?)?[\s-]remote|(?:does\s+not|doesn't|cannot|can't)\s+(?:support|offer|allow)\s+remote)\b/i;
+// A split week: "3 days in the office", "in office 3 days per week", "2 days WFH".
+const HYBRID =
+  /\b(?:hybrid(?!\s+benefit)|work(?:ing)?\s+from\s+home|wfh|remote\s+working|flexible\s+work(?:ing)?\s+(?:arrangements?|model|options?)|mix\s+of\s+(?:home|remote)\s+and\s+office|[1-4]\s+days?\s+(?:per\s+week\s+|a\s+week\s+)?(?:in\s+(?:the\s+)?office|onsite|on[\s-]site|wfh|from\s+home|remote(?:ly)?)|in\s+(?:the\s+)?office\s+[1-4]\s+days?)\b/i;
+// Where the work is done, not "on-site parking" or "an onsite specialist".
+const ON_SITE =
+  /\b(?:(?:work(?:ing)?|based|located|role\s+is|position\s+is|fully)\s+on[\s-]?site|on[\s-]?site\s+(?:role|position|presence|work|attendance|full[\s-]time|5\s+days)|\(on[\s-]?site\)|in[\s-]office\s+(?:role|position|presence|full[\s-]time|5\s+days)|work\s+from\s+(?:the\s+)?office|office[\s-]based\s+(?:role|position)|must\s+be\s+based\s+in|5\s+days\s+(?:per\s+week\s+|a\s+week\s+)?(?:in\s+(?:the\s+)?office|on[\s-]?site))\b/i;
+
 export const detectWorkArrangement = (text: string): WorkArrangementResult => {
-  const lowerText = text.toLowerCase();
-
-  // Remote
-  if (/\b(remote|work from home|wfh|fully remote)\b/i.test(text)) {
-    // Check for "no remote" or "not remote"
-    if (!/\b(no|not|non)\s+(remote|work from home|wfh)\b/i.test(text)) {
-      return { type: 'remote', confidence: 'high', reasoning: 'Explicitly mentions remote work.' };
-    }
-  }
-
-  // Hybrid
-  if (/\b(hybrid|flexible work|mix of home and office|days? in office)\b/i.test(text)) {
+  // Hybrid first: a hybrid role mentions both the office and working from home.
+  const saysHybrid = /\bhybrid(?!\s+benefit)\b/i.test(text);
+  const fullWeekInOffice = /\b5\s+days\s+(?:per\s+week\s+)?in\s+(?:the\s+)?office\b/i.test(text);
+  // "Does not support remote working" isn't a hybrid role, unless it says hybrid.
+  if (HYBRID.test(text) && !fullWeekInOffice && (saysHybrid || !NOT_REMOTE.test(text))) {
     return { type: 'hybrid', confidence: 'high', reasoning: 'Explicitly mentions hybrid work.' };
   }
-
-  // On-site
-  if (/\b(on-site|in-office|work from office|must be based in|office based)\b/i.test(text)) {
+  if (REMOTE.test(text) && !NOT_REMOTE.test(text)) {
+    return { type: 'remote', confidence: 'high', reasoning: 'Explicitly mentions remote work.' };
+  }
+  if (ON_SITE.test(text)) {
     return { type: 'on-site', confidence: 'high', reasoning: 'Explicitly mentions on-site/office work.' };
   }
-
-  // Fallback heuristics
-  if (lowerText.includes('office') && !lowerText.includes('remote')) {
-    return { type: 'on-site', confidence: 'medium', reasoning: 'Mentions office without remote context.' };
-  }
-
+  // A mention of an office alone ("Office Administrator", "head office", "Office 365")
+  // says nothing about where the work is done.
   return { type: 'unknown', confidence: 'low', reasoning: 'No clear work arrangement found.' };
 };
 
@@ -182,10 +186,15 @@ const TITLE_LEVELS: Array<[Level, RegExp]> = [
   ['intern', /\b(intern|internship)\b/i],
   ['graduate', /\b(graduate|grad)\b/i],
   ['junior', /\b(junior|jr\.?|entry[\s-]level)\b/i],
-  ['senior', /\b(senior|sr\.?|principal|staff)\b/i],
+  // "Staff" only as a level ("Staff Engineer"), not "Retail Staff" or "Staff Accountant".
+  [
+    'senior',
+    /\b(?:senior|sr\.?|principal|staff\s+(?:[a-z-]+\s+){0,2}(?:engineer|developer|designer|scientist|architect))\b/i,
+  ],
+  // Not "Lead Generator", and not "Business Development Manager" (a sales role).
   [
     'lead',
-    /\b(lead|head\s+of|director|vp|vice\s+president|(?:engineering|development|delivery|technology)\s+manager)\b/i,
+    /\b(?:lead(?!\s+generat)|head\s+of|director|vp|vice\s+president|(?:engineering|delivery|technology)\s+manager)\b/i,
   ],
   ['mid', /\b(mid[\s-]level|intermediate)\b/i],
 ];
@@ -193,17 +202,24 @@ const TITLE_LEVELS: Array<[Level, RegExp]> = [
 // A description mentions "senior stakeholders", "graduate degree" or "reporting to the
 // Head of…" without saying anything about the role, so only phrases about the role count.
 const DESCRIPTION_LEVELS: Array<[Level, RegExp]> = [
-  ['intern', /\b(internship|intern\s+(?:program|programme|role|position))\b/i],
+  // Not "internship" alone: "internship experience welcomed", "internship programs" in a
+  // list of benefits.
+  ['intern', /\b(?:student\s+intern|intern\s+(?:program|programme|role|position))\b/i],
   ['graduate', /\bgraduate\s+(?:program|programme|role|position|opportunity|engineer|developer|analyst|consultant)\b/i],
   [
     'junior',
     /\b(?:entry[\s-]level|junior\s+(?:level|role|position|engineer|developer|analyst|designer|consultant))\b/i,
   ],
+  // Before senior: "Intermediate to Senior" takes the lower end, as years do.
+  // Not "intermediate" alone: "intermediate Excel skills".
+  [
+    'mid',
+    /\b(?:mid[\s-]level|intermediate(?:\s+to\s+senior)?\s+(?:level|role|position|engineer|developer|analyst|designer|consultant|(?:[a-z]+\s+){1,2}(?:engineer|developer)))\b/i,
+  ],
   [
     'senior',
-    /\b(?:senior|sr\.?)\s+(?:level|role|position|engineer|developer|analyst|designer|consultant|architect|[a-z]+\s+(?:engineer|developer))\b/i,
+    /\b(?:senior|sr\.?)\s+(?:level|role|position|engineer|developer|analyst|designer|consultant|architect|(?:[a-z]+\s+){1,2}(?:engineer|developer))\b/i,
   ],
-  ['mid', /\b(mid[\s-]level|intermediate)\b/i],
 ];
 
 const YEARS = String.raw`(\d{1,2})\s*\+?\s*(?:(?:-|–|to)\s*\d{1,2}\s*)?\+?\s*(?:years?|yrs?)`;
@@ -219,16 +235,32 @@ const YEARS_PATTERNS = [
   new RegExp(String.raw`\b(?:minimum(?:\s+of)?|at\s+least|min\.?)\s+${YEARS}`, 'i'),
 ];
 
+// The company's own history, not what it asks for: "a leading MSP that has over 10
+// years of experience", "With 30+ years of experience, we coach…", "over 25 years of
+// experience delivering outcomes for our clients".
+const ABOUT_THE_COMPANY_BEFORE = /\b(?:we(?:'ve|\s+have)?|our|company|firm|business|has)\b[^.;\n]{0,20}$/i;
+const ABOUT_THE_COMPANY_AFTER =
+  /^[^.;\n]{0,45}?(?:\b(?:delivering|serving|providing|helping|supporting)\b|,\s*we\b|\bwe\s+(?:are|have|coach|offer)\b)/i;
+
+/** Jobs rarely ask for more; a bigger number is about something else. */
+const MAX_YEARS = 15;
+
 /** The years of experience a description asks for (the lower end of a range), or null. */
 export const detectExperienceYears = (text: string): number | null => {
   let found: { index: number; years: number } | null = null;
   for (const pattern of YEARS_PATTERNS) {
-    const match = pattern.exec(text);
-    if (match && (!found || match.index < found.index)) {
-      found = { index: match.index, years: parseInt(match[1], 10) };
+    for (const match of text.matchAll(new RegExp(pattern.source, 'gi'))) {
+      const years = parseInt(match[1], 10);
+      const end = match.index + match[0].length;
+      const isAboutCompany =
+        ABOUT_THE_COMPANY_BEFORE.test(text.slice(Math.max(0, match.index - 40), match.index)) ||
+        ABOUT_THE_COMPANY_AFTER.test(text.slice(end, end + 80));
+      if (years > MAX_YEARS || isAboutCompany) continue;
+      if (!found || match.index < found.index) found = { index: match.index, years };
+      break;
     }
   }
-  return found && found.years <= 30 ? found.years : null;
+  return found ? found.years : null;
 };
 
 const LEVEL_NAMES: Record<Level, string> = {
@@ -260,7 +292,7 @@ export const detectExperienceLevel = (text: string, title = ''): ExperienceLevel
       level: fromDescription[0],
       years,
       confidence: 'high',
-      reasoning: `The description asks for a ${LEVEL_NAMES[fromDescription[0]]} role.`,
+      reasoning: `The description asks for a role at ${LEVEL_NAMES[fromDescription[0]]} level.`,
     };
   }
 
